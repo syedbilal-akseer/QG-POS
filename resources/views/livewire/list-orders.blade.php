@@ -94,7 +94,7 @@
                     class="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800 transition duration-150 ease-in-out">
                     {{ __('Cancel') }}
                 </x-secondary-button>
-                <x-primary-button wire:click="createUser"
+                <x-primary-button
                     class="bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-600">
                     {{ __('Fetch') }}
                 </x-primary-button>
