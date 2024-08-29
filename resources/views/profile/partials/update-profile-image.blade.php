@@ -14,16 +14,16 @@
         @method('patch')
 
         <div>
-            <x-input-label for="profile_image" :value="__('Profile Image')" />
-            <x-text-input id="profile_image" name="profile_image" type="file"
+            <x-input-label for="profile_photo" :value="__('Profile Image')" />
+            <x-text-input id="profile_photo" name="profile_photo" type="file"
                 class="block w-full shadow-sm rounded-lg text-sm
                 focus:outline-primary-500
             file:bg-gray-50 file:border-0
             file:me-4
             file:py-3 file:px-4
             dark:file:bg-neutral-700 dark:file:text-neutral-400"
-                :value="old('profile_image')" required />
-            <x-input-error class="mt-2" :messages="$errors->get('profile_image')" />
+                :value="old('profile_photo')" required />
+            <x-input-error class="mt-2" :messages="$errors->get('profile_photo')" />
 
             @if ($user->profile_photo)
                 <div class="mt-4">
