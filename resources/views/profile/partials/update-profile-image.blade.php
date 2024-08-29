@@ -27,7 +27,7 @@
 
             @if ($user->profile_photo)
                 <div class="mt-4">
-                    <img src="{{ $user->profile_photo }}" alt="{{ $user->name }}" class="w-20 h-20 rounded-full">
+                    <img src="{{ asset('storage/' . $user->profile_photo) }}" alt="{{ $user->name }}" class="w-20 h-20 rounded-full">
                 </div>
             @endif
         </div>
