@@ -35,7 +35,7 @@ class ResourceController extends Controller
 
     public function customers()
     {
-        $customers = Customer::get(['customer_id','customer_name']);
+        $customers = Customer::get();
 
         return response()->json([
             'success' => true,
@@ -203,6 +203,37 @@ class ResourceController extends Controller
             'status' => 200,
             'message' => 'Items retrieved successfully.',
             'data' => $items,
+        ], 200);
+    }
+
+    /**
+     * Search for customers by customer_id, contact_number, and customer_name using LIKE.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function searchCustomer(Request $request)
+    {
+        // Validate the request to ensure 'searchTerm' is provided
+        $validated = $request->validate([
+            'searchTerm' => 'required|string',
+        ]);
+
+        // Extract the search term
+        $searchTerm = $validated['searchTerm'];
+
+        // Query customers using the search term
+        $customers = Customer::where('customer_id', 'like', '%' . $searchTerm . '%')
+            ->orWhere('contact_number', 'like', '%' . $searchTerm . '%')
+            ->orWhere('customer_name', 'like', '%' . $searchTerm . '%')
+            ->get();
+
+        // Return the results in JSON format
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'Customers retrieved successfully.',
+            'data' => $customers,
         ], 200);
     }
 }
