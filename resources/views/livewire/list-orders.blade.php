@@ -53,6 +53,9 @@
                                         Quantity</th>
                                     <th
                                         class="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        UOM</th>
+                                    <th
+                                        class="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
                                         Price</th>
                                     <th
                                         class="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -67,6 +70,8 @@
                                             {{ $orderItem->item->item_description }}</td>
                                         <td class="px-4 py-3 text-gray-900 dark:text-gray-100">
                                             {{ $orderItem->quantity }}</td>
+                                        <td class="px-4 py-3 text-gray-900 dark:text-gray-100">
+                                            {{ $orderItem->item->itemPrice->uom }}</td>
                                         <td class="px-4 py-3 text-right text-gray-900 dark:text-gray-100">
                                             Rs{{ number_format($orderItem->price, 2) }}</td>
                                         <td class="px-4 py-3 text-right text-gray-900 dark:text-gray-100">

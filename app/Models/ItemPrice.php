@@ -22,7 +22,7 @@ class ItemPrice extends Model
     ];
 
     /**
-     * Get the item associated with the item price.
+     * Get the item associated with the price.
      */
     public function item()
     {

@@ -35,22 +35,13 @@ class ResourceController extends Controller
 
     public function customers()
     {
-        $customers = Customer::paginate(10);
+        $customers = Customer::get(['customer_id','customer_name']);
 
         return response()->json([
             'success' => true,
             'status' => 200,
             'message' => 'Customers retrieved successfully',
-            'data' => $customers->items(),
-            'pagination' => [
-                'total' => $customers->total(),
-                'count' => $customers->count(),
-                'per_page' => $customers->perPage(),
-                'current_page' => $customers->currentPage(),
-                'total_pages' => $customers->lastPage(),
-                'next_page_url' => $customers->nextPageUrl(),
-                'prev_page_url' => $customers->previousPageUrl(),
-            ],
+            'data' => $customers,
         ], 200);
     }
 
@@ -72,7 +63,6 @@ class ResourceController extends Controller
             'data' => $customer,
         ], 200);
     }
-
 
     public function placeOrder(Request $request)
     {
@@ -112,7 +102,13 @@ class ResourceController extends Controller
                 // Check if the item exists in the items table
                 $item = Item::where('inventory_item_id', $itemData['inventory_item_id'])->first();
                 if (!$item) {
-                    throw new \Exception("Item with ID {$itemData['inventory_item_id']} does not exist.");
+                    return response()->json([
+                        'success' => false,
+                        'status' => 400,
+                        'errors' => [
+                            'message' => "Item with ID {$itemData['inventory_item_id']} does not exist.",
+                        ],
+                    ], 400);
                 }
 
                 // Find the price for the item from the customer's price list
@@ -122,7 +118,14 @@ class ResourceController extends Controller
 
                 // Check if the item price was found
                 if (!$itemPrice) {
-                    throw new \Exception("Price not found for item ID {$itemData['inventory_item_id']}");
+                    // Handle the case where no matching price was found
+                    return response()->json([
+                        'success' => false,
+                        'status' => 400,
+                        'errors' => [
+                            'message' => "Price not found for item ID: {$item['inventory_item_id']}",
+                        ],
+                    ], 400);
                 }
 
                 // Calculate the subtotal for this item
@@ -150,7 +153,56 @@ class ResourceController extends Controller
             'success' => true,
             'status' => 200,
             'message' => 'Order placed successfully.',
-            'data' => [$order],
+            'data' => [$order->load(['customer', 'orderItems.item.itemPrice'])],
+        ], 200);
+    }
+
+    public function getCustomerProducts(Request $request)
+    {
+        // Validate the request to ensure 'customer_id' is provided and exists
+        $validated = $request->validate([
+            'customer_id' => 'required|exists:customers,customer_id',
+        ]);
+
+        // Retrieve the customer with their item prices
+        $customer = Customer::with('itemPrices.item')
+            ->where('customer_id', $validated['customer_id'])
+            ->first();
+
+        // If the customer was not found, return a 404 response
+        if (!$customer) {
+            return response()->json([
+                'success' => false,
+                'status' => 404,
+                'message' => 'Customer not found.',
+            ], 404);
+        }
+
+        // Check if the customer has a price list
+        if (!$customer->itemPrices->isNotEmpty()) {
+            return response()->json([
+                'success' => false,
+                'status' => 404,
+                'message' => 'No items found for this customer.',
+            ], 404);
+        }
+
+        // Prepare the list of items with their prices
+        $items = $customer->itemPrices->map(function ($itemPrice) {
+            return [
+                'inventory_item_id' => $itemPrice->item_id,
+                'item_code' => $itemPrice->item->item_code,
+                'item_description' => $itemPrice->item->item_description,
+                'primary_uom_code' => $itemPrice->item->primary_uom_code,
+                'item_price' => $itemPrice->list_price,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'Items retrieved successfully.',
+            'data' => $items,
         ], 200);
     }
 }

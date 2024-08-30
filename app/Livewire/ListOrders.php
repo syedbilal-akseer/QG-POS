@@ -53,7 +53,7 @@ class ListOrders extends Component implements HasForms, HasTable
 
     public function openDetailModal(Order $order)
     {
-        $this->order = $order->load(['customer', 'orderItems.item']);
+        $this->order = $order->load(['customer', 'orderItems.item.itemPrice']);
         $this->dispatch('open-modal', 'order_detail');
     }
 

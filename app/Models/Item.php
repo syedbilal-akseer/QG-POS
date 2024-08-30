@@ -27,4 +27,16 @@ class Item extends Model
     {
         return $this->hasMany(ItemPrice::class, 'item_id', 'inventory_item_id');
     }
+
+    /**
+     * Get the item prices associated with the item.
+     */
+    /**
+     * Get the item price associated with the item.
+     */
+    public function itemPrice()
+    {
+        return $this->hasOne(ItemPrice::class, 'item_id', 'inventory_item_id')
+            ->where('item_code', $this->item_code);
+    }
 }
