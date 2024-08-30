@@ -50,11 +50,11 @@ class ResourceController extends Controller
     {
         // Validate the request to ensure 'id' is provided
         $request->validate([
-            'id' => 'required|exists:customers,id',
+            'customer_id' => 'required|exists:customers,customer_id',
         ]);
 
         // Retrieve the customer by ID
-        $customer = Customer::find($request->id);
+        $customer = Customer::where('customer_id',$request->id)->first();
 
         // Return the response
         return response()->json([
