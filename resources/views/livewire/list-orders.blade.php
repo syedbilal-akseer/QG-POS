@@ -2,7 +2,7 @@
     {{ $this->table }}
 
     @if ($order)
-        <x-modal name="order_detail" :show="true" focusable>
+        <x-modal name="order_detail" :show="true" focusable maxWidth="4xl">
             <div class="p-6 bg-white dark:bg-neutral-800 rounded-lg shadow-lg">
                 <div class="flex justify-between items-center border-b pb-4 border-gray-200 dark:border-neutral-700">
                     <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Order Details</h2>
@@ -17,26 +17,28 @@
                 </div>
 
                 <div class="mt-6 space-y-6">
-                    <!-- Order Status -->
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">Status:</h3>
-                            <p class="text-lg text-gray-900 dark:text-gray-100">{{ ucfirst($order->order_status) }}</p>
-                        </div>
-                        <div class="text-right">
-                            <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">Order Date:</h3>
-                            <p class="text-lg text-gray-900 dark:text-gray-100">
-                                {{ $order->created_at->format('F j, Y, g:i a') }}
-                            </p>
-                        </div>
-                    </div>
-
-                    <!-- Customer Information -->
-                    <div class="flex justify-between items-start mt-4">
-                        <div>
+                    <!-- Order Information -->
+                    <div class="flex items-start">
+                        <!-- Customer Information -->
+                        <div class="flex-1">
                             <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">Customer:</h3>
                             <p class="text-lg text-gray-900 dark:text-gray-100">{{ $order->customer->customer_name }}
                             </p>
+                        </div>
+
+                        <!-- Status and Date Information -->
+                        <div class="flex items-end ml-6">
+                            <div class="text-left me-4">
+                                <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">Status:</h3>
+                                <p class="text-lg text-gray-900 dark:text-gray-100">{{ ucfirst($order->order_status) }}
+                                </p>
+                            </div>
+                            <div class="text-left">
+                                <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">Order Date:</h3>
+                                <p class="text-lg text-gray-900 dark:text-gray-100">
+                                    {{ $order->created_at->format('F j, Y, g:i a') }}
+                                </p>
+                            </div>
                         </div>
                     </div>
 
@@ -45,6 +47,9 @@
                         <table class="min-w-full border border-gray-200 dark:border-neutral-700 rounded-md">
                             <thead class="bg-gray-50 dark:bg-neutral-900">
                                 <tr>
+                                    <th
+                                        class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Item Code</th>
                                     <th
                                         class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                                         Item</th>
@@ -66,6 +71,8 @@
                                 class="bg-white dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-neutral-700">
                                 @foreach ($order->orderItems as $orderItem)
                                     <tr>
+                                        <td class="px-4 py-3 text-gray-900 dark:text-gray-100">
+                                            {{ $orderItem->item->item_code }}</td>
                                         <td class="px-4 py-3 text-gray-900 dark:text-gray-100">
                                             {{ $orderItem->item->item_description }}</td>
                                         <td class="px-4 py-3 text-gray-900 dark:text-gray-100">
