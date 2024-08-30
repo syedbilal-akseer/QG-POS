@@ -53,5 +53,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/get', [ResourceController::class, 'getCustomer'])->name('get');
         Route::post('/get-products', [ResourceController::class, 'getCustomerProducts'])->name('getCustomerProducts');
         Route::post('/search', [ResourceController::class, 'searchCustomer'])->name('searchCustomer');
+        Route::post('/search/products', [ResourceController::class, 'searchCustomerProducts'])->name('searchCustomerProducts');
     });
 });
