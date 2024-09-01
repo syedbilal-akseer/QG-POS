@@ -1,6 +1,11 @@
 @props(['pageTitle'])
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}"
+        x-data="{
+        darkMode: localStorage.getItem('darkMode') === 'true' || localStorage.getItem('darkMode') === null
+    }"
+    x-init="$watch('darkMode', value => localStorage.setItem('darkMode', value))"
+    :class="{ 'dark': darkMode }">
 
     <head>
         <meta charset="utf-8">
@@ -20,8 +25,7 @@
         @stack('styles')
     </head>
 
-    <body class="h-full bg-gray-50 dark:bg-neutral-900 dark:text-gray-300" x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }"
-        x-init="$watch('darkMode', value => localStorage.setItem('darkMode', value))" :class="{ 'dark': darkMode }">
+    <body class="h-full bg-gray-50 dark:bg-neutral-900 dark:text-gray-300">
         <main id="content" class="flex min-h-full flex-col bg-gray-50 dark:bg-neutral-900 dark:text-gray-300">
             {{ $slot }}
         </main>
