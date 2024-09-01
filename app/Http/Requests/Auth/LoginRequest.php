@@ -49,6 +49,15 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Check if the authenticated user has the 'admin' role
+        if (!Auth::user()->role->isAdmin() && !Auth::user()->role->isSupplyChain()) {
+            Auth::logout();
+
+            throw ValidationException::withMessages([
+                'email' => 'You are not allowed to access the portal.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

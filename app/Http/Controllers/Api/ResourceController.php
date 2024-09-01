@@ -10,6 +10,7 @@ use App\Models\OrderItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 
 class ResourceController extends Controller
 {
@@ -303,6 +304,77 @@ class ResourceController extends Controller
             'status' => 200,
             'message' => 'Order placed successfully.',
             'data' => [$order->load(['customer', 'orderItems.item.itemPrice'])],
+        ], 200);
+    }
+
+    /**
+     * Retrieve the order history for the authenticated user.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function orderHistory()
+    {
+        // Get the currently authenticated user
+        $user = Auth::user();
+
+        // Check if the user exists
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'status' => 401,
+                'message' => 'User is not authenticated.',
+            ], 401);
+        }
+
+        // Retrieve the user's orders with related order items, customers, and items
+        $orders = $user->orders()
+            ->with([
+                'customer:id,customer_id,customer_name',
+                'salesperson:id,name',
+                'orderItems:id,order_id,inventory_item_id,uom,quantity,price',
+                'orderItems.item:id,inventory_item_id,item_code,item_description',
+                'orderItems.item.itemPrice:id,item_id,list_price,uom',
+            ])
+            ->select('id', 'customer_id', 'user_id', 'order_status', 'total_amount', 'created_at', 'updated_at')
+            ->get()
+            ->map(function ($order) {
+                // Transform the order data
+                return [
+                    'id' => $order->id,
+                    'customer_id' => $order->customer_id,
+                    'customer_name' => $order->customer->customer_name ?? null,
+                    'user_id' => $order->user_id,
+                    'salesperson_name' => $order->salesperson->name ?? null,
+                    'order_status' => $order->order_status,
+                    'total_amount' => $order->total_amount,
+                    'created_at' => $order->created_at,
+                    'updated_at' => $order->updated_at,
+                    'order_items' => $order->orderItems->map(function ($item) {
+                        return [
+                            'id' => $item->id,
+                            'order_id' => $item->order_id,
+                            'inventory_item_id' => $item->inventory_item_id,
+                            'uom' => $item->uom,
+                            'quantity' => $item->quantity,
+                            'price' => $item->price,
+                            'item' => [
+                                'inventory_item_id' => $item->item->inventory_item_id,
+                                'item_code' => $item->item->item_code,
+                                'item_description' => $item->item->item_description,
+                                'item_price' => $item->item->itemPrice->list_price ?? null,
+                                'item_uom' => $item->item->itemPrice->uom ?? null,
+                            ],
+                        ];
+                    }),
+                ];
+            });
+
+        // Return the order history
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'Order history retrieved successfully.',
+            'data' => $orders,
         ], 200);
     }
 }

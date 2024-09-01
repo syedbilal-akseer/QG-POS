@@ -14,15 +14,25 @@
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
         <!-- Scripts -->
-        <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @livewireStyles
+        @filamentStyles
+        @vite('resources/css/app.css')
+
+        @stack('styles')
     </head>
 
-    <body class="bg-headerBg flex h-full items-center py-16 dark:bg-neutral-800" x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }" x-init="$watch('darkMode', value => localStorage.setItem('darkMode', value))"
-        :class="{ 'dark': darkMode }">
-        <main id="content" class="w-full mx-auto p-6">
+    <body class="h-full bg-gray-50 dark:bg-neutral-900 dark:text-gray-300" x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }"
+        x-init="$watch('darkMode', value => localStorage.setItem('darkMode', value))" :class="{ 'dark': darkMode }">
+        <main id="content" class="flex min-h-full flex-col bg-gray-50 dark:bg-neutral-900 dark:text-gray-300">
             {{ $slot }}
         </main>
+
+        <!-- Scripts -->
+        @livewireScripts
+        @filamentScripts
+        @vite('resources/js/app.js')
+
+        @stack('scripts')
     </body>
 
 </html>

@@ -87,8 +87,6 @@
         </div>
     </x-modal>
 
-
-
     @if ($user)
         <x-modal name="edit_user_modal" :show="true" focusable>
             <div class="p-6 bg-white dark:bg-neutral-800">

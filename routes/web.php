@@ -13,6 +13,7 @@ use App\Http\Controllers\AppController;
 use App\Http\Controllers\ProfileController;
 
 Route::get('/', function () {
+    // return view('test');
     if (Auth::check()) {
         return redirect()->route('dashboard');
     }
@@ -41,10 +42,18 @@ Route::middleware('auth')->group(function () {
 Route::get('/testing', function () {
     // Run a simple query to fetch all records from qg_pos_item_master table
     // $results = ItemPrice::all();
-    $results = OracleItemPrice::all();
+    // $results = OracleItemPrice::all();
     // $results = OracleItem::all();
     // $results = OracleCustomer::all();
     // $results = OracleCustomer::where('customer_id', '2529')->first();
+    // $results = OracleCustomer::where('price_list_id', null)->get(['customer_id', 'customer_name']);
+
+    DB::table('order_items')
+    ->join('items', 'order_items.inventory_item_id', '=', 'items.inventory_item_id')
+    ->join('item_prices', 'items.inventory_item_id', '=', 'item_prices.item_id')
+    ->update([
+        'order_items.uom' => DB::raw('item_prices.uom')
+    ]);
 
     // $duplicates = DB::connection('oracle')->table('apps.qg_pos_item_price')
     //     ->select('price_list_id', 'item_id', DB::raw('COUNT(*) as total_count'))
@@ -64,7 +73,16 @@ Route::get('/testing', function () {
     // return RoleEnum::names();
 
     // Return the results as JSON for easy viewing
-    return response()->json($results);
+    // return response()->json($results);
+});
+
+Route::get('/update-oum', function () {
+    DB::table('order_items')
+    ->join('items', 'order_items.inventory_item_id', '=', 'items.inventory_item_id')
+    ->join('item_prices', 'items.inventory_item_id', '=', 'item_prices.item_id')
+    ->update([
+        'order_items.uom' => DB::raw('item_prices.uom')
+    ]);
 });
 
 require __DIR__ . '/auth.php';
