@@ -54,7 +54,7 @@ class ResourceController extends Controller
         ]);
 
         // Retrieve the customer by ID
-        $customer = Customer::where('customer_id',$request->id)->first();
+        $customer = Customer::where('customer_id', $request->id)->first();
 
         // Return the response
         return response()->json([

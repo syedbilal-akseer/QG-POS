@@ -1,5 +1,12 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full"
+    x-data="{
+        isSidebarOpen: false,
+        isDropdownOpen: false,
+        darkMode: localStorage.getItem('darkMode') === 'true' || localStorage.getItem('darkMode') === null
+    }"
+    x-init="$watch('darkMode', value => localStorage.setItem('darkMode', value))"
+    :class="{ 'dark': darkMode }">
 
     <head>
         <meta charset="utf-8">
@@ -16,6 +23,15 @@
             [x-cloak] {
                 display: none !important;
             }
+
+            /* Target the div immediately following the fi-modal-close-overlay element */
+            .fi-modal-close-overlay+div {
+                z-index: 9999 !important;
+            }
+
+            select:not(.choices) {
+                background-image: none !important;
+            }
         </style>
 
         @livewireStyles
@@ -25,31 +41,34 @@
         @stack('styles')
     </head>
 
-    <body class="font-sans antialiased" x-data="{ isSidebarOpen: false, isDropdownOpen: false, darkMode: localStorage.getItem('darkMode') === 'true' }" x-init="$watch('darkMode', value => localStorage.setItem('darkMode', value))"
-        :class="{ 'dark': darkMode }">
-        <x-toast />
-        <div class="flex h-screen bg-gray-100 dark:bg-neutral-900">
-            <!-- Sidebar -->
+    <body class="font-sans antialiased h-full bg-white dark:bg-neutral-900 dark:text-gray-300"
+        @keydown.escape.window="isSidebarOpen = false">
+
+        <div>
+            <!-- Static sidebar for desktop -->
+            <x-responsive-sidebar />
+
+            <!-- Static sidebar for desktop -->
             <x-sidebar />
 
-            <!-- Content -->
-            <div class="flex-1 flex flex-col">
+            <div class="lg:pl-72">
                 <!-- Header -->
                 <x-header :$pageTitle />
 
                 <!-- Main content -->
-                <main class="flex-1 p-6 overflow-y-auto">
-                    {{ $slot }}
+                <main class="py-10 dark:bg-neutral-900">
+                    <div class="px-4 sm:px-6 lg:px-8">
+                        {{ $slot }}
+                    </div>
                 </main>
             </div>
-        </div>
 
-        <!-- Scripts -->
-        @livewireScripts
-        @filamentScripts
-        @vite('resources/js/app.js')
+            <!-- Scripts -->
+            @livewireScripts
+            @filamentScripts
+            @vite('resources/js/app.js')
 
-        @stack('scripts')
+            @stack('scripts')
     </body>
 
 </html>
