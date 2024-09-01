@@ -13,11 +13,10 @@ use App\Http\Controllers\AppController;
 use App\Http\Controllers\ProfileController;
 
 Route::get('/', function () {
-    // if (Auth::check()) {
-    //     return redirect()->route('dashboard');
-    // }
-    // return redirect('login');
-    return view('welcome');
+    if (Auth::check()) {
+        return redirect()->route('dashboard');
+    }
+    return redirect('login');
 });
 
 Route::prefix('app')->middleware(['auth'])->group(function () {
