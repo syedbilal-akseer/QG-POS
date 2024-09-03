@@ -331,9 +331,9 @@ class ResourceController extends Controller
             ->with([
                 'customer:id,customer_id,customer_name',
                 'salesperson:id,name',
-                'orderItems:id,order_id,inventory_item_id,uom,quantity,price',
-                'orderItems.item:id,inventory_item_id,item_code,item_description',
-                'orderItems.item.itemPrice:id,item_id,list_price,uom',
+                // 'orderItems:id,order_id,inventory_item_id,uom,quantity,price',
+                // 'orderItems.item:id,inventory_item_id,item_code,item_description',
+                // 'orderItems.item.itemPrice:id,item_id,list_price,uom',
             ])
             ->select('id', 'customer_id', 'user_id', 'order_status', 'total_amount', 'created_at', 'updated_at')
             ->get()
@@ -349,23 +349,23 @@ class ResourceController extends Controller
                     'total_amount' => $order->total_amount,
                     'created_at' => $order->created_at,
                     'updated_at' => $order->updated_at,
-                    'order_items' => $order->orderItems->map(function ($item) {
-                        return [
-                            'id' => $item->id,
-                            'order_id' => $item->order_id,
-                            'inventory_item_id' => $item->inventory_item_id,
-                            'uom' => $item->uom,
-                            'quantity' => $item->quantity,
-                            'price' => $item->price,
-                            'item' => [
-                                'inventory_item_id' => $item->item->inventory_item_id,
-                                'item_code' => $item->item->item_code,
-                                'item_description' => $item->item->item_description,
-                                'item_price' => $item->item->itemPrice->list_price ?? null,
-                                'item_uom' => $item->item->itemPrice->uom ?? null,
-                            ],
-                        ];
-                    }),
+                    // 'order_items' => $order->orderItems->map(function ($item) {
+                    //     return [
+                    //         'id' => $item->id,
+                    //         'order_id' => $item->order_id,
+                    //         'inventory_item_id' => $item->inventory_item_id,
+                    //         'uom' => $item->uom,
+                    //         'quantity' => $item->quantity,
+                    //         'price' => $item->price,
+                    //         'item' => [
+                    //             'inventory_item_id' => $item->item->inventory_item_id,
+                    //             'item_code' => $item->item->item_code,
+                    //             'item_description' => $item->item->item_description,
+                    //             'item_price' => $item->item->itemPrice->list_price ?? null,
+                    //             'item_uom' => $item->item->itemPrice->uom ?? null,
+                    //         ],
+                    //     ];
+                    // }),
                 ];
             });
 

@@ -6,6 +6,8 @@ use App\Models\OracleItem;
 use App\Models\OracleProduct;
 use App\Models\OracleCustomer;
 use App\Models\OracleItemPrice;
+use App\Models\OracleOrderLine;
+use App\Models\OracleOrderHeader;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -42,18 +44,20 @@ Route::middleware('auth')->group(function () {
 Route::get('/testing', function () {
     // Run a simple query to fetch all records from qg_pos_item_master table
     // $results = ItemPrice::all();
+    // $results = OracleOrderHeader::all();
+    $results = OracleOrderLine::all();
     // $results = OracleItemPrice::all();
     // $results = OracleItem::all();
     // $results = OracleCustomer::all();
     // $results = OracleCustomer::where('customer_id', '2529')->first();
     // $results = OracleCustomer::where('price_list_id', null)->get(['customer_id', 'customer_name']);
 
-    DB::table('order_items')
-    ->join('items', 'order_items.inventory_item_id', '=', 'items.inventory_item_id')
-    ->join('item_prices', 'items.inventory_item_id', '=', 'item_prices.item_id')
-    ->update([
-        'order_items.uom' => DB::raw('item_prices.uom')
-    ]);
+    // DB::table('order_items')
+    // ->join('items', 'order_items.inventory_item_id', '=', 'items.inventory_item_id')
+    // ->join('item_prices', 'items.inventory_item_id', '=', 'item_prices.item_id')
+    // ->update([
+    //     'order_items.uom' => DB::raw('item_prices.uom')
+    // ]);
 
     // $duplicates = DB::connection('oracle')->table('apps.qg_pos_item_price')
     //     ->select('price_list_id', 'item_id', DB::raw('COUNT(*) as total_count'))

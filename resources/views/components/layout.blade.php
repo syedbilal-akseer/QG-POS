@@ -52,6 +52,9 @@
             <x-sidebar />
 
             <div class="lg:pl-72">
+                <!-- Toast -->
+                <x-toast />
+                
                 <!-- Header -->
                 <x-header :$pageTitle />
 
