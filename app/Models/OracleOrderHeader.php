@@ -38,15 +38,34 @@ class OracleOrderHeader extends Model
     public $incrementing = false;
 
     /**
+     * Indicates if the model should be timestamped.
+     *
+     * @var bool
+     */
+    public $timestamps = false;
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array
      */
     protected $fillable = [
-        'inventory_item_id',
-        'item_code',
-        'item_description',
-        'primary_uom_code',
-        'secondary_uom_code',
+        'order_source_id',
+        'orig_sys_document_ref',
+        'org_id',
+        'sold_from_org_id',
+        'ship_from_org_id',
+        'ordered_date',
+        'order_type_id',
+        'sold_to_org_id',
+        'payment_term_id',
+        'operation_code',
+        'created_by',
+        'creation_date',
+        'last_updated_by',
+        'last_update_date',
+        'customer_po_number',
+        'ship_to_org_id',
+        'BOOKED_FLAG'
     ];
 }

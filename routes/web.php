@@ -1,5 +1,6 @@
 <?php
 
+use Carbon\Carbon;
 use App\Enums\RoleEnum;
 use App\Models\ItemPrice;
 use App\Models\OracleItem;
@@ -45,9 +46,9 @@ Route::get('/testing', function () {
     // Run a simple query to fetch all records from qg_pos_item_master table
     // $results = ItemPrice::all();
     // $results = OracleOrderHeader::all();
-    $results = OracleOrderLine::all();
-    // $results = OracleItemPrice::all();
+    // $results = OracleOrderLine::all();
     // $results = OracleItem::all();
+    // $results = OracleItemPrice::all();
     // $results = OracleCustomer::all();
     // $results = OracleCustomer::where('customer_id', '2529')->first();
     // $results = OracleCustomer::where('price_list_id', null)->get(['customer_id', 'customer_name']);
@@ -76,17 +77,64 @@ Route::get('/testing', function () {
 
     // return RoleEnum::names();
 
+    DB::transaction(function () {
+        // Insert into OracleOrderHeader
+        $header = OracleOrderHeader::create([
+            'order_source_id' => 0, // hard coded value
+            'orig_sys_document_ref' => 300000003,
+            'org_id' => 104,
+            'sold_from_org_id' => 104,
+            'ship_from_org_id' => 121,
+            'ordered_date' => Carbon::now(),
+            'order_type_id' => 1011,
+            'sold_to_org_id' => 1641,
+            'payment_term_id' => 1004,
+            'operation_code' => 'INSERT',
+            'created_by' => 0, // hard coded value
+            'creation_date' => Carbon::now(),
+            'last_updated_by' => 0, // hard coded value
+            'last_update_date' => Carbon::now(),
+            'customer_po_number' => '300000003',
+            'ship_to_org_id' => 3396,
+            'BOOKED_FLAG' => 'Y',
+        ]);
+
+        logger($header);
+        // Insert into OracleOrderLine
+        $lines =  OracleOrderLine::create([
+            'order_source_id' => 0, // hard coded value
+            'orig_sys_document_ref' => '300000003',
+            'orig_sys_line_ref' => '300000003-1',
+            'line_number' => 1,
+            'inventory_item_id' => 9066,
+            'ordered_quantity' => 1,
+            'ship_from_org_id' => 121,
+            'org_id' => 104,
+            'unit_selling_price' => 100,
+            'price_list_id' => null, // assuming you want to skip this
+            'payment_term_id' => 1004,
+            'created_by' => 0, // hard coded value
+            'creation_date' => Carbon::now(),
+            'last_updated_by' => 0, // hard coded value
+            'last_update_date' => Carbon::now(),
+            'line_type_id' => 1009,
+            'operation_code' => 'INSERT',
+        ]);
+
+        logger($lines);
+    });
+
     // Return the results as JSON for easy viewing
     // return response()->json($results);
 });
 
 Route::get('/update-oum', function () {
     DB::table('order_items')
-    ->join('items', 'order_items.inventory_item_id', '=', 'items.inventory_item_id')
-    ->join('item_prices', 'items.inventory_item_id', '=', 'item_prices.item_id')
-    ->update([
-        'order_items.uom' => DB::raw('item_prices.uom')
-    ]);
+        ->join('items', 'order_items.inventory_item_id', '=', 'items.inventory_item_id')
+        ->join('item_prices', 'items.inventory_item_id', '=', 'item_prices.item_id')
+        ->update([
+            'order_items.uom' => DB::raw('item_prices.uom')
+        ]);
 });
 
 require __DIR__ . '/auth.php';

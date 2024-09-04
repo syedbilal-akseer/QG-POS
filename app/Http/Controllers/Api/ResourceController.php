@@ -11,12 +11,24 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class ResourceController extends Controller
 {
+    /*
+     * Retrieve all products.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function products()
     {
-        $products = Item::paginate(10);
+        $cacheKey = 'products_page_' . request()->input('page', 1);
+        $cacheTime = 60;
+
+        // Attempt to retrieve data from cache
+        $products = Cache::remember($cacheKey, $cacheTime, function () {
+            return Item::paginate(10);
+        });
 
         return response()->json([
             'success' => true,
@@ -35,27 +47,63 @@ class ResourceController extends Controller
         ], 200);
     }
 
+    /*
+     * Retrieve all customers.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function customers()
     {
-        $customers = Customer::get();
+        $cacheKey = 'customers_page_' . request()->input('page', 1);
+        $cacheTime = 60;
+
+        // Attempt to retrieve data from cache
+        $customers = Cache::remember($cacheKey, $cacheTime, function () {
+            return Customer::select('customer_id', 'customer_name', 'customer_number')->paginate(10);
+        });
 
         return response()->json([
             'success' => true,
             'status' => 200,
             'message' => 'Customers retrieved successfully',
-            'data' => $customers,
+            'data' => $customers->items(),
+            'pagination' => [
+                'total' => $customers->total(),
+                'count' => $customers->count(),
+                'per_page' => $customers->perPage(),
+                'current_page' => $customers->currentPage(),
+                'total_pages' => $customers->lastPage(),
+                'next_page_url' => $customers->nextPageUrl(),
+                'prev_page_url' => $customers->previousPageUrl(),
+            ],
         ], 200);
     }
 
+    /**
+     * Retrieve a specific customer's details.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getCustomer(Request $request)
     {
-        // Validate the request to ensure 'id' is provided
+        // Validate the request to ensure 'customer_id' is provided
         $request->validate([
             'customer_id' => 'required|exists:customers,customer_id',
         ]);
 
-        // Retrieve the customer by ID
-        $customer = Customer::where('customer_id', $request->id)->first();
+        // Extract the customer ID from the request
+        $customerId = $request->customer_id;
+
+        // Generate a cache key based on the customer ID
+        $cacheKey = 'customer_details_' . $customerId;
+        $cacheTime = 60;
+
+        // Attempt to retrieve data from cache
+        $customer = Cache::remember($cacheKey, $cacheTime, function () use ($customerId) {
+            // Retrieve the customer by ID
+            return Customer::where('customer_id', $customerId)->first();
+        });
 
         // Return the response
         return response()->json([
@@ -66,8 +114,11 @@ class ResourceController extends Controller
         ], 200);
     }
 
-    /**
+    /*
+     * Retrieve the customer's products with their prices.
      *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function getCustomerProducts(Request $request)
     {
@@ -76,39 +127,46 @@ class ResourceController extends Controller
             'customer_id' => 'required|exists:customers,customer_id',
         ]);
 
-        // Retrieve the customer with their item prices
-        $customer = Customer::with('itemPrices.item')
-            ->where('customer_id', $validated['customer_id'])
-            ->first();
+        $cacheKey = 'customer_products_' . $validated['customer_id'];
+        $cacheTime = 60;
 
-        // If the customer was not found, return a 404 response
-        if (!$customer) {
-            return response()->json([
-                'success' => false,
-                'status' => 404,
-                'message' => 'Customer not found.',
-            ], 404);
-        }
+        // Attempt to retrieve data from cache
+        $items = Cache::remember($cacheKey, $cacheTime, function () use ($validated) {
+            // Retrieve the customer with their item prices
+            $customer = Customer::with('itemPrices.item')
+                ->where('customer_id', $validated['customer_id'])
+                ->first();
 
-        // Check if the customer has a price list
-        if (!$customer->itemPrices->isNotEmpty()) {
-            return response()->json([
-                'success' => false,
-                'status' => 404,
-                'message' => 'No items found for this customer.',
-            ], 404);
-        }
+            // If the customer was not found, return an empty array
+            if (!$customer) {
+                return [];
+            }
 
-        // Prepare the list of items with their prices
-        $items = $customer->itemPrices->map(function ($itemPrice) {
-            return [
-                'inventory_item_id' => $itemPrice->item_id,
-                'item_code' => $itemPrice->item->item_code,
-                'item_description' => $itemPrice->item->item_description,
-                'primary_uom_code' => $itemPrice->item->primary_uom_code,
-                'item_price' => $itemPrice->list_price,
-            ];
+            // Check if the customer has a price list
+            if (!$customer->itemPrices->isNotEmpty()) {
+                return [];
+            }
+
+            // Prepare the list of items with their prices
+            return $customer->itemPrices->map(function ($itemPrice) {
+                return [
+                    'inventory_item_id' => $itemPrice->item_id,
+                    'item_code' => $itemPrice->item->item_code,
+                    'item_description' => $itemPrice->item->item_description,
+                    'item_uom_code' => $itemPrice->uom,
+                    'item_price' => $itemPrice->list_price,
+                ];
+            });
         });
+
+        // If no items are found, return a 404 response
+        if (empty($items)) {
+            return response()->json([
+                'success' => false,
+                'status' => 404,
+                'message' => 'Customer not found or no items found for this customer.',
+            ], 404);
+        }
 
         return response()->json([
             'success' => true,
@@ -134,11 +192,18 @@ class ResourceController extends Controller
         // Extract the search term
         $searchTerm = $validated['searchTerm'];
 
-        // Query customers using the search term
-        $customers = Customer::where('customer_id', 'like', '%' . $searchTerm . '%')
-            ->orWhere('contact_number', 'like', '%' . $searchTerm . '%')
-            ->orWhere('customer_name', 'like', '%' . $searchTerm . '%')
-            ->get();
+        // Generate a cache key based on the search term
+        $cacheKey = 'search_customers_' . md5($searchTerm);
+        $cacheTime = 60; // Cache time in minutes
+
+        // Attempt to retrieve data from cache
+        $customers = Cache::remember($cacheKey, $cacheTime, function () use ($searchTerm) {
+            // Query customers using the search term
+            return Customer::where('customer_id', 'like', '%' . $searchTerm . '%')
+                ->orWhere('contact_number', 'like', '%' . $searchTerm . '%')
+                ->orWhere('customer_name', 'like', '%' . $searchTerm . '%')
+                ->get();
+        });
 
         // Return the results in JSON format
         return response()->json([
@@ -163,40 +228,44 @@ class ResourceController extends Controller
             'searchTerm' => 'required|string',
         ]);
 
-        // Retrieve the customer and their price list IDs
-        $customer = Customer::where('customer_id', $validated['customer_id'])
-            ->with('itemPrices')
-            ->first();
+        // Generate a cache key based on customer ID and search term
+        $cacheKey = 'customer_' . $validated['customer_id'] . '_search_' . md5($validated['searchTerm']);
+        $cacheTime = 60;
 
-        // Check if the customer exists
-        if (!$customer) {
-            return response()->json([
-                'success' => false,
-                'status' => 404,
-                'message' => 'Customer not found.',
-            ], 404);
-        }
+        // Attempt to retrieve data from cache
+        $items = Cache::remember($cacheKey, $cacheTime, function () use ($validated) {
+            // Retrieve the customer and their price list IDs
+            $customer = Customer::where('customer_id', $validated['customer_id'])
+                ->with('itemPrices')
+                ->first();
 
-        // Get the price list IDs for the customer
-        $priceListIds = $customer->itemPrices->pluck('price_list_id');
+            // Check if the customer exists
+            if (!$customer) {
+                return response()->json([
+                    'success' => false,
+                    'status' => 404,
+                    'message' => 'Customer not found.',
+                ], 404);
+            }
 
-        // Search for items in the customer's price list that match the search term
-        $items = ItemPrice::whereIn('price_list_id', $priceListIds)
-            ->where(function ($query) use ($validated) {
-                $query->where('item_code', 'like', '%' . $validated['searchTerm'] . '%')
-                    ->orWhere('item_description', 'like', '%' . $validated['searchTerm'] . '%');
-            })
-            ->with('item') // Eager load the related Item
-            ->get()
-            ->map(function ($itemPrice) {
-                return [
-                    'inventory_item_id' => $itemPrice->item_id,
-                    'item_code' => $itemPrice->item->item_code,
-                    'item_description' => $itemPrice->item->item_description,
-                    'primary_uom_code' => $itemPrice->item->primary_uom_code,
-                    'item_price' => $itemPrice->list_price,
-                ];
-            });
+            // Search for items in the customer's price list that match the search term
+            return ItemPrice::where('price_list_id', $customer->price_list_id)
+                ->where(function ($query) use ($validated) {
+                    $query->where('item_code', 'like', '%' . $validated['searchTerm'] . '%')
+                        ->orWhere('item_description', 'like', '%' . $validated['searchTerm'] . '%');
+                })
+                ->with('item') // Eager load the related Item
+                ->get()
+                ->map(function ($itemPrice) {
+                    return [
+                        'inventory_item_id' => $itemPrice->item_id,
+                        'item_code' => $itemPrice->item->item_code,
+                        'item_description' => $itemPrice->item->item_description,
+                        'item_uom_code' => $itemPrice->item->primary_uom_code,
+                        'item_price' => $itemPrice->list_price,
+                    ];
+                });
+        });
 
         // Return the filtered items
         return response()->json([
@@ -287,6 +356,7 @@ class ResourceController extends Controller
                 // Create the OrderItem
                 $order->orderItems()->create([
                     'inventory_item_id' => $itemData['inventory_item_id'],
+                    'uom' => $itemPrice->uom,
                     'quantity' => $itemData['quantity'],
                     'price' => $itemPrice->list_price,
                 ]);
@@ -310,12 +380,13 @@ class ResourceController extends Controller
     /**
      * Retrieve the order history for the authenticated user.
      *
+     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function orderHistory()
+    public function orderHistory(Request $request)
     {
         // Get the currently authenticated user
-        $user = Auth::user();
+        $user = $request->user();
 
         // Check if the user exists
         if (!$user) {
@@ -326,48 +397,34 @@ class ResourceController extends Controller
             ], 401);
         }
 
-        // Retrieve the user's orders with related order items, customers, and items
-        $orders = $user->orders()
-            ->with([
-                'customer:id,customer_id,customer_name',
-                'salesperson:id,name',
-                // 'orderItems:id,order_id,inventory_item_id,uom,quantity,price',
-                // 'orderItems.item:id,inventory_item_id,item_code,item_description',
-                // 'orderItems.item.itemPrice:id,item_id,list_price,uom',
-            ])
-            ->select('id', 'customer_id', 'user_id', 'order_status', 'total_amount', 'created_at', 'updated_at')
-            ->get()
-            ->map(function ($order) {
-                // Transform the order data
-                return [
-                    'id' => $order->id,
-                    'customer_id' => $order->customer_id,
-                    'customer_name' => $order->customer->customer_name ?? null,
-                    'user_id' => $order->user_id,
-                    'salesperson_name' => $order->salesperson->name ?? null,
-                    'order_status' => $order->order_status,
-                    'total_amount' => $order->total_amount,
-                    'created_at' => $order->created_at,
-                    'updated_at' => $order->updated_at,
-                    // 'order_items' => $order->orderItems->map(function ($item) {
-                    //     return [
-                    //         'id' => $item->id,
-                    //         'order_id' => $item->order_id,
-                    //         'inventory_item_id' => $item->inventory_item_id,
-                    //         'uom' => $item->uom,
-                    //         'quantity' => $item->quantity,
-                    //         'price' => $item->price,
-                    //         'item' => [
-                    //             'inventory_item_id' => $item->item->inventory_item_id,
-                    //             'item_code' => $item->item->item_code,
-                    //             'item_description' => $item->item->item_description,
-                    //             'item_price' => $item->item->itemPrice->list_price ?? null,
-                    //             'item_uom' => $item->item->itemPrice->uom ?? null,
-                    //         ],
-                    //     ];
-                    // }),
-                ];
-            });
+        $cacheKey = 'user_order_history_' . $user->id;
+        $cacheTime = 60;
+
+        // Attempt to retrieve data from cache
+        $orders = Cache::remember($cacheKey, $cacheTime, function () use ($user) {
+            // Retrieve the user's orders with related order items, customers, and items
+            return $user->orders()
+                ->with([
+                    'customer:id,customer_id,customer_name',
+                    'salesperson:id,name',
+                ])
+                ->select('id', 'customer_id', 'user_id', 'order_status', 'total_amount', 'created_at', 'updated_at')
+                ->get()
+                ->map(function ($order) {
+                    // Transform the order data
+                    return [
+                        'id' => $order->id,
+                        'customer_id' => $order->customer_id,
+                        'customer_name' => $order->customer->customer_name ?? null,
+                        'user_id' => $order->user_id,
+                        'salesperson_name' => $order->salesperson->name ?? null,
+                        'order_status' => $order->order_status,
+                        'total_amount' => $order->total_amount,
+                        'created_at' => $order->created_at,
+                        'updated_at' => $order->updated_at,
+                    ];
+                });
+        });
 
         // Return the order history
         return response()->json([
@@ -375,6 +432,85 @@ class ResourceController extends Controller
             'status' => 200,
             'message' => 'Order history retrieved successfully.',
             'data' => $orders,
+        ], 200);
+    }
+
+    /**
+     * Retrieve the order details for a specific order.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function orderDetails(Request $request)
+    {
+        // Validate the request to ensure 'order_id' is provided and exists
+        $validated = $request->validate([
+            'order_id' => 'required|exists:orders,id',
+        ]);
+
+        $cacheKey = 'order_details_' . $validated['order_id'];
+        $cacheTime = 60;
+
+        // Attempt to retrieve data from cache
+        $order = Cache::remember($cacheKey, $cacheTime, function () use ($validated) {
+            // Retrieve the order with related order items, customers, and items
+            return Order::with([
+                'customer:id,customer_id,customer_name',
+                'salesperson:id,name',
+                'orderItems:id,order_id,inventory_item_id,uom,quantity,price',
+                'orderItems.item:id,inventory_item_id,item_code,item_description',
+                'orderItems.item.itemPrice:id,item_id,list_price,uom',
+            ])
+                ->select('id', 'customer_id', 'user_id', 'order_status', 'total_amount', 'created_at', 'updated_at')
+                ->where('id', $validated['order_id'])
+                ->first();
+        });
+
+        // Check if the order exists
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'status' => 404,
+                'message' => 'Order not found.',
+            ], 404);
+        }
+
+        // Transform the order data
+        $orderDetails = [
+            'id' => $order->id,
+            'customer_id' => $order->customer_id,
+            'customer_name' => $order->customer->customer_name ?? null,
+            'user_id' => $order->user_id,
+            'salesperson_name' => $order->salesperson->name ?? null,
+            'order_status' => $order->order_status,
+            'total_amount' => $order->total_amount,
+            'created_at' => $order->created_at,
+            'updated_at' => $order->updated_at,
+            'order_items' => $order->orderItems->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'order_id' => $item->order_id,
+                    'inventory_item_id' => $item->inventory_item_id,
+                    'uom' => $item->uom,
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                    'item' => [
+                        'inventory_item_id' => $item->item->inventory_item_id,
+                        'item_code' => $item->item->item_code,
+                        'item_description' => $item->item->item_description,
+                        'item_price' => $item->item->itemPrice->list_price ?? null,
+                        'item_uom' => $item->item->itemPrice->uom ?? null,
+                    ],
+                ];
+            }),
+        ];
+
+        // Return the order details
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'Order details retrieved successfully.',
+            'data' => $orderDetails,
         ], 200);
     }
 }

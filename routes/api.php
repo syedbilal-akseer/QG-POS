@@ -41,6 +41,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/all', [ResourceController::class, 'orders'])->name('index');
         Route::post('/place-order', [ResourceController::class, 'placeOrder'])->name('placeOrder');
         Route::post('/history', [ResourceController::class, 'orderHistory'])->name('orderHistory');
+        Route::post('/details', [ResourceController::class, 'orderDetails'])->name('orderDetails');
     });
 
     // Products Routes
