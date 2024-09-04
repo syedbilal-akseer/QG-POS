@@ -28,7 +28,7 @@ class ListUsers extends Component implements HasForms, HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->query(User::query())
+            ->query(User::query()->latest())
             ->columns([
                 ImageColumn::make('profile_photo')
                     ->label('Image')
