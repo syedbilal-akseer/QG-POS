@@ -5,7 +5,7 @@
         <x-modal name="order_detail" :show="true" focusable maxWidth="4xl">
             <div class="p-6 bg-white dark:bg-neutral-800 rounded-lg shadow-lg">
                 <div class="flex justify-between items-center border-b pb-4 border-gray-200 dark:border-neutral-700">
-                    <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Order Details</h2>
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Order Details #{{ $order->order_number }}</h2>
                     <button x-on:click="$dispatch('close'); @this.closeDetailModal()"
                         class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition duration-150 ease-in-out">
                         <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"

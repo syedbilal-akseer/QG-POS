@@ -25,8 +25,8 @@ class ListOrders extends Component implements HasForms, HasTable
         return $table
             ->query(Order::query()->latest())
             ->columns([
-                TextColumn::make('id')
-                    ->label('Order ID')
+                TextColumn::make('order_number')
+                    ->label('Order Number')
                     ->sortable()
                     ->searchable(),
                 TextColumn::make('customer.customer_name')
