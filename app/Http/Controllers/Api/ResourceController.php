@@ -443,12 +443,12 @@ class ResourceController extends Controller
      */
     public function orderDetails(Request $request)
     {
-        // Validate the request to ensure 'order_id' is provided and exists
+        // Validate the request to ensure 'order_number' is provided and exists
         $validated = $request->validate([
-            'order_id' => 'required|exists:orders,id',
+            'order_number' => 'required|exists:orders,order_number',
         ]);
 
-        $cacheKey = 'order_details_' . $validated['order_id'];
+        $cacheKey = 'order_details_' . $validated['order_number'];
         $cacheTime = 60;
 
         // Attempt to retrieve data from cache
@@ -462,7 +462,7 @@ class ResourceController extends Controller
                 'orderItems.item.itemPrice:id,item_id,list_price,uom',
             ])
                 ->select('id', 'order_number', 'customer_id', 'user_id', 'order_status', 'total_amount', 'created_at', 'updated_at')
-                ->where('id', $validated['order_id'])
+                ->where('order_number', $validated['order_number'])
                 ->first();
         });
 
