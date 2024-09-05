@@ -455,7 +455,7 @@ class ResourceController extends Controller
         $order = Cache::remember($cacheKey, $cacheTime, function () use ($validated) {
             // Retrieve the order with related order items, customers, and items
             return Order::with([
-                'customer:id,customer_id,customer_name',
+                'customer:id,customer_id,customer_name,contact_number',
                 'salesperson:id,name',
                 'orderItems:id,order_id,inventory_item_id,uom,quantity,price',
                 'orderItems.item:id,inventory_item_id,item_code,item_description',
@@ -480,6 +480,7 @@ class ResourceController extends Controller
             'order_number' => $order->order_number,
             'customer_id' => $order->customer_id,
             'customer_name' => $order->customer->customer_name ?? null,
+            'contact_number' => $order->customer->contact_number ?? null,
             'user_id' => $order->user_id,
             'salesperson_name' => $order->salesperson->name ?? null,
             'order_status' => $order->order_status,
