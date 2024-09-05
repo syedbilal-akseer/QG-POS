@@ -1,6 +1,7 @@
 <?php
 
 use Carbon\Carbon;
+use App\Models\Order;
 use App\Enums\RoleEnum;
 use App\Models\ItemPrice;
 use App\Models\OracleItem;
@@ -77,55 +78,67 @@ Route::get('/testing', function () {
 
     // return RoleEnum::names();
 
-    DB::transaction(function () {
-        // Insert into OracleOrderHeader
-        $header = OracleOrderHeader::create([
-            'order_source_id' => 0, // hard coded value
-            'orig_sys_document_ref' => 300000003,
-            'org_id' => 104,
-            'sold_from_org_id' => 104,
-            'ship_from_org_id' => 121,
-            'ordered_date' => Carbon::now(),
-            'order_type_id' => 1011,
-            'sold_to_org_id' => 1641,
-            'payment_term_id' => 1004,
-            'operation_code' => 'INSERT',
-            'created_by' => 0, // hard coded value
-            'creation_date' => Carbon::now(),
-            'last_updated_by' => 0, // hard coded value
-            'last_update_date' => Carbon::now(),
-            'customer_po_number' => '300000003',
-            'ship_to_org_id' => 3396,
-            'BOOKED_FLAG' => 'Y',
-        ]);
+    // DB::transaction(function () {
+    //     // Insert into OracleOrderHeader
+    //     $header = OracleOrderHeader::create([
+    //         'order_source_id' => 0, // hard coded value
+    //         'orig_sys_document_ref' => 300000003,
+    //         'org_id' => 104,
+    //         'sold_from_org_id' => 104,
+    //         'ship_from_org_id' => 121,
+    //         'ordered_date' => Carbon::now(),
+    //         'order_type_id' => 1011,
+    //         'sold_to_org_id' => 1641,
+    //         'payment_term_id' => 1004,
+    //         'operation_code' => 'INSERT',
+    //         'created_by' => 0, // hard coded value
+    //         'creation_date' => Carbon::now(),
+    //         'last_updated_by' => 0, // hard coded value
+    //         'last_update_date' => Carbon::now(),
+    //         'customer_po_number' => '300000003',
+    //         'ship_to_org_id' => 3396,
+    //         'BOOKED_FLAG' => 'Y',
+    //     ]);
 
-        logger($header);
-        // Insert into OracleOrderLine
-        $lines =  OracleOrderLine::create([
-            'order_source_id' => 0, // hard coded value
-            'orig_sys_document_ref' => '300000003',
-            'orig_sys_line_ref' => '300000003-1',
-            'line_number' => 1,
-            'inventory_item_id' => 9066,
-            'ordered_quantity' => 1,
-            'ship_from_org_id' => 121,
-            'org_id' => 104,
-            'unit_selling_price' => 100,
-            'price_list_id' => null, // assuming you want to skip this
-            'payment_term_id' => 1004,
-            'created_by' => 0, // hard coded value
-            'creation_date' => Carbon::now(),
-            'last_updated_by' => 0, // hard coded value
-            'last_update_date' => Carbon::now(),
-            'line_type_id' => 1009,
-            'operation_code' => 'INSERT',
-        ]);
+    //     logger($header);
+    //     // Insert into OracleOrderLine
+    //     $lines =  OracleOrderLine::create([
+    //         'order_source_id' => 0, // hard coded value
+    //         'orig_sys_document_ref' => '300000003',
+    //         'orig_sys_line_ref' => '300000003-1',
+    //         'line_number' => 1,
+    //         'inventory_item_id' => 9066,
+    //         'ordered_quantity' => 1,
+    //         'ship_from_org_id' => 121,
+    //         'org_id' => 104,
+    //         'unit_selling_price' => 100,
+    //         'price_list_id' => null, // assuming you want to skip this
+    //         'payment_term_id' => 1004,
+    //         'created_by' => 0, // hard coded value
+    //         'creation_date' => Carbon::now(),
+    //         'last_updated_by' => 0, // hard coded value
+    //         'last_update_date' => Carbon::now(),
+    //         'line_type_id' => 1009,
+    //         'operation_code' => 'INSERT',
+    //     ]);
 
-        logger($lines);
-    });
+    //     logger($lines);
+    // });
 
     // Return the results as JSON for easy viewing
     // return response()->json($results);
+
+    Order::chunk(100, function ($orders) {
+        foreach ($orders as $order) {
+            // Generate a unique order number
+            do {
+                $orderNumber = mt_rand(10000000, 99999999);
+            } while (Order::where('order_number', $orderNumber)->exists());
+
+            $order->order_number = $orderNumber;
+            $order->save();
+        }
+    });
 });
 
 Route::get('/update-oum', function () {

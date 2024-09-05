@@ -408,12 +408,12 @@ class ResourceController extends Controller
                     'customer:id,customer_id,customer_name',
                     'salesperson:id,name',
                 ])
-                ->select('id', 'customer_id', 'user_id', 'order_status', 'total_amount', 'created_at', 'updated_at')
+                ->select('id', 'order_number', 'customer_id', 'user_id', 'order_status', 'total_amount', 'created_at', 'updated_at')
                 ->get()
                 ->map(function ($order) {
                     // Transform the order data
                     return [
-                        'id' => $order->id,
+                        'order_number' => $order->order_number,
                         'customer_id' => $order->customer_id,
                         'customer_name' => $order->customer->customer_name ?? null,
                         'user_id' => $order->user_id,
@@ -461,7 +461,7 @@ class ResourceController extends Controller
                 'orderItems.item:id,inventory_item_id,item_code,item_description',
                 'orderItems.item.itemPrice:id,item_id,list_price,uom',
             ])
-                ->select('id', 'customer_id', 'user_id', 'order_status', 'total_amount', 'created_at', 'updated_at')
+                ->select('id', 'order_number', 'customer_id', 'user_id', 'order_status', 'total_amount', 'created_at', 'updated_at')
                 ->where('id', $validated['order_id'])
                 ->first();
         });
@@ -477,7 +477,7 @@ class ResourceController extends Controller
 
         // Transform the order data
         $orderDetails = [
-            'id' => $order->id,
+            'order_number' => $order->order_number,
             'customer_id' => $order->customer_id,
             'customer_name' => $order->customer->customer_name ?? null,
             'user_id' => $order->user_id,

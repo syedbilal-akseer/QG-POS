@@ -20,7 +20,35 @@ class Order extends Model
         'customer_id',
         'salesperson_id',
         'order_status',
+        'order_number',
     ];
+
+    /**
+     * Automatically generate an order number before creating the model.
+     */
+    protected static function booted()
+    {
+        static::creating(function ($order) {
+            // Ensure that the order number is generated only if it's not already set
+            if (empty($order->order_number)) {
+                $order->order_number = static::generateUniqueOrderNumber();
+            }
+        });
+    }
+
+    /**
+     * Generate a unique 8-digit order number.
+     *
+     * @return string
+     */
+    protected static function generateUniqueOrderNumber()
+    {
+        do {
+            $orderNumber = mt_rand(10000000, 99999999);
+        } while (static::where('order_number', $orderNumber)->exists()); // Check for uniqueness
+
+        return $orderNumber;
+    }
 
     /**
      * Accessor and Mutator for the OrderStatus attribute.
