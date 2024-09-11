@@ -47,6 +47,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Products Routes
     Route::prefix('products')->name('api.products.')->group(function () {
         Route::post('/all', [ResourceController::class, 'products'])->name('index');
+        Route::post('/search', [ResourceController::class, 'searchProduct'])->name('searchProduct');
+        Route::post('/get', [ResourceController::class, 'getProduct'])->name('get');
     });
 
     // Customers Routes

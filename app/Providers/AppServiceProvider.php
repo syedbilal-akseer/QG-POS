@@ -24,7 +24,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Model::unguard();
         Model::preventAccessingMissingAttributes();
-        Model::preventLazyLoading();
+        // Model::preventLazyLoading();
 
         FilamentColor::register([
             'danger' => Color::Red,

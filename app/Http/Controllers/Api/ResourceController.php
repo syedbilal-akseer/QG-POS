@@ -48,6 +48,110 @@ class ResourceController extends Controller
     }
 
     /*
+     * Retrieve a specific product's details.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getProduct(Request $request)
+    {
+        // Validate the request to ensure 'inventory_item_id' is provided and exists
+        $validated = $request->validate([
+            'inventory_item_id' => 'required|exists:items,inventory_item_id',
+        ]);
+
+        $cacheKey = 'product_details_' . $validated['inventory_item_id'];
+        $cacheTime = 60;
+
+        // Attempt to retrieve data from cache
+        $product = Cache::remember($cacheKey, $cacheTime, function () use ($validated) {
+            return Item::with(['itemPrice'])
+                ->where('inventory_item_id', $validated['inventory_item_id'])
+                ->first();
+        });
+
+        // Map the results to the desired format
+        $mappedProducts = $product->map(function ($item) {
+            $itemPrice = $item->itemPrice;
+
+            return [
+                'inventory_item_id' => $item->inventory_item_id,
+                'item_code' => $item->item_code,
+                'item_description' => $item->item_description,
+                'item_uom_code' => optional($itemPrice)->uom,
+                'item_price' => optional($itemPrice)->list_price,
+            ];
+        });
+
+
+        if (!$product) {
+            return response()->json([
+                'success' => false,
+                'status' => 404,
+                'message' => 'Product not found',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'Product details retrieved successfully',
+            'data' => $mappedProducts,
+        ], 200);
+    }
+
+    /**
+     * Search for products by inventory_item_id, item_code, or item_description using LIKE and map results.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function searchProduct(Request $request)
+    {
+        // Validate the request to ensure 'searchTerm' is provided
+        $validated = $request->validate([
+            'searchTerm' => 'required|string',
+        ]);
+
+        // Extract the search term
+        $searchTerm = $validated['searchTerm'];
+
+        // Generate a cache key based on the search term
+        $cacheKey = 'search_products_' . md5($searchTerm);
+        $cacheTime = 60; // Cache time in minutes
+
+        // Attempt to retrieve data from cache
+        $products = Cache::remember($cacheKey, $cacheTime, function () use ($searchTerm) {
+            // Query products using the search term and load itemPrice relationship
+            return Item::with('itemPrice')->where('inventory_item_id', 'like', '%' . $searchTerm . '%')
+                ->orWhere('item_code', 'like', '%' . $searchTerm . '%')
+                ->orWhere('item_description', 'like', '%' . $searchTerm . '%')
+                ->get();
+        });
+
+        // Map the results to the desired format
+        $mappedProducts = $products->map(function ($item) {
+            $itemPrice = $item->itemPrice;
+
+            return [
+                'inventory_item_id' => $item->inventory_item_id,
+                'item_code' => $item->item_code,
+                'item_description' => $item->item_description,
+                'item_uom_code' => optional($itemPrice)->uom,
+                'item_price' => optional($itemPrice)->list_price,
+            ];
+        });
+
+        // Return the results in JSON format
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'Products retrieved successfully.',
+            'data' => $mappedProducts,
+        ], 200);
+    }
+
+    /*
      * Retrieve all customers.
      *
      * @return \Illuminate\Http\JsonResponse

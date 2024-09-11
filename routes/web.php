@@ -9,6 +9,7 @@ use App\Models\OracleProduct;
 use App\Models\OracleCustomer;
 use App\Models\OracleItemPrice;
 use App\Models\OracleOrderLine;
+use App\Models\OracleWarehouse;
 use App\Models\OracleOrderHeader;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -25,16 +26,21 @@ Route::get('/', function () {
 });
 
 Route::prefix('app')->middleware(['auth'])->group(function () {
-    Route::get('/dashboard', [AppController::class, 'index'])->name('dashboard');
+    // Apply middleware to restrict access to the orders route
+    Route::middleware(['checkRole:supply-chain'])->group(function () {
+        Route::get('/orders', [AppController::class, 'orders'])->name('orders.all');
+    });
 
-    Route::get('/products', [AppController::class, 'products'])->name('products.all');
-
-    Route::get('/customers', [AppController::class, 'customers'])->name('customers.all');
-
-    Route::get('/orders', [AppController::class, 'orders'])->name('orders.all');
-
-    Route::get('/users', [AppController::class, 'users'])->name('users.all');
+    // Admins have access to all routes including orders
+    Route::middleware(['checkRole:admin'])->group(function () {
+        Route::get('/dashboard', [AppController::class, 'index'])->name('dashboard');
+        Route::get('/products', [AppController::class, 'products'])->name('products.all');
+        Route::get('/customers', [AppController::class, 'customers'])->name('customers.all');
+        Route::get('/users', [AppController::class, 'users'])->name('users.all');
+        Route::get('/orders', [AppController::class, 'orders'])->name('orders.all');
+    });
 });
+
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -45,8 +51,13 @@ Route::middleware('auth')->group(function () {
 
 Route::get('/testing', function () {
     // Run a simple query to fetch all records from qg_pos_item_master table
+    // $results = OracleWarehouse::all();
+    // $results = OracleOrderHeaderIfaceAllDocumentRef::all();
+    // $results = OracleOrderLineIfaceAllDocumentRef::all();
+    // $results = OracleOrderLineIfaceAllRef::all();
     // $results = ItemPrice::all();
-    // $results = OracleOrderHeader::all();
+    $results = OracleOrderHeader::all();
+    // $results = OracleOrderLine::all();
     // $results = OracleOrderLine::all();
     // $results = OracleItem::all();
     // $results = OracleItemPrice::all();
@@ -66,6 +77,11 @@ Route::get('/testing', function () {
     //     ->groupBy('price_list_id', 'item_id')
     //     ->havingRaw('COUNT(*) > 1')
     //     ->get();
+
+    // $results = DB::connection('oracle')->table('apps.oe_lines_iface_all')
+    // ->select('orig_sys_document_ref')  // Specify the column name if needed
+    // ->get();
+
 
     // // Display the duplicates
     // foreach ($duplicates as $duplicate) {
@@ -126,28 +142,60 @@ Route::get('/testing', function () {
     // });
 
     // Return the results as JSON for easy viewing
-    // return response()->json($results);
+    return response()->json($results);
 
-    Order::chunk(100, function ($orders) {
-        foreach ($orders as $order) {
-            // Generate a unique order number
-            do {
-                $orderNumber = mt_rand(10000000, 99999999);
-            } while (Order::where('order_number', $orderNumber)->exists());
+    // Order::chunk(100, function ($orders) {
+    //     foreach ($orders as $order) {
+    //         // Generate a unique order number
+    //         do {
+    //             $orderNumber = mt_rand(10000000, 99999999);
+    //         } while (Order::where('order_number', $orderNumber)->exists());
 
-            $order->order_number = $orderNumber;
-            $order->save();
-        }
-    });
+    //         $order->order_number = $orderNumber;
+    //         $order->save();
+    //     }
+    // });
 });
 
-Route::get('/update-oum', function () {
-    DB::table('order_items')
-        ->join('items', 'order_items.inventory_item_id', '=', 'items.inventory_item_id')
-        ->join('item_prices', 'items.inventory_item_id', '=', 'item_prices.item_id')
-        ->update([
-            'order_items.uom' => DB::raw('item_prices.uom')
-        ]);
+Route::get('/create-users', function () {
+    $users = [
+        [
+            'name' => 'Kashif Hanif',
+            'email' => 'kashifhanif@quadri-group.com',
+            'password' => bcrypt('Kashif1122@'),
+            'role' => RoleEnum::from('supply-chain')
+        ],
+        [
+            'name' => 'Muhammad Asim',
+            'email' => 'muhammad.asim@quadri-group.com',
+            'password' => bcrypt('MAsim1122@'),
+            'role' => RoleEnum::from('supply-chain')
+        ],
+        [
+            'name' => 'Tajamul Ahmed',
+            'email' => 'tajamul.ahmed@quadri-group.com',
+            'password' => bcrypt('TAhmed1122@'),
+            'role' => RoleEnum::from('supply-chain')
+        ],
+        [
+            'name' => 'Order Management',
+            'email' => 'ome@quadri-group.com',
+            'password' => bcrypt('Quadri1122@'),
+            'role' => RoleEnum::from('supply-chain')
+        ],
+        [
+            'name' => 'SCM',
+            'email' => 'scmexecutiveho@quadri-group.com ',
+            'password' => bcrypt('Quadri1122@'),
+            'role' => RoleEnum::from('supply-chain')
+        ]
+    ];
+
+    foreach ($users as $user) {
+        App\Models\User::create($user);
+    }
+
+    return 'Users created successfully.';
 });
 
 require __DIR__ . '/auth.php';

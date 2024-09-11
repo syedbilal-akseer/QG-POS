@@ -28,6 +28,14 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        $user = Auth::user();
+
+        // Check the user's role and redirect accordingly
+        if ($user->role->value === 'supply-chain') {
+            return redirect()->route('orders.all');
+        }
+
+        // Redirect to intended route if not a supply-chain user
         return redirect()->intended(route('dashboard', absolute: false));
     }
 

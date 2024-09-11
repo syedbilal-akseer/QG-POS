@@ -40,6 +40,33 @@ enum OrderStatusEnum: string
     }
 
     /**
+     * Get the badge colors for each status.
+     *
+     * @return array<string, string>
+     */
+    public static function badgeColors(): array
+    {
+        return [
+            self::PENDING->value => 'warning',     // Yellow for pending
+            self::PROCESSING->value => 'primary',  // Blue for processing
+            self::COMPLETED->value => 'success',   // Green for completed
+            self::CANCELED->value => 'danger',     // Red for canceled
+        ];
+    }
+
+    /**
+     * Get the color for a given status.
+     *
+     * @param  string $status
+     * @return string
+     */
+    public static function color(string $status): string
+    {
+        $colors = self::badgeColors();
+        return $colors[$status] ?? 'secondary'; // Default color if status is not found
+    }
+
+    /**
      * Get all statuses as an array of objects.
      *
      * @return array

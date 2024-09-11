@@ -54,7 +54,7 @@ class ListCustomers extends Component implements HasForms, HasTable
             ])
             ->deferLoading();
     }
-
+    
     protected function applySearchToTableQuery(Builder $query): Builder
     {
         $this->applyColumnSearchesToTableQuery($query);

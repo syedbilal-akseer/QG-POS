@@ -9,37 +9,45 @@
             <ul role="list" class="flex flex-1 flex-col gap-y-7">
                 <li>
                     <ul role="list" class="-mx-2 space-y-1">
-                        <li>
-                            <x-sidebar-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                                <x-link-icon icon="o-home" :active="request()->routeIs('dashboard')" />
-                                Dashboard
-                            </x-sidebar-link>
-                        </li>
+                        @if (Auth::user()->role->isAdmin())
+                            <li>
+                                <x-sidebar-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+                                    <x-link-icon icon="o-home" :active="request()->routeIs('dashboard')" />
+                                    Dashboard
+                                </x-sidebar-link>
+                            </li>
+                        @endif
+
                         <li>
                             <x-sidebar-link :href="route('orders.all')" :active="request()->routeIs('orders.all')">
                                 <x-link-icon icon="o-shopping-cart" :active="request()->routeIs('orders.all')" />
                                 <span>Orders</span>
                             </x-sidebar-link>
                         </li>
-                        <li>
-                            <x-sidebar-link :href="route('products.all')" :active="request()->routeIs('products.all')">
-                                <x-link-icon icon="o-shopping-bag" :active="request()->routeIs('products.all')" />
-                                <span>Products</span>
-                            </x-sidebar-link>
-                        </li>
-                        <li>
-                            <x-sidebar-link :href="route('customers.all')" :active="request()->routeIs('customers.all')">
-                                <x-link-icon icon="o-users" :active="request()->routeIs('customers.all')" />
-                                <span>Customers</span>
-                            </x-sidebar-link>
-                        </li>
-                        <li>
-                            <x-sidebar-link :href="route('users.all')" :active="request()->routeIs('users.all')">
-                                <x-link-icon icon="o-user-group" :active="request()->routeIs('users.all')" />
-                                <span>Users</span>
-                            </x-sidebar-link>
-                        </li>
-
+                        @if (Auth::user()->role->isAdmin())
+                            <li>
+                                <x-sidebar-link :href="route('products.all')" :active="request()->routeIs('products.all')">
+                                    <x-link-icon icon="o-shopping-bag" :active="request()->routeIs('products.all')" />
+                                    <span>Products</span>
+                                </x-sidebar-link>
+                            </li>
+                        @endif
+                        @if (Auth::user()->role->isAdmin())
+                            <li>
+                                <x-sidebar-link :href="route('customers.all')" :active="request()->routeIs('customers.all')">
+                                    <x-link-icon icon="o-users" :active="request()->routeIs('customers.all')" />
+                                    <span>Customers</span>
+                                </x-sidebar-link>
+                            </li>
+                        @endif
+                        @if (Auth::user()->role->isAdmin())
+                            <li>
+                                <x-sidebar-link :href="route('users.all')" :active="request()->routeIs('users.all')">
+                                    <x-link-icon icon="o-user-group" :active="request()->routeIs('users.all')" />
+                                    <span>Users</span>
+                                </x-sidebar-link>
+                            </li>
+                        @endif
                     </ul>
                 </li>
             </ul>
