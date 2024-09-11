@@ -20,6 +20,11 @@ use App\Http\Controllers\ProfileController;
 Route::get('/', function () {
     // return view('test');
     if (Auth::check()) {
+        // Check the user's role and redirect accordingly
+        if (Auth::user()->role->value === 'supply-chain') {
+            return redirect()->route('orders.supply-chain.all');
+        }
+
         return redirect()->route('dashboard');
     }
     return redirect('login');
@@ -28,7 +33,7 @@ Route::get('/', function () {
 Route::prefix('app')->middleware(['auth'])->group(function () {
     // Apply middleware to restrict access to the orders route
     Route::middleware(['checkRole:supply-chain'])->group(function () {
-        Route::get('/orders', [AppController::class, 'orders'])->name('orders.all');
+        Route::get('/supply-chain/orders', [AppController::class, 'orders'])->name('orders.supply-chain.all');
     });
 
     // Admins have access to all routes including orders
@@ -157,45 +162,45 @@ Route::get('/testing', function () {
     // });
 });
 
-Route::get('/create-users', function () {
-    $users = [
-        [
-            'name' => 'Kashif Hanif',
-            'email' => 'kashifhanif@quadri-group.com',
-            'password' => bcrypt('Kashif1122@'),
-            'role' => RoleEnum::from('supply-chain')
-        ],
-        [
-            'name' => 'Muhammad Asim',
-            'email' => 'muhammad.asim@quadri-group.com',
-            'password' => bcrypt('MAsim1122@'),
-            'role' => RoleEnum::from('supply-chain')
-        ],
-        [
-            'name' => 'Tajamul Ahmed',
-            'email' => 'tajamul.ahmed@quadri-group.com',
-            'password' => bcrypt('TAhmed1122@'),
-            'role' => RoleEnum::from('supply-chain')
-        ],
-        [
-            'name' => 'Order Management',
-            'email' => 'ome@quadri-group.com',
-            'password' => bcrypt('Quadri1122@'),
-            'role' => RoleEnum::from('supply-chain')
-        ],
-        [
-            'name' => 'SCM',
-            'email' => 'scmexecutiveho@quadri-group.com ',
-            'password' => bcrypt('Quadri1122@'),
-            'role' => RoleEnum::from('supply-chain')
-        ]
-    ];
+// Route::get('/create-users', function () {
+//     $users = [
+//         [
+//             'name' => 'Kashif Hanif',
+//             'email' => 'kashifhanif@quadri-group.com',
+//             'password' => bcrypt('Kashif1122@'),
+//             'role' => RoleEnum::from('supply-chain')
+//         ],
+//         [
+//             'name' => 'Muhammad Asim',
+//             'email' => 'muhammad.asim@quadri-group.com',
+//             'password' => bcrypt('MAsim1122@'),
+//             'role' => RoleEnum::from('supply-chain')
+//         ],
+//         [
+//             'name' => 'Tajamul Ahmed',
+//             'email' => 'tajamul.ahmed@quadri-group.com',
+//             'password' => bcrypt('TAhmed1122@'),
+//             'role' => RoleEnum::from('supply-chain')
+//         ],
+//         [
+//             'name' => 'Order Management',
+//             'email' => 'ome@quadri-group.com',
+//             'password' => bcrypt('Quadri1122@'),
+//             'role' => RoleEnum::from('supply-chain')
+//         ],
+//         [
+//             'name' => 'SCM',
+//             'email' => 'scmexecutiveho@quadri-group.com ',
+//             'password' => bcrypt('Quadri1122@'),
+//             'role' => RoleEnum::from('supply-chain')
+//         ]
+//     ];
 
-    foreach ($users as $user) {
-        App\Models\User::create($user);
-    }
+//     foreach ($users as $user) {
+//         App\Models\User::create($user);
+//     }
 
-    return 'Users created successfully.';
-});
+//     return 'Users created successfully.';
+// });
 
 require __DIR__ . '/auth.php';

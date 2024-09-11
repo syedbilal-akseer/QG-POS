@@ -20,5 +20,13 @@ class CheckRole
         if (Auth::check() && (Auth::user()->role->value === $role || Auth::user()->role->value === 'admin')) {
             return $next($request);
         }
+
+        return redirect('/');
+
+        return response()->json([
+            'error' => 'Unauthorized',
+           'message' => 'You do not have the required role to access this resource.',
+           'status' => 403,
+        ], 403);
     }
 }

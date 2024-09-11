@@ -17,13 +17,23 @@
                                 </x-sidebar-link>
                             </li>
                         @endif
+                        @if (Auth::user()->role->isAdmin())
+                            <li>
+                                <x-sidebar-link :href="route('orders.all')" :active="request()->routeIs('orders.all')">
+                                    <x-link-icon icon="o-shopping-cart" :active="request()->routeIs('orders.all')" />
+                                    <span>Orders</span>
+                                </x-sidebar-link>
+                            </li>
+                        @endif
 
-                        <li>
-                            <x-sidebar-link :href="route('orders.all')" :active="request()->routeIs('orders.all')">
-                                <x-link-icon icon="o-shopping-cart" :active="request()->routeIs('orders.all')" />
-                                <span>Orders</span>
-                            </x-sidebar-link>
-                        </li>
+                        @if (Auth::user()->role->isSupplyChain())
+                            <li>
+                                <x-sidebar-link :href="route('orders.supply-chain.all')" :active="request()->routeIs('orders.supply-chain.all')">
+                                    <x-link-icon icon="o-shopping-cart" :active="request()->routeIs('orders.supply-chain.all')" />
+                                    <span>Orders</span>
+                                </x-sidebar-link>
+                            </li>
+                        @endif
                         @if (Auth::user()->role->isAdmin())
                             <li>
                                 <x-sidebar-link :href="route('products.all')" :active="request()->routeIs('products.all')">

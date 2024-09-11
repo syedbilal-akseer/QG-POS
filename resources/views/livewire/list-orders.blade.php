@@ -89,7 +89,8 @@
                                         <td class="px-4 py-3 text-gray-900 dark:text-gray-100">
                                             <x-select name="warehouse"
                                                 wire:model.defer="orderItemWarehouses.{{ $index }}"
-                                                class="form-select mt-1 block w-full {{ $errors->has('orderItemWarehouses.' . $index) ? 'border-red-500' : '' }}">
+                                                class="form-select mt-1 block w-full {{ $errors->has('orderItemWarehouses.' . $index) ? 'border-red-500' : '' }}"
+                                                :disabled="$order->oracle_at ? true : false">
                                                 <option value="">Select Warehouse</option>
                                                 @foreach ($warehouses as $warehouse)
                                                     <option value="{{ $warehouse->organization_id }}">
@@ -109,7 +110,6 @@
                             </tbody>
                         </table>
                     </div>
-
 
                     <!-- Order Totals -->
                     <div class="flex justify-end mt-6">
