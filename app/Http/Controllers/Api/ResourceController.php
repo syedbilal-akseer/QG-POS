@@ -47,7 +47,7 @@ class ResourceController extends Controller
         ], 200);
     }
 
-    /*
+    /**
      * Retrieve a specific product's details.
      *
      * @param  \Illuminate\Http\Request  $request
@@ -70,20 +70,6 @@ class ResourceController extends Controller
                 ->first();
         });
 
-        // Map the results to the desired format
-        $mappedProducts = $product->map(function ($item) {
-            $itemPrice = $item->itemPrice;
-
-            return [
-                'inventory_item_id' => $item->inventory_item_id,
-                'item_code' => $item->item_code,
-                'item_description' => $item->item_description,
-                'item_uom_code' => optional($itemPrice)->uom,
-                'item_price' => optional($itemPrice)->list_price,
-            ];
-        });
-
-
         if (!$product) {
             return response()->json([
                 'success' => false,
@@ -92,11 +78,23 @@ class ResourceController extends Controller
             ], 404);
         }
 
+        // Map the product details manually
+        $mappedProduct = [
+            'inventory_item_id' => $product->inventory_item_id,
+            'item_code' => $product->item_code,
+            'item_description' => $product->item_description,
+            'primary_uom_code' => $product->primary_uom_code,
+            'secondary_uom_code' => $product->secondary_uom_code,
+            'major_category' => $product->major_category,
+            'minor_category' => $product->minor_category,
+            'sub_minor_category' => $product->sub_minor_category,
+        ];
+
         return response()->json([
             'success' => true,
             'status' => 200,
             'message' => 'Product details retrieved successfully',
-            'data' => $mappedProducts,
+            'data' => $mappedProduct,
         ], 200);
     }
 
@@ -123,7 +121,8 @@ class ResourceController extends Controller
         // Attempt to retrieve data from cache
         $products = Cache::remember($cacheKey, $cacheTime, function () use ($searchTerm) {
             // Query products using the search term and load itemPrice relationship
-            return Item::with('itemPrice')->where('inventory_item_id', 'like', '%' . $searchTerm . '%')
+            return Item::with('itemPrice')
+                ->where('inventory_item_id', 'like', '%' . $searchTerm . '%')
                 ->orWhere('item_code', 'like', '%' . $searchTerm . '%')
                 ->orWhere('item_description', 'like', '%' . $searchTerm . '%')
                 ->get();
