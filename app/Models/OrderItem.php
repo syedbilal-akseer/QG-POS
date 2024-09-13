@@ -14,7 +14,7 @@ class OrderItem extends Model
         'inventory_item_id',
         'warehouse_id',
         'quantity',
-        'ob_quantity',
+        'ob_quantity', // oracle quantity
     ];
 
     public function order()

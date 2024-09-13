@@ -21,6 +21,8 @@ class Order extends Model
         'salesperson_id',
         'order_status',
         'order_number',
+        'notes',
+        'oracle_at',
     ];
 
     /**
