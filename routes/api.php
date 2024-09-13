@@ -39,6 +39,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Orders Routes
     Route::prefix('orders')->name('api.orders.')->group(function () {
         Route::post('/all', [ResourceController::class, 'orders'])->name('index');
+        Route::post('/search', [ResourceController::class, 'searchOrder'])->name('searchOrder');
         Route::post('/place-order', [ResourceController::class, 'placeOrder'])->name('placeOrder');
         Route::post('/history', [ResourceController::class, 'orderHistory'])->name('orderHistory');
         Route::post('/details', [ResourceController::class, 'orderDetails'])->name('orderDetails');

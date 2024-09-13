@@ -137,8 +137,14 @@ class ResourceController extends Controller
                 'inventory_item_id' => $item->inventory_item_id,
                 'item_code' => $item->item_code,
                 'item_description' => $item->item_description,
-                'item_uom_code' => optional($itemPrice)->uom,
-                'item_price' => optional($itemPrice)->list_price,
+                'primary_uom_code' => $item->primary_uom_code,
+                'secondary_uom_code' => $item->secondary_uom_code,
+                'major_category' => $item->major_category,
+                'minor_category' => $item->minor_category,
+                'sub_minor_category' => $item->sub_minor_category,
+
+                // 'item_uom_code' => optional($itemPrice)->uom,
+                // 'item_price' => optional($itemPrice)->list_price,
             ];
         });
 
@@ -616,6 +622,79 @@ class ResourceController extends Controller
             'status' => 200,
             'message' => 'Order details retrieved successfully.',
             'data' => $orderDetails,
+        ], 200);
+    }
+
+    /**
+     * Search for orders by order_number, customer_id, or order_status using LIKE and map results.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function searchOrder(Request $request)
+    {
+        // Validate the request to ensure 'searchTerm' is provided
+        $validated = $request->validate([
+            'searchTerm' => 'required|string',
+        ]);
+
+        // Extract the search term
+        $searchTerm = $validated['searchTerm'];
+
+        // Generate a cache key based on the search term
+        $cacheKey = 'search_orders_' . md5($searchTerm);
+        $cacheTime = 60; // Cache time in minutes
+
+        // Attempt to retrieve data from cache
+        $orders = Cache::remember($cacheKey, $cacheTime, function () use ($searchTerm) {
+            // Query orders using the search term and load related customer and order items
+            return Order::with([
+                'customer:id,customer_id,customer_name',
+                'salesperson:id,name',
+            ])
+                ->where('order_number', 'like', '%' . $searchTerm . '%')
+                ->orWhere('customer_id', 'like', '%' . $searchTerm . '%')
+                ->orWhere('order_status', 'like', '%' . $searchTerm . '%')
+                ->orWhereHas('customer', function ($q) use ($searchTerm) {
+                    $q->where('customer_name', 'like', $searchTerm)
+                        ->orWhere('customer_number', 'like', $searchTerm)
+                        ->orWhere('customer_id', 'like', $searchTerm)
+                        ->orWhere('city', 'like', $searchTerm)
+                        ->orWhere('area', 'like', $searchTerm)
+                        ->orWhere('contact_number', 'like', $searchTerm)
+                        ->orWhere('email_address', 'like', $searchTerm);
+                })
+                ->orWhereHas('orderItems', function ($q) use ($searchTerm) {
+                    $q->whereHas('item', function ($q) use ($searchTerm) {
+                        $q->where('item_description', 'like', $searchTerm)
+                            ->orWhere('item_code', 'like', $searchTerm);
+                    });
+                })
+                ->select('id', 'order_number', 'customer_id', 'user_id', 'order_status', 'total_amount', 'created_at', 'updated_at')
+                ->get();
+        });
+
+        // Map the results to the desired format
+        $mappedOrders = $orders->map(function ($order) {
+            return [
+                'order_number' => $order->order_number,
+                'customer_id' => $order->customer_id,
+                'customer_name' => $order->customer->customer_name ?? null,
+                'user_id' => $order->user_id,
+                'salesperson_name' => $order->salesperson->name ?? null,
+                'order_status' => $order->order_status,
+                'total_amount' => $order->total_amount,
+                'created_at' => $order->created_at,
+                'updated_at' => $order->updated_at,
+            ];
+        });
+
+        // Return the results in JSON format
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'Orders retrieved successfully.',
+            'data' => $mappedOrders,
         ], 200);
     }
 }
