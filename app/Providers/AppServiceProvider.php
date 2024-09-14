@@ -27,12 +27,19 @@ class AppServiceProvider extends ServiceProvider
         // Model::preventLazyLoading();
 
         FilamentColor::register([
-            'danger' => Color::Red,
+            'danger' => Color::Rose,
             'gray' => Color::Zinc,
             'info' => Color::Blue,
             'primary' => Color::Orange,
             'success' => Color::Green,
             'warning' => Color::Amber,
+            'indigo' => Color::Indigo,
+            'teal' => Color::Teal,
+            'lime' => Color::Lime,
+            'emerald' => Color::Emerald,
+            'violet' => Color::Violet,
+            'fuchsia' => Color::Fuchsia,
+
         ]);
     }
 }

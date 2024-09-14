@@ -23,7 +23,7 @@ class ListOrders extends Component implements HasForms, HasTable
     use InteractsWithTable;
     use InteractsWithForms;
 
-    public $order;
+    public $order, $orderDetails;
     public $warehouses;
     public $orderItemWarehouses = [];
 
@@ -58,6 +58,14 @@ class ListOrders extends Component implements HasForms, HasTable
                     ->button()
                     ->label('View Order')
                     ->action(fn(Order $record) => $this->openDetailModal($record)),
+                    Action::make('syncDetails')
+                    ->icon('heroicon-m-cloud-arrow-up')
+                    ->button()
+                    ->label('View Sync Details')
+                    ->action(fn(Order $record) => $this->openSyncDetailsModal($record))
+                    ->visible(fn(Order $record) => $record->orderItems->flatMap(fn($item) => $item->syncHistory)->isNotEmpty())
+                    ->color('violet')
+
             ])
             ->bulkActions([
                 // Add any bulk actions if needed
@@ -112,6 +120,14 @@ class ListOrders extends Component implements HasForms, HasTable
         })->toArray();
 
         $this->dispatch('open-modal', 'order_detail');
+    }
+
+    public function openSyncDetailsModal(Order $order)
+    {
+        // Load order items along with the sync history (discrepancies)
+        $this->orderDetails = $order->load(['orderItems.syncHistory']);
+        // Dispatch to open the modal
+        $this->dispatch('open-modal', 'order_sync_details');
     }
 
     public function closeDetailModal()

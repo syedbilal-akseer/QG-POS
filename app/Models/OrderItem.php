@@ -26,4 +26,9 @@ class OrderItem extends Model
     {
         return $this->belongsTo(Item::class, 'inventory_item_id', 'inventory_item_id');
     }
+
+    public function syncHistory()
+    {
+        return $this->hasMany(OrderSyncHistory::class, 'item_id', 'id');
+    }
 }

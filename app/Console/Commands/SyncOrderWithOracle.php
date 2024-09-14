@@ -5,6 +5,9 @@ namespace App\Console\Commands;
 use App\Models\Order;
 use App\Models\OracleOrderLine;
 use Illuminate\Console\Command;
+use App\Models\OrderSyncHistory;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SyncOrderWithOracle extends Command
 {
@@ -27,44 +30,52 @@ class SyncOrderWithOracle extends Command
      */
     public function handle()
     {
-        // Fetch all orders that need to be synchronized
-        $orders = Order::with('orderItems')->get();
+        $this->info('Starting synchronization...');
 
-        foreach ($orders as $order) {
-            $this->info("Checking Order: {$order->order_number}");
+        // Batch processing of orders
+        Order::with('orderItems.syncHistory')->chunk(100, function ($orders) {
+            DB::transaction(function () use ($orders) {
+                $progressBar = $this->output->createProgressBar($orders->count());
+                foreach ($orders as $order) {
+                    $this->info("Processing Order: {$order->order_number}");
+                    foreach ($order->orderItems as $orderItem) {
+                        $this->info("Checking Item: {$orderItem->inventory_item_id}");
+                        $oracleOrderLine = OracleOrderLine::where('orig_sys_document_ref', $order->order_number)
+                            ->where('inventory_item_id', $orderItem->inventory_item_id)
+                            ->first();
 
-            foreach ($order->orderItems as $orderItem) {
-                $this->info("Checking Item: {$orderItem->inventory_item_id}");
+                        if ($oracleOrderLine) {
+                            $oracleQuantity = $oracleOrderLine->ordered_quantity;
+                            $this->info("Oracle Quantity: {$oracleQuantity}");
 
-                // Fetch the Oracle order line for the same inventory item ID
-                $oracleOrderLine = OracleOrderLine::where('orig_sys_document_ref', $order->order_number)
-                    ->where('inventory_item_id', $orderItem->inventory_item_id)
-                    ->first();
+                            if ($orderItem->ob_quantity != $oracleQuantity) {
+                                $this->info("Updating ob_quantity for Item: {$orderItem->inventory_item_id}");
 
-                if ($oracleOrderLine) {
-                    // Get the ordered quantity from Oracle
-                    $oracleQuantity = $oracleOrderLine->ordered_quantity;
+                                OrderSyncHistory::create([
+                                    'order_id' => $order->id,
+                                    'item_id' => $orderItem->id,
+                                    'previous_quantity' => $orderItem->quantity,
+                                    'new_quantity' => $oracleQuantity,
+                                    'synced_at' => now(),
+                                ]);
 
-                    $this->info("Oracle Quantity: {$oracleQuantity}");
+                                $orderItem->update([
+                                    'ob_quantity' => $oracleQuantity,
+                                ]);
 
-                    // If the Oracle quantity is different from the current ob_quantity, update it
-                    if ($orderItem->ob_quantity != $oracleQuantity) {
-                        $this->info("Updating ob_quantity for Item: {$orderItem->inventory_item_id}");
-
-                        // Update the order item with the new quantity from Oracle
-                        $orderItem->update([
-                            'ob_quantity' => $oracleQuantity,
-                        ]);
-
-                        $this->info("Order item updated successfully.");
+                                $this->info("Order item updated successfully.");
+                            }
+                        } else {
+                            $this->warn("No Oracle data found for Item: {$orderItem->inventory_item_id}");
+                        }
                     }
-                } else {
-                    $this->warn("No Oracle data found for Item: {$orderItem->inventory_item_id}");
+                    $progressBar->advance();
                 }
-            }
-        }
+                $progressBar->finish();
+                $this->info("\nOrder synchronization completed.");
+            });
+        });
 
-        $this->info('Order synchronization completed.');
         return Command::SUCCESS;
     }
 }
