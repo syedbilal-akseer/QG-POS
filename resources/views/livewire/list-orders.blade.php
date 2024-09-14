@@ -1,4 +1,8 @@
 <div>
+    <div class="mb-10">
+        @livewire(App\Livewire\Widgets\OrderStatsOverview::class)
+    </div>
+
     {{ $this->table }}
 
     @if ($order)
@@ -237,5 +241,5 @@
             </div>
         </x-modal>
     @endif
- 
+
 </div>

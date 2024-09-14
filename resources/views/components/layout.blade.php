@@ -54,12 +54,12 @@
             <div class="lg:pl-72">
                 <!-- Toast -->
                 <x-toast />
-                
+
                 <!-- Header -->
                 <x-header :$pageTitle />
 
                 <!-- Main content -->
-                <main class="py-10 dark:bg-neutral-900">
+                <main class="py-5 dark:bg-neutral-900">
                     <div class="px-4 sm:px-6 lg:px-8">
                         {{ $slot }}
                     </div>
