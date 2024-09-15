@@ -30,9 +30,11 @@ class ListProducts extends Component implements HasForms, HasTable
                     ->sortable(),
                 TextColumn::make('primary_uom_code')
                     ->searchable()
+                    ->visibleFrom('md')
                     ->sortable(),
                 TextColumn::make('secondary_uom_code')
                     ->searchable()
+                    ->visibleFrom('md')
                     ->sortable(),
             ])
             ->filters([

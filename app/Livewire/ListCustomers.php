@@ -37,6 +37,7 @@ class ListCustomers extends Component implements HasForms, HasTable
                     ->sortable(),
                 TextColumn::make('contact_number')
                     ->searchable()
+                    ->visibleFrom('md')
                     ->sortable(),
             ])
             ->filters([
@@ -54,7 +55,7 @@ class ListCustomers extends Component implements HasForms, HasTable
             ])
             ->deferLoading();
     }
-    
+
     protected function applySearchToTableQuery(Builder $query): Builder
     {
         $this->applyColumnSearchesToTableQuery($query);

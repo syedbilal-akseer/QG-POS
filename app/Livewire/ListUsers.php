@@ -41,6 +41,7 @@ class ListUsers extends Component implements HasForms, HasTable
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('role')
+                    ->visibleFrom('md')
                     ->formatStateUsing(fn($state) => $state->name())
                     ->searchable()
                     ->sortable(),

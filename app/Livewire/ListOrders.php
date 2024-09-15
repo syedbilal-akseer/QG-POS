@@ -48,6 +48,7 @@ class ListOrders extends Component implements HasForms, HasTable
                     ->sortable()
                     ->searchable(),
                 TextColumn::make('created_at')
+                    ->visibleFrom('md')
                     ->label('Order Date')
                     ->dateTime('F j, Y, g:i a')
                     ->sortable(),
@@ -58,7 +59,7 @@ class ListOrders extends Component implements HasForms, HasTable
                     ->button()
                     ->label('View Order')
                     ->action(fn(Order $record) => $this->openDetailModal($record)),
-                    Action::make('syncDetails')
+                Action::make('syncDetails')
                     ->icon('heroicon-m-cloud-arrow-up')
                     ->button()
                     ->label('View Sync Details')
