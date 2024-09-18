@@ -111,20 +111,25 @@ class ResourceController extends Controller
             'searchTerm' => 'required|string',
         ]);
 
-        // Extract the search term
+        // Extract the search term and break it into individual words
         $searchTerm = $validated['searchTerm'];
+        $terms = explode(' ', $searchTerm);
 
         // Generate a cache key based on the search term
         $cacheKey = 'search_products_' . md5($searchTerm);
         $cacheTime = 60; // Cache time in minutes
 
         // Attempt to retrieve data from cache
-        $products = Cache::remember($cacheKey, $cacheTime, function () use ($searchTerm) {
-            // Query products using the search term and load itemPrice relationship
+        $products = Cache::remember($cacheKey, $cacheTime, function () use ($terms) {
+            // Query products using the search terms and load itemPrice relationship
             return Item::with('itemPrice')
-                ->where('inventory_item_id', 'like', '%' . $searchTerm . '%')
-                ->orWhere('item_code', 'like', '%' . $searchTerm . '%')
-                ->orWhere('item_description', 'like', '%' . $searchTerm . '%')
+                ->where(function ($query) use ($terms) {
+                    foreach ($terms as $term) {
+                        $query->where('inventory_item_id', 'like', '%' . $term . '%')
+                            ->orWhere('item_code', 'like', '%' . $term . '%')
+                            ->orWhere('item_description', 'like', '%' . $term . '%');
+                    }
+                })
                 ->get();
         });
 
@@ -141,7 +146,6 @@ class ResourceController extends Controller
                 'major_category' => $item->major_category,
                 'minor_category' => $item->minor_category,
                 'sub_minor_category' => $item->sub_minor_category,
-
                 // 'item_uom_code' => optional($itemPrice)->uom,
                 // 'item_price' => optional($itemPrice)->list_price,
             ];
@@ -337,12 +341,16 @@ class ResourceController extends Controller
             'searchTerm' => 'required|string',
         ]);
 
+        // Extract the search term and break it into individual words
+        $searchTerm = $validated['searchTerm'];
+        $terms = explode(' ', $searchTerm);
+
         // Generate a cache key based on customer ID and search term
         $cacheKey = 'customer_' . $validated['customer_id'] . '_search_' . md5($validated['searchTerm']);
         $cacheTime = 60;
 
         // Attempt to retrieve data from cache
-        $items = Cache::remember($cacheKey, $cacheTime, function () use ($validated) {
+        $items = Cache::remember($cacheKey, $cacheTime, function () use ($terms, $validated) {
             // Retrieve the customer and their price list IDs
             $customer = Customer::where('customer_id', $validated['customer_id'])
                 ->with('itemPrices')
@@ -359,9 +367,11 @@ class ResourceController extends Controller
 
             // Search for items in the customer's price list that match the search term
             return ItemPrice::where('price_list_id', $customer->price_list_id)
-                ->where(function ($query) use ($validated) {
-                    $query->where('item_code', 'like', '%' . $validated['searchTerm'] . '%')
-                        ->orWhere('item_description', 'like', '%' . $validated['searchTerm'] . '%');
+                ->where(function ($query) use ($terms) {
+                    foreach ($terms as $term) {
+                        $query->where('item_code', 'like', '%' . $term . '%')
+                            ->orWhere('item_description', 'like', '%' . $term . '%');
+                    }
                 })
                 ->with('item') // Eager load the related Item
                 ->get()
@@ -370,7 +380,7 @@ class ResourceController extends Controller
                         'inventory_item_id' => $itemPrice->item_id,
                         'item_code' => $itemPrice->item->item_code,
                         'item_description' => $itemPrice->item->item_description,
-                        'item_uom_code' => $itemPrice->item->primary_uom_code,
+                        'item_uom_code' => $itemPrice->uom,
                         'item_price' => $itemPrice->list_price,
                     ];
                 });
@@ -527,7 +537,7 @@ class ResourceController extends Controller
                         'customer_name' => $order->customer->customer_name ?? null,
                         'user_id' => $order->user_id,
                         'salesperson_name' => $order->salesperson->name ?? null,
-                        'order_status' => $order->order_status,
+                        'order_status' => $order->order_status->name(),
                         'total_amount' => $order->total_amount,
                         'created_at' => $order->created_at,
                         'updated_at' => $order->updated_at,
@@ -592,7 +602,7 @@ class ResourceController extends Controller
             'contact_number' => $order->customer->contact_number ?? null,
             'user_id' => $order->user_id,
             'salesperson_name' => $order->salesperson->name ?? null,
-            'order_status' => $order->order_status,
+            'order_status' => $order->order_status->name(),
             'total_amount' => $order->total_amount,
             'created_at' => $order->created_at,
             'updated_at' => $order->updated_at,
@@ -637,37 +647,49 @@ class ResourceController extends Controller
             'searchTerm' => 'required|string',
         ]);
 
-        // Extract the search term
+        // Extract the search term and break it into individual words
         $searchTerm = $validated['searchTerm'];
+        $terms = explode(' ', $searchTerm); // Split the search term by spaces
 
-        // Generate a cache key based on the search term
-        $cacheKey = 'search_orders_' . md5($searchTerm);
+        // Get the ID of the authenticated user
+        $userId = Auth::id();
+
+        // Generate a cache key based on the search term and user ID
+        $cacheKey = 'search_orders_' . md5($searchTerm . $userId);
         $cacheTime = 60; // Cache time in minutes
 
         // Attempt to retrieve data from cache
-        $orders = Cache::remember($cacheKey, $cacheTime, function () use ($searchTerm) {
-            // Query orders using the search term and load related customer and order items
+        $orders = Cache::remember($cacheKey, $cacheTime, function () use ($terms, $userId) {
+            // Query orders using the search term, filter by user ID, and load related customer and order items
             return Order::with([
                 'customer:id,customer_id,customer_name',
                 'salesperson:id,name',
+                'orderItems:id,order_id,inventory_item_id',
+                'orderItems.item:inventory_item_id,item_description,item_code'
             ])
-                ->where('order_number', 'like', '%' . $searchTerm . '%')
-                ->orWhere('customer_id', 'like', '%' . $searchTerm . '%')
-                ->orWhere('order_status', 'like', '%' . $searchTerm . '%')
-                ->orWhereHas('customer', function ($q) use ($searchTerm) {
-                    $q->where('customer_name', 'like', $searchTerm)
-                        ->orWhere('customer_number', 'like', $searchTerm)
-                        ->orWhere('customer_id', 'like', $searchTerm)
-                        ->orWhere('city', 'like', $searchTerm)
-                        ->orWhere('area', 'like', $searchTerm)
-                        ->orWhere('contact_number', 'like', $searchTerm)
-                        ->orWhere('email_address', 'like', $searchTerm);
-                })
-                ->orWhereHas('orderItems', function ($q) use ($searchTerm) {
-                    $q->whereHas('item', function ($q) use ($searchTerm) {
-                        $q->where('item_description', 'like', $searchTerm)
-                            ->orWhere('item_code', 'like', $searchTerm);
-                    });
+                ->where('user_id', $userId) // Filter orders by authenticated user's ID
+                ->where(function ($query) use ($terms) {
+                    foreach ($terms as $term) {
+                        $term = trim($term); // Trim whitespace from terms
+                        $query->where('order_number', 'like', '%' . $term . '%')
+                            ->orWhere('customer_id', 'like', '%' . $term . '%')
+                            ->orWhere('order_status', 'like', '%' . $term . '%')
+                            ->orWhereHas('customer', function ($q) use ($term) {
+                                $q->where('customer_name', 'like', '%' . $term . '%')
+                                    ->orWhere('customer_number', 'like', '%' . $term . '%')
+                                    ->orWhere('customer_id', 'like', '%' . $term . '%')
+                                    ->orWhere('city', 'like', '%' . $term . '%')
+                                    ->orWhere('area', 'like', '%' . $term . '%')
+                                    ->orWhere('contact_number', 'like', '%' . $term . '%')
+                                    ->orWhere('email_address', 'like', '%' . $term . '%');
+                            })
+                            ->orWhereHas('orderItems', function ($q) use ($term) {
+                                $q->whereHas('item', function ($q) use ($term) {
+                                    $q->where('item_description', 'like', '%' . $term . '%')
+                                        ->orWhere('item_code', 'like', '%' . $term . '%');
+                                });
+                            });
+                    }
                 })
                 ->select('id', 'order_number', 'customer_id', 'user_id', 'order_status', 'total_amount', 'created_at', 'updated_at')
                 ->get();
@@ -681,7 +703,7 @@ class ResourceController extends Controller
                 'customer_name' => $order->customer->customer_name ?? null,
                 'user_id' => $order->user_id,
                 'salesperson_name' => $order->salesperson->name ?? null,
-                'order_status' => $order->order_status,
+                'order_status' => $order->order_status->name(),
                 'total_amount' => $order->total_amount,
                 'created_at' => $order->created_at,
                 'updated_at' => $order->updated_at,
