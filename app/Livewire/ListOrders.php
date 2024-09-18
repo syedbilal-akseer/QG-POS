@@ -30,7 +30,7 @@ class ListOrders extends Component implements HasForms, HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->query(Order::query()->latest())
+            ->query(Order::query())
             ->columns([
                 TextColumn::make('order_number')
                     ->label('Order Number')

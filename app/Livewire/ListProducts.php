@@ -20,7 +20,7 @@ class ListProducts extends Component implements HasForms, HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->query(Item::query()->latest())
+            ->query(Item::query())
             ->columns([
                 TextColumn::make('item_code')
                     ->searchable()

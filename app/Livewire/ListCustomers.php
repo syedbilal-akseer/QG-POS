@@ -23,7 +23,7 @@ class ListCustomers extends Component implements HasForms, HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->query(Customer::query()->latest())
+            ->query(Customer::query())
             ->columns([
                 TextColumn::make('ou_id')
                     ->searchable()
