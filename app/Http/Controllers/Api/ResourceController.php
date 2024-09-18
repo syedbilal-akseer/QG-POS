@@ -304,17 +304,22 @@ class ResourceController extends Controller
 
         // Extract the search term
         $searchTerm = $validated['searchTerm'];
+        $terms = explode(' ', $searchTerm);
 
         // Generate a cache key based on the search term
         $cacheKey = 'search_customers_' . md5($searchTerm);
         $cacheTime = 60; // Cache time in minutes
 
         // Attempt to retrieve data from cache
-        $customers = Cache::remember($cacheKey, $cacheTime, function () use ($searchTerm) {
+        $customers = Cache::remember($cacheKey, $cacheTime, function () use ($terms) {
             // Query customers using the search term
-            return Customer::where('customer_id', 'like', '%' . $searchTerm . '%')
-                ->orWhere('contact_number', 'like', '%' . $searchTerm . '%')
-                ->orWhere('customer_name', 'like', '%' . $searchTerm . '%')
+            return Customer::where(function ($query) use ($terms) {
+                foreach ($terms as $term) {
+                    $query->where('customer_id', 'like', '%' . $term . '%')
+                        ->orWhere('customer_number', 'like', '%' . $term . '%')
+                        ->orWhere('customer_name', 'like', '%' . $term . '%');
+                }
+            })
                 ->get();
         });
 
