@@ -205,7 +205,9 @@ class ListOrders extends Component implements HasForms, HasTable
         //     $this->dispatch('toast-error', 'An error occurred while entering the order to Oracle.');
         //     // $this->dispatch('toast-error', 'An error occurred: ' . $e->getMessage());
         // }
+        $this->reset('order');
         $this->dispatch('toast-error', 'This feature will not work on cPanel.');
+        $this->dispatch('close');
     }
 
     public function render()
