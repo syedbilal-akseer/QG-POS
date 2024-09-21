@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use Carbon\Carbon;
 use App\Models\Order;
 use Livewire\Component;
 use App\Models\Warehouse;
@@ -11,9 +12,12 @@ use App\Models\OracleOrderLine;
 use App\Models\OracleOrderHeader;
 use Illuminate\Support\Facades\DB;
 use Filament\Tables\Actions\Action;
+use Filament\Tables\Filters\Filter;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Contracts\HasTable;
+use Filament\Forms\Components\DatePicker;
+use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Tables\Concerns\InteractsWithTable;
@@ -53,6 +57,50 @@ class ListOrders extends Component implements HasForms, HasTable
                     ->dateTime('F j, Y, g:i a')
                     ->sortable(),
             ])
+            ->filters([
+                SelectFilter::make('order_status')
+                    ->label('Status')
+                    ->options(OrderStatusEnum::asArray())
+                    ->attribute('order_status')
+                    ->placeholder('Select a status'),
+
+                Filter::make('created_at')
+                    ->form([
+                        DatePicker::make('created_from')
+                            ->label('Order Date From')
+                            ->native(false),
+                        DatePicker::make('created_until')
+                            ->label('Order Date Until')
+                            ->native(false),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['created_from'],
+                                fn(Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
+                            )
+                            ->when(
+                                $data['created_until'],
+                                fn(Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
+                            );
+                    })
+                    ->indicateUsing(function (array $data): ?string {
+                        if (!$data['created_from'] && !$data['created_until']) {
+                            return null; // No filter applied
+                        }
+
+                        $from = $data['created_from'] ? Carbon::parse($data['created_from'])->toFormattedDateString() : 'N/A';
+                        $until = $data['created_until'] ? Carbon::parse($data['created_until'])->toFormattedDateString() : 'N/A';
+
+                        return 'Order Date from ' . $from . ' to ' . $until;
+                    }),
+
+            ])
+            ->filtersTriggerAction(
+                fn (Action $action) => $action
+                    ->button()
+                    ->label('Filter'),
+            )
             ->actions([
                 Action::make('view')
                     ->icon('heroicon-m-eye')

@@ -391,7 +391,9 @@ class ResourceController extends Controller
                         'item_uom_code' => $itemPrice->uom,
                         'item_price' => $itemPrice->list_price,
                     ];
-                });
+                })
+                ->values() // Reset the keys to create a numerically indexed array
+    ->all(); // Convert to a plain array
         });
 
         // Return the filtered items
@@ -487,7 +489,7 @@ class ResourceController extends Controller
                     'uom' => $itemPrice->uom,
                     'quantity' => $itemData['quantity'],
                     'price' => $itemPrice->list_price,
-                    'sub_total' => $itemData['quantity'] * $itemPrice->list_price, 
+                    'sub_total' => $itemData['quantity'] * $itemPrice->list_price,
                 ]);
             }
 
