@@ -415,6 +415,7 @@ class ResourceController extends Controller
             'items' => 'required|array',
             'items.*.inventory_item_id' => 'required|exists:items,inventory_item_id',
             'items.*.quantity' => 'required|integer|min:1',
+            'discount' => 'nullable|numeric|min:0',
         ]);
 
         // Retrieve the customer
@@ -429,11 +430,11 @@ class ResourceController extends Controller
             ], 400);
         }
 
-        // Initialize the total order amount
-        $totalAmount = 0;
+        // Initialize the sub_total and total order amount
+        $subTotal = 0;
 
         // Use the transaction to create the order and its items, and return the order
-        $order = DB::transaction(function () use ($customer, $validated, &$totalAmount) {
+        $order = DB::transaction(function () use ($customer, $validated, &$subTotal) {
             // Create a new order for the customer
             $order = $customer->orders()->create([
                 'customer_id' => $customer->id,
@@ -472,10 +473,10 @@ class ResourceController extends Controller
                 }
 
                 // Calculate the subtotal for this item
-                $subtotal = $itemPrice->list_price * $itemData['quantity'];
+                $itemSubtotal = $itemPrice->list_price * $itemData['quantity'];
 
-                // Add to the total order amount
-                $totalAmount += $subtotal;
+                // Add to the total sub_total
+                $subTotal += $itemSubtotal;
 
                 // Create the OrderItem
                 $order->orderItems()->create([
@@ -486,8 +487,21 @@ class ResourceController extends Controller
                 ]);
             }
 
-            // Update the total amount for the order
-            $order->update(['total_amount' => $totalAmount]);
+            // Apply the discount if provided
+            $discount = $validated['discount'] ?? 0;
+            $totalAmount = $subTotal - $discount;
+
+            // Ensure totalAmount is not negative
+            if ($totalAmount < 0) {
+                $totalAmount = 0;
+            }
+
+            // Update the order with sub_total, discount, and total_amount
+            $order->update([
+                'sub_total' => $subTotal,
+                'discount' => $discount,
+                'total_amount' => $totalAmount,
+            ]);
 
             // Return the order to make it accessible outside the transaction
             return $order;
