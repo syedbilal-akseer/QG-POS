@@ -352,14 +352,12 @@ class ResourceController extends Controller
 
         // Generate a cache key based on customer ID and search term
         $cacheKey = 'customer_' . $validated['customer_id'] . '_search_' . md5($validated['searchTerm']);
-        $cacheTime = 60;
+        $cacheTime = 60; // Cache for 60 minutes
 
         // Attempt to retrieve data from cache
         $items = Cache::remember($cacheKey, $cacheTime, function () use ($terms, $validated) {
-            // Retrieve the customer and their price list IDs
-            $customer = Customer::where('customer_id', $validated['customer_id'])
-                ->with('itemPrices')
-                ->first();
+            // Retrieve the customer along with their item prices using the relation, applying eager loading for the related items
+            $customer = Customer::where('customer_id', $validated['customer_id'])->first();
 
             // Check if the customer exists
             if (!$customer) {
@@ -371,15 +369,20 @@ class ResourceController extends Controller
             }
 
             // Search for items in the customer's price list that match the search term
-            return ItemPrice::where('price_list_id', $customer->price_list_id)
-                ->where(function ($query) use ($terms) {
-                    foreach ($terms as $term) {
-                        $query->where('item_code', 'like', '%' . $term . '%')
-                            ->orWhere('item_description', 'like', '%' . $term . '%');
-                    }
+            $customer->load(['itemPrices.item' => function ($query) use ($terms) {
+                // Apply search term filtering on the related item within the itemPrices relationship
+                foreach ($terms as $term) {
+                    $query->where('item_code', 'like', '%' . $term . '%')
+                        ->orWhere('item_description', 'like', '%' . $term . '%');
+                }
+            }]);
+
+            // Transform the retrieved data
+            return $customer->itemPrices
+                ->filter(function ($itemPrice) {
+                    // Filter out item prices that don't have a matching item (based on search terms)
+                    return $itemPrice->item;
                 })
-                ->with('item') // Eager load the related Item
-                ->get()
                 ->map(function ($itemPrice) {
                     return [
                         'inventory_item_id' => $itemPrice->item_id,
@@ -484,6 +487,7 @@ class ResourceController extends Controller
                     'uom' => $itemPrice->uom,
                     'quantity' => $itemData['quantity'],
                     'price' => $itemPrice->list_price,
+                    'sub_total' => $itemData['quantity'] * $itemPrice->list_price, 
                 ]);
             }
 
@@ -511,7 +515,7 @@ class ResourceController extends Controller
             'success' => true,
             'status' => 200,
             'message' => 'Order placed successfully.',
-            'data' => [$order->load(['customer', 'orderItems.item.itemPrice'])],
+            'data' => [$order->load(['customer:customer_id,customer_name,customer_number', 'salesperson:id,name', 'orderItems.item.itemPrice'])],
         ], 200);
     }
 
@@ -546,7 +550,7 @@ class ResourceController extends Controller
                     'customer:id,customer_id,customer_name',
                     'salesperson:id,name',
                 ])
-                ->select('id', 'order_number', 'customer_id', 'user_id', 'order_status', 'total_amount', 'created_at', 'updated_at')
+                ->select('id', 'order_number', 'customer_id', 'user_id', 'order_status', 'sub_total', 'discount', 'total_amount', 'created_at', 'updated_at')
                 ->get()
                 ->map(function ($order) {
                     // Transform the order data
@@ -557,6 +561,8 @@ class ResourceController extends Controller
                         'user_id' => $order->user_id,
                         'salesperson_name' => $order->salesperson->name ?? null,
                         'order_status' => $order->order_status->name(),
+                        'sub_total' => $order->sub_total,
+                        'discount' => $order->discount,
                         'total_amount' => $order->total_amount,
                         'created_at' => $order->created_at,
                         'updated_at' => $order->updated_at,
@@ -599,7 +605,7 @@ class ResourceController extends Controller
                 'orderItems.item:id,inventory_item_id,item_code,item_description',
                 'orderItems.item.itemPrice:id,item_id,list_price,uom',
             ])
-                ->select('id', 'order_number', 'customer_id', 'user_id', 'order_status', 'total_amount', 'created_at', 'updated_at')
+                ->select('id', 'order_number', 'customer_id', 'user_id', 'order_status', 'sub_total', 'discount', 'total_amount', 'created_at', 'updated_at')
                 ->where('order_number', $validated['order_number'])
                 ->first();
         });
@@ -622,6 +628,8 @@ class ResourceController extends Controller
             'user_id' => $order->user_id,
             'salesperson_name' => $order->salesperson->name ?? null,
             'order_status' => $order->order_status->name(),
+            'sub_total' => $order->sub_total,
+            'discount' => $order->discount,
             'total_amount' => $order->total_amount,
             'created_at' => $order->created_at,
             'updated_at' => $order->updated_at,
@@ -710,7 +718,7 @@ class ResourceController extends Controller
                             });
                     }
                 })
-                ->select('id', 'order_number', 'customer_id', 'user_id', 'order_status', 'total_amount', 'created_at', 'updated_at')
+                ->select('id', 'order_number', 'customer_id', 'user_id', 'order_status', 'sub_total', 'discount', 'total_amount', 'created_at', 'updated_at')
                 ->get();
         });
 
@@ -723,6 +731,8 @@ class ResourceController extends Controller
                 'user_id' => $order->user_id,
                 'salesperson_name' => $order->salesperson->name ?? null,
                 'order_status' => $order->order_status->name(),
+                'sub_total' => $order->sub_total,
+                'discount' => $order->discount,
                 'total_amount' => $order->total_amount,
                 'created_at' => $order->created_at,
                 'updated_at' => $order->updated_at,

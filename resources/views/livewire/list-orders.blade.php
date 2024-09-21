@@ -52,27 +52,27 @@
                         <table class="min-w-full border border-gray-200 dark:border-neutral-700 rounded-md">
                             <thead class="bg-gray-50 dark:bg-neutral-900">
                                 <tr>
-                                    <th
-                                        class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Item Code</th>
-                                    <th
-                                        class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Item</th>
-                                    <th
-                                        class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Quantity</th>
-                                    <th
-                                        class="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        UOM</th>
-                                    <th
-                                        class="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Price</th>
-                                    <th
-                                        class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Warehouse</th>
-                                    <th
-                                        class="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Subtotal</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Item Code
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Item
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Quantity
+                                    </th>
+                                    <th class="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        UOM
+                                    </th>
+                                    <th class="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Price
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Warehouse
+                                    </th>
+                                    <th class="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Subtotal
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody
@@ -80,11 +80,14 @@
                                 @foreach ($order->orderItems as $index => $orderItem)
                                     <tr>
                                         <td class="px-4 py-3 text-gray-900 dark:text-gray-100">
-                                            {{ $orderItem->item->item_code }}</td>
+                                            {{ $orderItem->item->item_code }}
+                                        </td>
                                         <td class="px-4 py-3 text-gray-900 dark:text-gray-100">
-                                            {{ $orderItem->item->item_description }}</td>
+                                            {{ $orderItem->item->item_description }}
+                                        </td>
                                         <td class="px-4 py-3 text-gray-900 dark:text-gray-100">
-                                            {{ $orderItem->quantity }}</td>
+                                            {{ $orderItem->quantity }}
+                                        </td>
                                         <td class="px-4 py-3 text-gray-900 dark:text-gray-100">{{ $orderItem->uom }}
                                         </td>
                                         <td class="px-4 py-3 text-right text-gray-900 dark:text-gray-100">
@@ -107,7 +110,7 @@
                                             @enderror
                                         </td>
                                         <td class="px-4 py-3 text-right text-gray-900 dark:text-gray-100">
-                                            Rs{{ number_format($orderItem->quantity * $orderItem->price, 2) }}
+                                            Rs{{ number_format($orderItem->sub_total, 2) }}
                                         </td>
                                     </tr>
                                 @endforeach
@@ -115,11 +118,19 @@
                         </table>
                     </div>
 
-                    <!-- Order Totals -->
+                    <!-- Order Totals including Subtotal and Discount -->
                     <div class="flex justify-end mt-6">
                         <div class="text-right">
-                            <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">Total:
-                                Rs{{ number_format($order->orderItems->sum(fn($item) => $item->quantity * $item->price), 2) }}
+                            <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                                Subtotal: Rs{{ number_format($order->sub_total, 2) }}
+                            </p>
+                            @if ($order->discount > 0)
+                                <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                                    Discount: -Rs{{ number_format($order->discount, 2) }}
+                                </p>
+                            @endif
+                            <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                                Total: Rs{{ number_format($order->total_amount, 2) }}
                             </p>
                         </div>
                     </div>

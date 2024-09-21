@@ -203,4 +203,35 @@ Route::get('/testing', function () {
 //     return 'Users created successfully.';
 // });
 
+Route::get('/update-orders', function () {
+    // Fetch all orders
+    $orders = \App\Models\Order::with('orderItems')->get();
+
+    foreach ($orders as $order) {
+        // Calculate total for the order and initialize sub_total
+        $total = 0;
+
+        foreach ($order->orderItems as $orderItem) {
+            // Calculate sub_total for each OrderItem
+            $subTotal = $orderItem->quantity * $orderItem->price;
+
+            // Update the sub_total in the OrderItem
+            $orderItem->update(['sub_total' => $subTotal]);
+
+            // Add to the total
+            $total += $subTotal;
+        }
+
+        // Update the sub_total in the Order
+        $order->update(['sub_total' => $total]); // Update sub_total for the order
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Orders updated successfully.',
+    ]);
+});
+
+
+
 require __DIR__ . '/auth.php';
