@@ -7,6 +7,7 @@ use App\Enums\RoleEnum;
 use Livewire\Component;
 use Filament\Tables\Table;
 use App\Rules\StrongPassword;
+use App\Traits\NotifiesUsers;
 use Filament\Tables\Actions\Action;
 use Illuminate\Contracts\View\View;
 use Filament\Forms\Contracts\HasForms;
@@ -20,6 +21,7 @@ class ListUsers extends Component implements HasForms, HasTable
 {
     use InteractsWithTable;
     use InteractsWithForms;
+    use NotifiesUsers;
 
     public $user;
     public $name, $email, $role, $password, $password_confirmation;
@@ -104,7 +106,7 @@ class ListUsers extends Component implements HasForms, HasTable
         ]);
 
         $this->dispatch('close-modal', 'new_user');
-        $this->dispatch('toast-success', 'User created successfully.');
+        $this->notifyUser('User Created', 'User created successfully.');
     }
 
     public function openEditModal(User $user)
@@ -159,7 +161,8 @@ class ListUsers extends Component implements HasForms, HasTable
 
         $user->update($data);
 
-        $this->dispatch('toast-success', 'User updated successfully.');
+        $this->notifyUser('User Updated', 'User Updated successfully.');
+
         $this->closeEditModal();
     }
 

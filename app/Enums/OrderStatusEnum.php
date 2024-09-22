@@ -8,6 +8,7 @@ enum OrderStatusEnum: string
     case PROCESSING = 'processing';
     case COMPLETED = 'completed';
     case CANCELED = 'canceled';
+    case SYNCED = 'synced'; // New status for orders synced to Oracle
 
     /**
      * Get the description for the status.
@@ -21,6 +22,7 @@ enum OrderStatusEnum: string
             self::PROCESSING => 'Order is being processed.',
             self::COMPLETED => 'Order has been completed.',
             self::CANCELED => 'Order has been canceled.',
+            self::SYNCED => 'Order has been synced with Oracle.', // Description for the new status
         };
     }
 
@@ -36,6 +38,7 @@ enum OrderStatusEnum: string
             self::PROCESSING => 'Processing',
             self::COMPLETED => 'Completed',
             self::CANCELED => 'Canceled',
+            self::SYNCED => 'Synced with Oracle', // Name for the new status
         };
     }
 
@@ -51,6 +54,7 @@ enum OrderStatusEnum: string
             self::PROCESSING->value => 'primary',  // Blue for processing
             self::COMPLETED->value => 'success',   // Green for completed
             self::CANCELED->value => 'danger',     // Red for canceled
+            self::SYNCED->value => 'info',         // Light blue for synced
         ];
     }
 
@@ -78,6 +82,7 @@ enum OrderStatusEnum: string
             (object)['id' => self::PROCESSING->value, 'name' => self::PROCESSING->name()],
             (object)['id' => self::COMPLETED->value, 'name' => self::COMPLETED->name()],
             (object)['id' => self::CANCELED->value, 'name' => self::CANCELED->name()],
+            (object)['id' => self::SYNCED->value, 'name' => self::SYNCED->name()], // New status object
         ];
     }
 
@@ -93,6 +98,7 @@ enum OrderStatusEnum: string
             self::PROCESSING->value => self::PROCESSING->name(),
             self::COMPLETED->value => self::COMPLETED->name(),
             self::CANCELED->value => self::CANCELED->name(),
+            self::SYNCED->value => self::SYNCED->name(), // Add synced to the array
         ];
     }
 

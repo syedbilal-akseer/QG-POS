@@ -4,7 +4,7 @@
     </div>
 
     {{ $this->table }}
-
+    
     @if ($order)
         <x-modal name="order_detail" :show="true" focusable maxWidth="4xl">
             <div class="p-6 bg-white dark:bg-neutral-800 rounded-lg shadow-lg">
@@ -52,25 +52,32 @@
                         <table class="min-w-full border border-gray-200 dark:border-neutral-700 rounded-md">
                             <thead class="bg-gray-50 dark:bg-neutral-900">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    <th
+                                        class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                                         Item Code
                                     </th>
-                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    <th
+                                        class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                                         Item
                                     </th>
-                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    <th
+                                        class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                                         Quantity
                                     </th>
-                                    <th class="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    <th
+                                        class="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
                                         UOM
                                     </th>
-                                    <th class="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    <th
+                                        class="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
                                         Price
                                     </th>
-                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    <th
+                                        class="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                                         Warehouse
                                     </th>
-                                    <th class="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    <th
+                                        class="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
                                         Subtotal
                                     </th>
                                 </tr>

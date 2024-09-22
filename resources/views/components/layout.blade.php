@@ -66,6 +66,8 @@
                 </main>
             </div>
 
+            @livewire('notifications')
+
             <!-- Scripts -->
             @livewireScripts
             @filamentScripts

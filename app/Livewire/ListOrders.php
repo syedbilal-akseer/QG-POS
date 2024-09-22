@@ -7,6 +7,7 @@ use App\Models\Order;
 use Livewire\Component;
 use App\Models\Warehouse;
 use Filament\Tables\Table;
+use App\Traits\NotifiesUsers;
 use App\Enums\OrderStatusEnum;
 use App\Models\OracleOrderLine;
 use App\Models\OracleOrderHeader;
@@ -16,6 +17,7 @@ use Filament\Tables\Filters\Filter;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Contracts\HasTable;
+use Filament\Notifications\Notification;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
@@ -26,6 +28,7 @@ class ListOrders extends Component implements HasForms, HasTable
 {
     use InteractsWithTable;
     use InteractsWithForms;
+    use NotifiesUsers;
 
     public $order, $orderDetails;
     public $warehouses;
@@ -97,7 +100,7 @@ class ListOrders extends Component implements HasForms, HasTable
 
             ])
             ->filtersTriggerAction(
-                fn (Action $action) => $action
+                fn(Action $action) => $action
                     ->button()
                     ->label('Filter'),
             )
@@ -238,6 +241,7 @@ class ListOrders extends Component implements HasForms, HasTable
 
         //         // Update the order's oracle_at timestamp to mark it as successfully entered into Oracle
         //         $this->order->update(['oracle_at' => now()]);
+        //         $this->order->update(['order_status' => OrderStatusEnum::SYNCED]);
 
         //         return $oracleOrderHeader;
         //     });
@@ -245,16 +249,16 @@ class ListOrders extends Component implements HasForms, HasTable
         //     if ($order) {
         //         $this->reset('order');
         //         $this->dispatch('close');
-        //         $this->dispatch('toast-success', 'Order entered to Oracle successfully.');
+        //         $this->notifyUser('Order Entered', 'Order entered to Oracle successfully.');
         //     } else {
         //         throw new \Exception('Order insertion failed.');
         //     }
         // } catch (\Exception $e) {
-        //     $this->dispatch('toast-error', 'An error occurred while entering the order to Oracle.');
-        //     // $this->dispatch('toast-error', 'An error occurred: ' . $e->getMessage());
+        //     $this->notifyUser('Error', 'An error occurred while entering the order to Oracle.', 'danger');
+        //     // $this->notifyUser('Error', 'An error occurred: ' . $e->getMessage(), 'danger');
         // }
         $this->reset('order');
-        $this->dispatch('toast-error', 'This feature will not work on cPanel.');
+        $this->notifyUser('Feature Limitation', 'This feature will not work on cPanel.', 'danger');
         $this->dispatch('close');
     }
 

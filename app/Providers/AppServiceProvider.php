@@ -6,6 +6,7 @@ use Filament\Support\Colors\Color;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\ServiceProvider;
 use Filament\Support\Facades\FilamentColor;
+use Filament\Notifications\Livewire\DatabaseNotifications;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -41,5 +42,7 @@ class AppServiceProvider extends ServiceProvider
             'fuchsia' => Color::Fuchsia,
 
         ]);
+
+        // DatabaseNotifications::trigger('notifications-trigger');
     }
 }
