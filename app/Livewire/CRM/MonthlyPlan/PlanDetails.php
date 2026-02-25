@@ -84,14 +84,14 @@ class PlanDetails extends Component implements HasForms, HasTable
                     ->color('violet'),
 
                 // "View MVR" button visible if there are visits
-                Action::make('view_mvr')
-                    ->label('View MVR')
-                    ->icon('heroicon-o-eye')
-                    ->button()
-                    ->visible(fn(DayTourPlan $record) => $record->visits()->count() > 0) // Show if there are visits
-                    ->action(function (DayTourPlan $record) {
-                        $this->redirectRoute('visit.reportDetails', ['plan' => $record]);
-                    }),
+                // Action::make('view_mvr')
+                //     ->label('View MVR')
+                //     ->icon('heroicon-o-eye')
+                //     ->button()
+                //     ->visible(fn(DayTourPlan $record) => $record->visits()->count() > 0) // Show if there are visits
+                //     ->action(function (DayTourPlan $record) {
+                //         $this->redirectRoute('visit.reportDetails', ['plan' => $record]);
+                //     }),
 
                 // "Add MVR" button visible if there are no visits
                 Action::make('add_mvr')

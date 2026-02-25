@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Carbon\Carbon;
+use App\Enums\OrderStatusEnum;
 
 class OrderController extends Controller
 {
@@ -29,7 +30,7 @@ class OrderController extends Controller
             'salesperson:id,name',
             'orderItems:id,order_id,inventory_item_id,uom,quantity,price,discount,sub_total',
             'orderItems.item:id,inventory_item_id,item_code,item_description',
-            'orderItems.item.itemPrices:id,item_id,list_price,uom',
+            'orderItems.item.itemPrice:id,item_code,list_price,uom',
         ])
             ->select('id', 'order_number', 'customer_id', 'user_id', 'order_status', 'sub_total', 'discount', 'total_amount', 'created_at', 'updated_at')
             ->orderBy('created_at', 'desc')  // Order by created_at in descending order
@@ -122,8 +123,9 @@ class OrderController extends Controller
         $subTotal = 0;
         $totalItemDiscount = 0; // Total discount from order items
 
-        // Use the transaction to create the order and its items, and return the order
-        $order = DB::transaction(function () use ($customer, $validated, &$subTotal, &$totalItemDiscount) {
+        try {
+            // Use the transaction to create the order and its items, and return the order
+            $order = DB::transaction(function () use ($customer, $validated, &$subTotal, &$totalItemDiscount) {
             // Create a new order for the customer
             $order = $customer->orders()->create([
                 'customer_id' => $customer->id,
@@ -135,30 +137,22 @@ class OrderController extends Controller
                 // Check if the item exists in the items table
                 $item = Item::where('inventory_item_id', $itemData['inventory_item_id'])->first();
                 if (! $item) {
-                    return response()->json([
-                        'success' => false,
-                        'status' => 400,
-                        'errors' => [
-                            'message' => "Item with ID {$itemData['inventory_item_id']} does not exist.",
-                        ],
-                    ], 400);
+                    throw new \Exception("Item with ID {$itemData['inventory_item_id']} does not exist.");
                 }
 
                 // Find the price for the item from the customer's price list
-                $itemPrice = $customer->itemPrices()
-                    ->where('item_id', $itemData['inventory_item_id'])
+                // Use same logic as /customers/search/products API (which works)
+                // Match by price_list_id OR price_list_name
+                $itemPrice = \App\Models\ItemPrice::where('item_code', $item->item_code)
+                    ->where(function ($q) use ($customer) {
+                        $q->where('price_list_id', $customer->price_list_id)
+                          ->orWhere('price_list_name', $customer->price_list_name);
+                    })
                     ->first();
 
                 // Check if the item price was found
-                if (! $itemPrice) {
-                    // Handle the case where no matching price was found
-                    return response()->json([
-                        'success' => false,
-                        'status' => 400,
-                        'errors' => [
-                            'message' => "Price not found for item ID: {$item['inventory_item_id']}",
-                        ],
-                    ], 400);
+                if (!$itemPrice) {
+                    throw new \Exception("Price not found for item: {$item->item_code} ({$item->item_description}) in price list {$customer->price_list_id}/{$customer->price_list_name}");
                 }
 
                 // Calculate the subtotal for this item
@@ -215,16 +209,24 @@ class OrderController extends Controller
                 'total_amount' => $totalAmount,
             ]);
 
-            // Return the order to make it accessible outside the transaction
-            return $order;
-        });
+                // Return the order to make it accessible outside the transaction
+                return $order;
+            });
 
-        return response()->json([
-            'success' => true,
-            'status' => 200,
-            'message' => 'Order placed successfully.',
-            'data' => [$order->load(['customer:customer_id,customer_name,customer_number', 'salesperson:id,name', 'orderItems.item.itemPrice'])],
-        ], 200);
+            return response()->json([
+                'success' => true,
+                'status' => 200,
+                'message' => 'Order placed successfully.',
+                'data' => [$order->load(['customer:customer_id,customer_name,customer_number', 'salesperson:id,name', 'orderItems.item.itemPrice'])],
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'status' => 400,
+                'message' => 'Failed to place order.',
+                'error' => $e->getMessage(),
+            ], 400);
+        }
     }
 
     /**
@@ -234,7 +236,7 @@ class OrderController extends Controller
     {
         // Get the currently authenticated user
         $user = $request->user();
-    
+
         // Validate the incoming request filters
         $validated = $request->validate([
             'start_date' => 'nullable|date_format:d/m/Y',
@@ -242,7 +244,7 @@ class OrderController extends Controller
             'customer_id' => 'nullable|exists:customers,customer_id',
             'salesperson_id' => 'nullable|exists:users,id',
         ]);
-    
+
         if (! $user) {
             return response()->json([
                 'success' => false,
@@ -250,24 +252,24 @@ class OrderController extends Controller
                 'message' => 'User is not authenticated.',
             ], 401);
         }
-    
+
         // Apply filters via your custom action
         $orderExportAction = new OrderExportAction;
         $ordersQuery = $orderExportAction->applyFilters($validated);
-    
+
         // Add relationships, selections, and limit after filtering
         $ordersQuery->with([
             'customer:id,customer_id,customer_name',
             'salesperson:id,name',
         ])
-        ->select('id', 'order_number', 'customer_id', 'user_id', 'order_status', 'sub_total', 'discount', 'total_amount', 'created_at', 'updated_at')
-        ->latest()
-        ->limit(10);
-    
+            ->select('id', 'order_number', 'customer_id', 'user_id', 'order_status', 'sub_total', 'discount', 'total_amount', 'created_at', 'updated_at')
+            ->latest()
+            ->limit(10);
+
         // Cache the filtered and eager-loaded query result
         $cacheKey = 'user_order_history_' . $user->id . '_' . md5(json_encode($validated));
         $cacheTime = 60;
-    
+
         $orders = Cache::remember($cacheKey, $cacheTime, function () use ($ordersQuery) {
             return $ordersQuery->get()->map(function ($order) {
                 return [
@@ -285,7 +287,7 @@ class OrderController extends Controller
                 ];
             });
         });
-    
+
         return response()->json([
             'success' => true,
             'status' => 200,
@@ -293,7 +295,7 @@ class OrderController extends Controller
             'data' => $orders,
         ], 200);
     }
-    
+
 
     /**
      * Retrieve the order details for a specific order.
@@ -316,7 +318,7 @@ class OrderController extends Controller
                 'salesperson:id,name',
                 'orderItems:id,order_id,inventory_item_id,uom,quantity,price,discount,sub_total',
                 'orderItems.item:id,inventory_item_id,item_code,item_description',
-                'orderItems.item.itemPrices:id,item_id,list_price,uom',
+                'orderItems.item.itemPrice:id,item_code,list_price,uom',
             ])
                 ->select('id', 'order_number', 'customer_id', 'user_id', 'order_status', 'sub_total', 'discount', 'total_amount', 'created_at', 'updated_at')
                 ->where('order_number', $validated['order_number'])
@@ -478,7 +480,7 @@ class OrderController extends Controller
         $orderExportAction = new OrderExportAction;
 
         // Apply filters to the order query using the validated filters
-        $orders = $orderExportAction->applyFilters($validated);
+        $orders = $orderExportAction->applyFilters($validated)->get();
 
         // Transform the orders data to match the API response format
         $orderData = $orders->map(function ($order) {
@@ -538,4 +540,61 @@ class OrderController extends Controller
             'file_url' => $fileUrl,
         ]);
     }
+
+    /**
+     * Cancel orders based on given order number.
+     */
+    public function cancelOrder(Request $request): JsonResponse
+    {
+        // Retrieve the 'order_number' from the request (POST body or query parameter)
+        $validated = $request->validate([
+            'order_number' => 'required|string',
+        ]);
+        $orderNumber = $validated['order_number'];
+    
+        // Retrieve the order based on the provided 'order_number'
+        $order = Order::withTrashed()->where('order_number', $orderNumber)->first();
+    
+        // Check if the order exists
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'status' => 404,
+                'message' => 'Order not found.',
+            ], 404);
+        }
+    
+        // Check if the order is already canceled
+        // If you're using enum constants, compare against the enum value (e.g., OrderStatusEnum::CANCELED)
+        if ($order->order_status == OrderStatusEnum::CANCELED) {
+            return response()->json([
+                'success' => false,
+                'status' => 400,
+                'message' => 'Order is already canceled.',
+            ], 400);
+        }
+    
+        // Begin the transaction for canceling the order and updating related data
+        DB::transaction(function () use ($order) {
+            // Set the order's status to canceled using the enum constant
+            $order->order_status = OrderStatusEnum::CANCELED;  // Ensure to use enum for consistency
+            $order->save();
+    
+            // Soft delete the order (mark it as deleted)
+            $order->delete();
+    
+            // Optionally: Soft delete or update any related entities (OrderItems, etc.)
+            foreach ($order->orderItems as $orderItem) {
+                $orderItem->delete(); // Soft delete order items if necessary
+            }
+        });
+    
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'Order has been cancelled successfully.',
+        ], 200);
+    }
+    
+    
 }

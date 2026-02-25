@@ -44,8 +44,48 @@ class ListOrders extends Component implements HasForms, HasTable
 
     public function table(Table $table): Table
     {
+        // Apply location-based filtering
+        $query = Order::query();
+
+        $user = auth()->user();
+
+        // Debug logging
+        \Log::info('ListOrders - Filtering', [
+            'user_id' => $user->id,
+            'user_role' => $user->role,
+            'is_admin' => $user->isAdmin(),
+            'is_supply_chain' => $user->isSupplyChain(),
+            'is_scm_lhr' => $user->isScmLhr(),
+            'can_view_orders_from_location' => $user->canViewOrdersFromLocation(),
+            'allowed_ou_ids' => $user->getAllowedOuIds(),
+        ]);
+
+        // Apply location filtering for LHR and KHI users, supply-chain users, and scm-lhr users
+        if (!$user->isAdmin() && ($user->canViewOrdersFromLocation() || $user->isScmLhr())) {
+            $allowedOuIds = $user->getAllowedOuIds();
+
+            \Log::info('ListOrders - Applying OU filter', [
+                'allowed_ou_ids' => $allowedOuIds,
+                'is_empty' => empty($allowedOuIds),
+            ]);
+
+            if (!empty($allowedOuIds)) {
+                $query->whereHas('customer', function ($customerQuery) use ($allowedOuIds) {
+                    $customerQuery->whereIn('ou_id', $allowedOuIds);
+                });
+            } else {
+                // If no allowed OU IDs, show no orders
+                $query->where('id', -1);
+                \Log::info('ListOrders - No OU IDs, hiding all orders');
+            }
+        } else {
+            \Log::info('ListOrders - No filtering applied (admin or no location restrictions)');
+        }
+
+
         return $table
-            ->query(Order::query())
+            ->query($query)
+            
             ->columns([
                 TextColumn::make('order_number')
                     ->label('Order Number')
@@ -55,6 +95,11 @@ class ListOrders extends Component implements HasForms, HasTable
                     ->label('Customer Name')
                     ->sortable()
                     ->searchable(),
+                TextColumn::make('salesperson.name')
+                    ->label('Salesperson')
+                    ->sortable()
+                    ->searchable()
+                    ->visible(fn() => auth()->user()->isAdmin() || auth()->user()->isSupplyChain() || auth()->user()->isScmLhr()),
                 TextColumn::make('order_status')
                     ->label('Order Status')
                     ->badge()
@@ -62,6 +107,12 @@ class ListOrders extends Component implements HasForms, HasTable
                     ->formatStateUsing(fn($state) => $state->name())
                     ->sortable()
                     ->searchable(),
+                TextColumn::make('pushedBy.name')
+                    ->label('Pushed to Oracle By')
+                    ->sortable()
+                    ->searchable()
+                    ->default('N/A')
+                    ->visible(fn() => auth()->user()->isAdmin() || auth()->user()->isSupplyChain() || auth()->user()->isScmLhr()),
                 TextColumn::make('created_at')
                     ->visibleFrom('md')
                     ->label('Order Date')
@@ -134,7 +185,18 @@ class ListOrders extends Component implements HasForms, HasTable
                     ->action(fn(Order $record) => $this->openSyncDetailsModal($record))
                     ->visible(fn(Order $record) => $record->oracle_at !== null
                         && $record->orderItems->flatMap(fn($item) => $item->syncHistory)->isNotEmpty())
-                    ->color('violet')
+                    ->color('violet'),
+                Action::make('delete')
+                    ->icon('heroicon-m-trash')
+                    ->button()
+                    ->label('Delete')
+                    ->requiresConfirmation()
+                    ->modalHeading('Delete Order')
+                    ->modalDescription('Are you sure you want to delete this order? This action cannot be undone.')
+                    ->modalSubmitActionLabel('Yes, Delete')
+                    ->action(fn(Order $record) => $this->deleteOrder($record))
+                    ->visible(fn() => auth()->user()->isAdmin())
+                    ->color('danger')
 
             ])
             ->bulkActions([
@@ -173,10 +235,12 @@ class ListOrders extends Component implements HasForms, HasTable
                     })
 
                     // Search in related Warehouse fields
-                    // ->orWhereHas('warehouse', function ($q) use ($searchTerm) {
-                    //     $q->where('warehouse_name', 'like', $searchTerm)
-                    //         ->orWhere('warehouse_number', 'like', $searchTerm);
-                    // })
+                    ->orWhereHas('orderItems', function ($q) use ($searchTerm) {
+                        $q->whereHas('warehouse', function ($wq) use ($searchTerm) {
+                            $wq->where('organization_code', 'like', $searchTerm)
+                               ->orWhere('organization_id', 'like', $searchTerm);
+                        });
+                    })
 
                     // Search in related OrderItem fields
                     ->orWhereHas('orderItems', function ($q) use ($searchTerm) {
@@ -193,11 +257,27 @@ class ListOrders extends Component implements HasForms, HasTable
 
     public function openDetailModal(Order $order)
     {
-        // Load the order along with its order items and customer
-        $this->order = $order->load(['orderItems', 'customer']);
+        // Load the order along with its order items, item details, customer, and salesperson
+        $this->order = $order->load(['orderItems.item', 'customer', 'salesperson']);
 
-        // Filter the warehouses based on the customer's ou_id
-        $this->warehouses = Warehouse::where('ou', $this->order->customer->ou_id)->get();
+        // Fetch warehouses based on the customer's ou_id, fallback to all if none match
+        $warehouses = Warehouse::where('ou', $this->order->customer->ou_id)->get();
+        if ($warehouses->isEmpty()) {
+            $warehouses = Warehouse::all();
+        }
+        
+        // Add default "Select Warehouse" option
+        $warehouseOptions = collect([['value' => '', 'label' => 'Select Warehouse']]);
+        
+        // Transform the warehouse data into the format expected by the select component (value and label)
+        $warehouseData = $warehouses->map(function ($warehouse) {
+            return [
+                'value' => $warehouse->organization_id,
+                'label' => $warehouse->organization_code . ' (' . $warehouse->organization_id . ')',
+            ];
+        });
+        
+        $this->warehouses = $warehouseOptions->merge($warehouseData)->values()->toArray();
 
         // Initialize the orderItemWarehouses array with existing warehouse IDs or null
         $this->orderItemWarehouses = $this->order->orderItems->mapWithKeys(function ($item, $index) {
@@ -210,8 +290,8 @@ class ListOrders extends Component implements HasForms, HasTable
 
     public function openSyncDetailsModal(Order $order)
     {
-        // Load order items along with the sync history (discrepancies)
-        $this->orderDetails = $order->load(['orderItems.syncHistory']);
+        // Load order items along with the sync history, item details, customer, and salesperson
+        $this->orderDetails = $order->load(['orderItems.syncHistory', 'orderItems.item', 'customer', 'salesperson']);
         // Dispatch to open the modal
         $this->dispatch('open-modal', 'order_sync_details');
     }
@@ -224,6 +304,7 @@ class ListOrders extends Component implements HasForms, HasTable
 
     public function enterOrderToOracle()
     {
+        // Validate warehouses are selected
         $this->validate([
             'orderItemWarehouses.*' => 'required',
         ], [
@@ -232,6 +313,29 @@ class ListOrders extends Component implements HasForms, HasTable
 
         try {
             $order = DB::connection('oracle')->transaction(function () {
+                // Log customer data being used for Oracle sync
+                \Log::info('Starting Oracle Order Sync', [
+                    'order_number' => $this->order->order_number,
+                    'order_id' => $this->order->id,
+                    'customer' => [
+                        'customer_id' => $this->order->customer->customer_id,
+                        'customer_name' => $this->order->customer->customer_name,
+                        'customer_number' => $this->order->customer->customer_number,
+                        'ou_id' => $this->order->customer->ou_id,
+                        'ou_name' => $this->order->customer->ou_name,
+                        'price_list_id' => $this->order->customer->price_list_id,
+                        'price_list_name' => $this->order->customer->price_list_name,
+                        'customer_site_id' => $this->order->customer->customer_site_id,
+                    ],
+                    'total_items' => $this->order->orderItems->count(),
+                    'total_amount' => $this->order->total_amount,
+                ]);
+
+                // Validate customer has required fields
+                if (!$this->order->customer->price_list_id) {
+                    throw new \Exception("Customer {$this->order->customer->customer_name} is missing price_list_id. Please sync customer data from Oracle.");
+                }
+
                 // Fetch the relevant order type and line type based on ou_id
                 $oracleOrderType = OrderType::where('org_id', $this->order->customer->ou_id)->first();
 
@@ -239,8 +343,8 @@ class ListOrders extends Component implements HasForms, HasTable
                     throw new \Exception("Order type or line type not found for org_id: {$this->order->customer->ou_id}");
                 }
 
-                // Create Oracle Order Header
-                $oracleOrderHeader = OracleOrderHeader::create([
+                // Prepare Oracle Order Header data
+                $orderHeaderData = [
                     'order_source_id' => 1001,
                     'orig_sys_document_ref' => $this->order->order_number,
                     'org_id' => $this->order->customer->ou_id, // Customer OU ID
@@ -248,6 +352,7 @@ class ListOrders extends Component implements HasForms, HasTable
                     'ordered_date' => Carbon::now(),
                     'order_type_id' => $oracleOrderType->order_type_id,
                     'sold_to_org_id' => $this->order->customer->customer_id,
+                    'price_list_id' => $this->order->customer->price_list_id, // Add price_list_id to header
                     'payment_term_id' => 1004,
                     'operation_code' => 'INSERT',
                     'created_by' => 0,
@@ -257,7 +362,18 @@ class ListOrders extends Component implements HasForms, HasTable
                     'customer_po_number' => $this->order->order_number,
                     'ship_to_org_id' => $this->order->customer->customer_site_id,
                     'BOOKED_FLAG' => 'N',
+                ];
+
+                // Log the order header data being sent to Oracle
+                \Log::info('Oracle Order Header Data', [
+                    'order_number' => $this->order->order_number,
+                    'customer_id' => $this->order->customer->customer_id,
+                    'customer_name' => $this->order->customer->customer_name,
+                    'header_data' => $orderHeaderData
                 ]);
+
+                // Create Oracle Order Header
+                $oracleOrderHeader = OracleOrderHeader::create($orderHeaderData);
 
                 // Create Oracle Order Lines
                 foreach ($this->order->orderItems as $index => $orderItem) {
@@ -266,8 +382,12 @@ class ListOrders extends Component implements HasForms, HasTable
                     // Update the local order item with the selected warehouse
                     $orderItem->update(['warehouse_id' => $selectedWarehouseId]);
 
-                    logger("Item Price: $orderItem->price");
-                    OracleOrderLine::create([
+                    // Calculate unit selling price by deducting the per-unit discount
+                    $unitDiscount = $orderItem->quantity > 0 ? ($orderItem->discount / $orderItem->quantity) : 0;
+                    $unitSellingPrice = $orderItem->price - $unitDiscount;
+
+                    // Prepare Oracle Order Line data
+                    $orderLineData = [
                         'order_source_id' => 1001,
                         // 'order_source' => "POS",
                         'orig_sys_document_ref' => $this->order->order_number,
@@ -275,8 +395,9 @@ class ListOrders extends Component implements HasForms, HasTable
                         'line_number' => ($index + 1),
                         'inventory_item_id' => $orderItem->inventory_item_id,
                         'ordered_quantity' => $orderItem->quantity,
-                        'unit_selling_price' => $orderItem->price,
-                        // 'unit_selling_price' => $orderItem->item->itemPrice->where('price_list_id', $this->order->customer->price_list_id)->first()->list_price,
+                        'unit_selling_price' => $unitSellingPrice,
+                        'unit_list_price' => $orderItem->price, // Original price from price list
+                        'calculate_price_flag' => 'N', // Don't recalculate price, use our provided price
                         'ship_from_org_id' => $selectedWarehouseId,
                         'org_id' => $this->order->customer->ou_id, // Customer OU ID
                         'price_list_id' => $this->order->customer->price_list_id,
@@ -288,17 +409,45 @@ class ListOrders extends Component implements HasForms, HasTable
                         'line_type_id' => $oracleOrderType->line_type_id,
                         'order_quantity_uom' => $orderItem->uom,
                         'operation_code' => 'INSERT',
+                    ];
+
+                    // Log the order line data being sent to Oracle
+                    \Log::info('Oracle Order Line Data', [
+                        'order_number' => $this->order->order_number,
+                        'line_number' => ($index + 1),
+                        'item_code' => $orderItem->item->item_code ?? 'N/A',
+                        'item_description' => $orderItem->item->item_description ?? 'N/A',
+                        'price_list_id' => $this->order->customer->price_list_id,
+                        'price_list_name' => $this->order->customer->price_list_name,
+                        'original_price' => $orderItem->price,
+                        'unit_discount' => $unitDiscount,
+                        'final_unit_price' => $unitSellingPrice,
+                        'calculate_price_flag' => 'N',
+                        'unit_list_price' => $orderItem->price,
+                        'line_data' => $orderLineData
                     ]);
+
+                    OracleOrderLine::create($orderLineData);
                 }
 
                 // Update the order's oracle_at timestamp to mark it as successfully entered into Oracle
-                $this->order->update(['oracle_at' => now()]);
-                $this->order->update(['order_status' => OrderStatusEnum::ENTERED]);
+                $this->order->update([
+                    'oracle_at' => now(),
+                    'order_status' => OrderStatusEnum::ENTERED,
+                    'pushed_by' => auth()->id()
+                ]);
 
                 return $oracleOrderHeader;
             });
 
             if ($order) {
+                \Log::info('Oracle Order Sync Completed Successfully', [
+                    'order_number' => $this->order->order_number,
+                    'order_id' => $this->order->id,
+                    'oracle_header_id' => $order->header_id ?? null,
+                    'pushed_by' => auth()->id(),
+                ]);
+
                 $this->reset('order');
                 $this->dispatch('close');
                 $this->notifyUser('Order Entered', 'Order entered to Oracle successfully.');
@@ -306,12 +455,55 @@ class ListOrders extends Component implements HasForms, HasTable
                 throw new \Exception('Order insertion failed.');
             }
         } catch (\Exception $e) {
-            $this->notifyUser('Error', 'An error occurred while entering the order to Oracle.', 'danger');
-            // $this->notifyUser('Error', 'An error occurred: ' . $e->getMessage(), 'danger');
+            \Log::error('Order Oracle Sync Error: ' . $e->getMessage(), [
+                'order_id' => $this->order->id ?? null,
+                'order_number' => $this->order->order_number ?? null,
+                'trace' => $e->getTraceAsString()
+            ]);
+            $this->notifyUser('Error', 'An error occurred: ' . $e->getMessage(), 'danger');
         }
         // $this->reset('order');
         // $this->notifyUser('Feature Limitation', 'This feature will not work on cPanel.', 'danger');
         // $this->dispatch('close');
+    }
+
+    public function deleteOrder(Order $order)
+    {
+        try {
+            // Check if user is admin
+            if (!auth()->user()->isAdmin()) {
+                $this->notifyUser('Unauthorized', 'You do not have permission to delete orders.', 'danger');
+                return;
+            }
+
+            // Check if order has been synced to Oracle
+            if ($order->oracle_at !== null) {
+                $this->notifyUser('Cannot Delete', 'This order has already been sent to Oracle and cannot be deleted.', 'warning');
+                return;
+            }
+
+            $orderNumber = $order->order_number;
+
+            // Delete the order (order items will be cascade deleted if FK is set up)
+            $order->delete();
+
+            // Log the deletion
+            \Log::info('Order Deleted', [
+                'order_number' => $orderNumber,
+                'order_id' => $order->id,
+                'deleted_by' => auth()->id(),
+                'deleted_by_name' => auth()->user()->name,
+            ]);
+
+            $this->notifyUser('Order Deleted', "Order #{$orderNumber} has been deleted successfully.");
+        } catch (\Exception $e) {
+            \Log::error('Order Deletion Error: ' . $e->getMessage(), [
+                'order_id' => $order->id ?? null,
+                'order_number' => $order->order_number ?? null,
+                'trace' => $e->getTraceAsString()
+            ]);
+            $this->notifyUser('Error', 'An error occurred while deleting the order: ' . $e->getMessage(), 'danger');
+        }
     }
 
     public function render()

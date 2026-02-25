@@ -1,0 +1,47 @@
+{
+  "customer_id": "1718",
+  "outstanding": 15000000.00,
+  "cash_amount": 5000000.00,
+  "currency": "PKR",
+  "cash_maturity_date": "2025-07-15",
+  "remittance_bank_id": "10001",
+  "remittance_bank_name": "Habib Bank Limited - Main Branch",
+  "customer_bank_id": "10002",
+  "customer_bank_name": "Allied Bank Limited - Gulberg Branch",
+  "description": "Payment received for multiple invoices with cash and multiple cheques",
+  "cheques": [
+    {
+      "bank_name": "Habib Bank Limited",
+      "cheque_no": "CHQ-001-2025",
+      "cheque_amount": 7500000.00,
+      "cheque_date": "2025-06-23",
+      "reference": "INV-001-2025",
+      "cheque_image": "image.png",
+      "comments": "Payment for Invoice #001-2025",
+      "is_third_party_cheque": false,
+      "maturity_date": "2025-08-15"
+    },
+    {
+      "bank_name": "MCB Bank Limited",
+      "cheque_no": "CHQ-002-2025",
+      "cheque_amount": 2500000.00,
+      "cheque_date": "2025-06-23",
+      "reference": "INV-002-2025",
+      "cheque_image": "image.png",
+      "comments": "Payment for Invoice #002-2025 - Post dated cheque",
+      "is_third_party_cheque": true,
+      "maturity_date": "2025-09-30"
+    },
+    {
+      "bank_name": "United Bank Limited",
+      "cheque_no": "CHQ-003-2025",
+      "cheque_amount": 1000000.00,
+      "cheque_date": "2025-06-23",
+      "reference": "ADV-001-2025",
+      "comments": "Advance payment for future orders",
+      "cheque_image": "image.png",
+      "is_third_party_cheque": false,
+      "maturity_date": "2025-07-30"
+    }
+  ]
+}

@@ -39,6 +39,7 @@ class SyncOracleWarehouses extends Command
                     [
                         'organization_code' => $oracleWarehouse->organization_code,
                         'ou' => $oracleWarehouse->ou,
+                        'updated_at' => now(),
                     ]
                 );
             }

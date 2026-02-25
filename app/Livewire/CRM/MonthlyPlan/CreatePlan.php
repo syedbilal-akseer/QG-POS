@@ -25,11 +25,9 @@ class CreatePlan extends Component implements HasForms
         'day_plans' =>   [],  // Array of Day Plans
     ];
 
-    public MonthlyTourPlan $MonthlyTourPlan;
-
-    public function mount(?MonthlyTourPlan $monthlyTourPlan)
+    public function mount(?MonthlyTourPlan $monthlyTourPlan = null)
     {
-        if ($monthlyTourPlan->salesperson_id != auth()->id() && $monthlyTourPlan->exists) {
+        if ($monthlyTourPlan && $monthlyTourPlan->exists && $monthlyTourPlan->salesperson_id != auth()->id()) {
             $this->notify('Unauthorized access', 'You are not authorized to access this tour plan.', 'danger');
             $this->redirectRoute('monthlyTourPlans.all');
         }
@@ -48,7 +46,9 @@ class CreatePlan extends Component implements HasForms
             // Load related day plans and their key tasks
             foreach ($monthlyTourPlan->dayTourPlans as $dayPlan) {
                 $this->formData['day_plans'][] = [
-                    'date' => $dayPlan->date, // Format the date
+                    'date' => $dayPlan->date instanceof \Carbon\Carbon 
+                        ? $dayPlan->date->format('d/m/Y') 
+                        : (is_string($dayPlan->date) ? \Carbon\Carbon::parse($dayPlan->date)->format('d/m/Y') : $dayPlan->date),
                     'from_location' => $dayPlan->from_location,
                     'to_location' => $dayPlan->to_location,
                     'is_night_stay' => $dayPlan->is_night_stay,
@@ -58,8 +58,12 @@ class CreatePlan extends Component implements HasForms
                 ];
             }
         } else {
-            $this->addDayPlan();
+            // Initialize for new plan
+            $this->tourPlanId = null;
             $this->formData['salesperson_id'] = auth()->id();
+            $this->formData['month'] = now()->format('F Y');
+            $this->formData['day_plans'] = [];
+            $this->addDayPlan();
         }
     }
 
@@ -114,8 +118,8 @@ class CreatePlan extends Component implements HasForms
             ],
             'formData.day_plans' => 'required|array',
             'formData.day_plans.*.date' => 'required|date_format:d/m/Y',
-            'formData.day_plans.*.from_location' => 'required|string|max:255|different:formData.day_plans.*.to_location',
-            'formData.day_plans.*.to_location' => 'required|string|max:255|different:formData.day_plans.*.from_location',
+            'formData.day_plans.*.from_location' => 'required|string|max:255',
+            'formData.day_plans.*.to_location' => 'required|string|max:255',
             'formData.day_plans.*.is_night_stay' => 'boolean',
             'formData.day_plans.*.key_tasks' => 'nullable|array',
             'formData.day_plans.*.key_tasks.*' => 'nullable|string',
@@ -129,12 +133,20 @@ class CreatePlan extends Component implements HasForms
             'formData.day_plans.*.date.required' => 'The date field is required.',
             'formData.day_plans.*.date.date_format' => 'The date must be in the format "d/m/Y" (e.g., "31/12/2024").',
             'formData.day_plans.*.from_location.required' => 'The from location field is required.',
-            'formData.day_plans.*.from_location.different' => 'The from location and to location must be different.',
             'formData.day_plans.*.to_location.required' => 'The to location field is required.',
-            'formData.day_plans.*.to_location.different' => 'The to location and from location must be different.',
             'formData.day_plans.*.is_night_stay.boolean' => 'The is night stay field must be a boolean.',
             'formData.day_plans.*.key_tasks.array' => 'The key tasks field must be an array.',
         ]);
+
+        // Custom validation for from_location != to_location
+        foreach ($this->formData['day_plans'] as $index => $dayPlan) {
+            if (isset($dayPlan['from_location']) && isset($dayPlan['to_location']) && 
+                $dayPlan['from_location'] === $dayPlan['to_location']) {
+                $this->addError("formData.day_plans.{$index}.to_location", 'The to location must be different from the from location.');
+                return;
+            }
+        }
+
         // Convert the month field into the correct format
         // $this->formData['month'] = \Carbon\Carbon::createFromFormat('Y-m', $this->formData['month'])->format('Y-m');
         if ($this->tourPlanId) {
@@ -169,9 +181,17 @@ class CreatePlan extends Component implements HasForms
             ]);
 
             // Create day plans
-            foreach ($this->formData['day_plans'] as $dayPlan) {
-                $dayPlan['date'] = \Carbon\Carbon::createFromFormat('d/m/Y', $dayPlan['date'])->format('Y-m-d');
-                $tourPlan->dayTourPlans()->create($dayPlan);
+            foreach ($this->formData['day_plans'] as $dayPlanData) {
+                $dayTourPlan = new DayTourPlan([
+                    'date' => Carbon::createFromFormat('d/m/Y', $dayPlanData['date']),
+                    'from_location' => $dayPlanData['from_location'],
+                    'to_location' => $dayPlanData['to_location'],
+                    'is_night_stay' => $dayPlanData['is_night_stay'],
+                    'key_tasks' => $dayPlanData['key_tasks'],
+                ]);
+
+                // Associate the day plan with the tour plan
+                $tourPlan->dayTourPlans()->save($dayTourPlan);
             }
         }
 

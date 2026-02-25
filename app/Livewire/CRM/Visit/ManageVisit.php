@@ -16,6 +16,7 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Tables\Concerns\InteractsWithTable;
+use Illuminate\Support\Facades\Auth;
 
 #[Title('Visits')]
 class ManageVisit extends Component implements HasTable, HasForms
@@ -24,11 +25,81 @@ class ManageVisit extends Component implements HasTable, HasForms
     use InteractsWithForms;
     use NotifiesUsers;
 
-    public $visits;
+    public $visits = [];
+    public $visitReports = [];
+    public $loading = false;
+    public $search = '';
+    
     public ?array $expenseFormData = [
         'visit_id' => null,
         'expenses' => [],
     ];
+
+    public function mount()
+    {
+        $this->loadVisitReportsFromDatabase();
+    }
+
+    public function loadVisitReportsFromDatabase()
+    {
+        $user = Auth::user();
+        $query = MonthlyVisitReport::query()->with(['visits', 'salesperson']);
+        
+        if (!$user->isAdmin()) {
+            $query->where('salesperson_id', $user->salesperson_id);
+        }
+        
+        if ($this->search) {
+            $query->where('month', 'like', '%' . $this->search . '%');
+        }
+        
+        // Convert to array to avoid Livewire property type issues
+        $this->visitReports = $query->latest()->get()->toArray();
+    }
+
+    public function callAPI($endpoint, $method = 'GET', $data = [])
+    {
+        $token = auth()->user()->createToken('CRM API')->plainTextToken;
+        
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL => url($endpoint),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST => $method,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $token,
+                'Content-Type: application/json',
+                'Accept: application/json'
+            ],
+            CURLOPT_POSTFIELDS => json_encode($data)
+        ]);
+        
+        $response = curl_exec($curl);
+        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($curl);
+        curl_close($curl);
+        
+        if ($curlError) {
+            throw new \Exception('CURL Error: ' . $curlError);
+        }
+        
+        if ($httpCode !== 200) {
+            throw new \Exception('API call failed with status: ' . $httpCode . ' - Response: ' . $response);
+        }
+        
+        $decodedResponse = json_decode($response, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \Exception('JSON decode error: ' . json_last_error_msg());
+        }
+        
+        return $decodedResponse;
+    }
+
+    public function refreshVisitReports()
+    {
+        $this->loadVisitReportsFromDatabase();
+    }
 
     public function table(Tables\Table $table): Tables\Table
     {
@@ -53,13 +124,14 @@ class ManageVisit extends Component implements HasTable, HasForms
             ->defaultSort('created_at', 'desc');
     }
 
-    public function viewDetails(MonthlyVisitReport $monthlyVisitReport)
+    public function viewDetails($reportId)
     {
-        // Load all the visits for the selected MonthlyVisitReport
-        $this->visits = $monthlyVisitReport->visits;
-
-        // Open the modal
-        $this->dispatch('open-modal', 'visit_details_modal');
+        // Load visits for the selected report from database
+        $monthlyVisitReport = MonthlyVisitReport::find($reportId);
+        if ($monthlyVisitReport) {
+            $this->visits = $monthlyVisitReport->visits;
+            $this->dispatch('open-modal', 'visit_details_modal');
+        }
     }
 
     public function openAddExpenseModal($visitId)
@@ -142,7 +214,30 @@ class ManageVisit extends Component implements HasTable, HasForms
             $this->expenseFormData['expenses'][$index]['total'] = $total;
         }
 
-        // Now you can save each expense to the database
+        try {
+            // Submit expense via API
+            $response = $this->callAPI('/api/crm/store-visit/expenses', 'POST', $this->expenseFormData);
+            
+            if (isset($response['success']) && $response['success']) {
+                // Display success message and close the modal
+                $this->notifyUser('Success', 'Expense claim submitted successfully via API!');
+                $this->resetExpenseForm();
+                $this->dispatch('close-modal', 'expense_add_modal');
+            } else {
+                $this->notifyUser('API Error', $response['message'] ?? 'Failed to submit expense', 'danger');
+                $this->submitExpenseToDatabase();
+            }
+        } catch (\Exception $e) {
+            $this->notifyUser('Error', 'Failed to submit expense: ' . $e->getMessage(), 'danger');
+            
+            // Fallback to database if API fails
+            $this->submitExpenseToDatabase();
+        }
+    }
+
+    public function submitExpenseToDatabase()
+    {
+        // Fallback: save each expense to the database
         foreach ($this->expenseFormData['expenses'] as $expense) {
             VisitExpense::create([
                 'visit_id' => $this->expenseFormData['visit_id'],
@@ -191,6 +286,18 @@ class ManageVisit extends Component implements HasTable, HasForms
 
     public function render()
     {
-        return view('livewire.crm.visit.manage-visit');
+        // Filter visit reports based on search if needed
+        $filteredReports = $this->visitReports;
+        
+        if ($this->search) {
+            $filteredReports = array_filter($this->visitReports, function ($report) {
+                return str_contains(strtolower($report['month'] ?? ''), strtolower($this->search));
+            });
+        }
+
+        return view('livewire.crm.visit.manage-visit', [
+            'visitReports' => $filteredReports,
+            'loading' => $this->loading,
+        ]);
     }
 }

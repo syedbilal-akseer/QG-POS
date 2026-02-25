@@ -13,6 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__ . '/../routes/console.php',
         health: '/up',
     )
+    ->withCommands([
+        __DIR__.'/../app/Console/Commands',
+    ])
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'checkRole' => \App\Http\Middleware\CheckRole::class
@@ -20,6 +23,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             \RalphJSmit\Livewire\Urls\Middleware\LivewireUrlsMiddleware::class
+        ]);
+
+        // Exclude specific routes from CSRF verification
+        $middleware->validateCsrfTokens(except: [
+            'app/admin/price-lists/enter-new-prices',
+            'admin/price-lists/enter-new-prices',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
@@ -32,8 +41,12 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->withSchedule(function (Schedule $schedule) {
-        $schedule->command('sync:oracle-customers')->daily();
-        $schedule->command('sync:oracle-products')->daily();
-        $schedule->command('sync:oracle-items-price')->daily();
-        $schedule->command('orders:sync-oracle')->daily();
+        // $schedule->command('sync:oracle-users-clear')->dailyAt('10:00');
+        $schedule->command('sync:oracle-customers-clear')->everyTwoHours();
+        $schedule->command('sync:oracle-products-clear')->dailyAt('10:00');
+        $schedule->command('sync:oracle-items-price-clear')->dailyAt('10:00');
+        $schedule->command('orders:sync-oracle')->dailyAt('10:00');
+        $schedule->command('sync:oracle-warehouses')->dailyAt('10:00');
+        $schedule->command('sync:oracle-order-types')->dailyAt('10:00');
+        $schedule->command('sync:oracle-banks-clear')->dailyAt('10:00');
     })->create();

@@ -25,7 +25,7 @@ class Item extends Model
      */
     public function itemPrices()
     {
-        return $this->hasMany(ItemPrice::class, 'item_id', 'inventory_item_id');
+        return $this->hasMany(ItemPrice::class, 'item_code', 'item_code');
     }
 
     /**
@@ -33,6 +33,6 @@ class Item extends Model
      */
     public function itemPrice()
     {
-        return $this->belongsTo(ItemPrice::class, 'inventory_item_id', 'item_id');
+        return $this->belongsTo(ItemPrice::class, 'item_code', 'item_code');
     }
 }

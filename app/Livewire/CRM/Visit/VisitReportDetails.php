@@ -36,7 +36,7 @@ class VisitReportDetails extends Component implements HasForms, HasTable
         } elseif ($plan instanceof DayTourPlan) {
             if ($plan->monthlyTourPlan->salesperson_id != auth()->user()->id) {
                 $this->notify('Unauthorized access', 'You are not authorized to access this day tour plan.', 'danger');
-                $this->redirectRoute('monthlyTourPlans.index');
+                $this->redirectRoute('monthlyTourPlans.all');
             }
             $this->type = 'daily';
         } else {

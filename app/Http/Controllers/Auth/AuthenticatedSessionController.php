@@ -31,7 +31,8 @@ class AuthenticatedSessionController extends Controller
         $user = Auth::user();
 
         // Check the user's role and redirect accordingly
-        if ($user->role->name === 'supply-chain') {
+        $userRole = $user->role?->name ?? $user->role;
+        if ($userRole === 'supply-chain') {
             return redirect()->route('orders.supply-chain.all');
         }
 

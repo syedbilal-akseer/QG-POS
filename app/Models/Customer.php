@@ -23,6 +23,7 @@ class Customer extends Model
         'contact_number',
         'email_address',
         'overall_credit_limit',
+        'customer_balance',
         'credit_days',
         'nic',
         'ntn',
@@ -32,6 +33,24 @@ class Customer extends Model
         'price_list_id',
         'price_list_name',
     ];
+
+    /**
+     * Ensure ou_id and ou_name are always accessible
+     */
+    protected $appends = [];
+    
+    /**
+     * Override to ensure attributes are accessible
+     */
+    public function getOuIdAttribute($value)
+    {
+        return $value;
+    }
+    
+    public function getOuNameAttribute($value)
+    {
+        return $value;
+    }
 
     /**
      * Get the orders for the customer.
@@ -79,4 +98,12 @@ class Customer extends Model
     // {
     //     return $this->hasManyThrough(Item::class, ItemPrice::class, 'price_list_id', 'inventory_item_id', 'price_list_id', 'item_id');
     // }
+
+    /**
+     * Get the receipts for the customer.
+     */
+    public function receipts()
+    {
+        return $this->hasMany(CustomerReceipt::class, 'customer_id', 'customer_id');
+    }
 }

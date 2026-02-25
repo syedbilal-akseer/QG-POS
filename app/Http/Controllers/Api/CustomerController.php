@@ -7,6 +7,7 @@ use App\Models\Customer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Auth;
 
 class CustomerController extends Controller
 {
@@ -17,12 +18,40 @@ class CustomerController extends Controller
      */
     public function customers(): JsonResponse
     {
-        $cacheKey = 'customers_page_'.request()->input('page', 1);
+        $user = Auth::user();
+        $cacheKey = 'customers_page_'.request()->input('page', 1).'_user_'.$user->id;
         $cacheTime = 60;
 
         // Attempt to retrieve data from cache
-        $customers = Cache::remember($cacheKey, $cacheTime, function () {
-            return Customer::select('customer_id', 'customer_name', 'customer_number')->paginate(10);
+        $customers = Cache::remember($cacheKey, $cacheTime, function () use ($user) {
+            $query = Customer::select('customer_id', 'customer_name', 'customer_number');
+            
+            // Admin users see all customers
+            if ($user->role === 'admin') {
+                return $query->paginate(10);
+            }
+            
+            // Role-based filtering for non-admin users
+            if ($user->role === 'supply-chain') {
+                // Supply-chain users see customers from their Oracle organizations
+                if ($user->isOracleMapped()) {
+                    $userOrgs = $user->getOracleOrganizations();
+                    if (!empty($userOrgs)) {
+                        $query->whereIn('oracle_ou_id', $userOrgs);
+                    } else {
+                        $query->where('customer_id', null);
+                    }
+                }
+            } elseif ($user->role === 'user') {
+                // Salesperson users see customers where salesperson matches their Oracle user name
+                $salespersonName = $user->name ?: $user->name;
+                $query->where('salesperson', $salespersonName);
+            } else {
+                // Other roles get no access by default
+                $query->where('customer_id', null);
+            }
+            
+            return $query->paginate(10);
         });
 
         return response()->json([
@@ -42,10 +71,10 @@ class CustomerController extends Controller
         ], 200);
     }
 
-    /**
+        /**
      * Retrieve a specific customer's details.
      */
-    public function getCustomer(Request $request): JsonResponse
+       public function getCustomer(Request $request): JsonResponse
     {
         // Validate the request to ensure 'customer_id' is provided
         $request->validate([
@@ -54,23 +83,84 @@ class CustomerController extends Controller
 
         // Extract the customer ID from the request
         $customerId = $request->customer_id;
+        $user = Auth::user();
 
-        // Generate a cache key based on the customer ID
-        $cacheKey = 'customer_details_'.$customerId;
-        $cacheTime = 60;
+        // Build query with role-based access control
+        $query = Customer::with('itemPrices.item')->where('customer_id', $customerId);
+        
+        // Admin users can access any customer
+        if ($user->role !== 'admin') {
+            // Role-based filtering for non-admin users
+            if ($user->role === 'supply-chain') {
+                // Supply-chain users see customers from their Oracle organizations
+                if ($user->isOracleMapped()) {
+                    $userOrgs = $user->getOracleOrganizations();
+                    if (!empty($userOrgs)) {
+                        $query->whereIn('oracle_ou_id', $userOrgs);
+                    } else {
+                        $query->where('customer_id', null);
+                    }
+                }
+            } elseif ($user->role === 'user') {
+                // Salesperson users see customers where salesperson matches their Oracle user name
+                $salespersonName = $user->name ?: $user->name;
+                $query->where('salesperson', $salespersonName);
+            } else {
+                // Other roles get no access by default
+                $query->where('customer_id', null);
+            }
+        }
 
-        // Attempt to retrieve data from cache
-        $customer = Cache::remember($cacheKey, $cacheTime, function () use ($customerId) {
-            // Retrieve the customer by ID
-            return Customer::where('customer_id', $customerId)->first();
-        });
+        // Retrieve the customer
+        $customer = $query->first();
+
+        // Check if customer was found
+        if (!$customer) {
+            return response()->json([
+                'success' => false,
+                'status' => 404,
+                'message' => 'Customer not found or access denied.',
+            ], 404);
+        }
+
+        // Convert customer to array and exclude item_prices
+        $customerArray = $customer->toArray();
+        unset($customerArray['item_prices']);
+
+        // Prepare the list of products with their prices
+        $products = [];
+        if ($customer->itemPrices->isNotEmpty()) {
+            $products = $customer->itemPrices->map(function ($itemPrice) {
+                // Debug: Check if item relationship is loaded
+                $hasItem = $itemPrice->item !== null;
+                $itemCode = $itemPrice->item_code;
+                $inventoryItemId = $hasItem ? $itemPrice->item->inventory_item_id : null;
+
+                \Log::info('ItemPrice relationship debug', [
+                    'item_code_from_price' => $itemCode,
+                    'has_item_relation' => $hasItem,
+                    'inventory_item_id' => $inventoryItemId,
+                ]);
+
+                return [
+                    'inventory_item_id' => $inventoryItemId,
+                    'item_code' => $itemPrice->item_code ?: $itemPrice->item?->item_code,
+                    'item_description' => $itemPrice->item_description ?: $itemPrice->item?->item_description,
+                    'item_uom_code' => $itemPrice->uom,
+                    'item_price' => $itemPrice->list_price,
+                ];
+            })->toArray();
+        }
+
+        // Add products to customer data
+        $customerArray['products'] = $products;
 
         // Return the response
         return response()->json([
             'success' => true,
             'status' => 200,
             'message' => 'Customer retrieved successfully',
-            'data' => $customer,
+            'data' => $customerArray,
         ], 200);
     }
 
@@ -84,15 +174,39 @@ class CustomerController extends Controller
             'customer_id' => 'required|exists:customers,customer_id',
         ]);
 
-        $cacheKey = 'customer_products_'.$validated['customer_id'];
+        $user = Auth::user();
+        $cacheKey = 'customer_products_'.$validated['customer_id'].'_user_'.$user->id;
         $cacheTime = 60;
 
         // Attempt to retrieve data from cache
         $items = Cache::remember($cacheKey, $cacheTime, function () use ($validated) {
+            $user = Auth::user();
+            
+            // Build query with role-based access control
+            $query = Customer::with('itemPrices.item')->where('customer_id', $validated['customer_id']);
+            
+            // Role-based filtering for non-admin users
+            if ($user->role === 'supply-chain') {
+                // Supply-chain users see customers from their Oracle organizations
+                if ($user->isOracleMapped()) {
+                    $userOrgs = $user->getOracleOrganizations();
+                    if (!empty($userOrgs)) {
+                        $query->whereIn('oracle_ou_id', $userOrgs);
+                    } else {
+                        $query->where('customer_id', null);
+                    }
+                }
+            } elseif ($user->role === 'user') {
+                // Salesperson users see customers where salesperson matches their Oracle user name
+                $salespersonName = $user->name ?: $user->name;
+                $query->where('salesperson', $salespersonName);
+            } else {
+                // Other roles get no access by default (except admin)
+                $query->where('customer_id', null);
+            }
+            
             // Retrieve the customer with their item prices
-            $customer = Customer::with('itemPrices.item')
-                ->where('customer_id', $validated['customer_id'])
-                ->first();
+            $customer = $query->first();
 
             // If the customer was not found, return an empty array
             if (! $customer) {
@@ -107,9 +221,9 @@ class CustomerController extends Controller
             // Prepare the list of items with their prices
             return $customer->itemPrices->map(function ($itemPrice) {
                 return [
-                    'inventory_item_id' => $itemPrice->item_id,
-                    'item_code' => $itemPrice->item->item_code,
-                    'item_description' => $itemPrice->item->item_description,
+                    'inventory_item_id' => $itemPrice->item?->inventory_item_id,
+                    'item_code' => $itemPrice->item_code ?: $itemPrice->item?->item_code,
+                    'item_description' => $itemPrice->item_description ?: $itemPrice->item?->item_description,
                     'item_uom_code' => $itemPrice->uom,
                     'item_price' => $itemPrice->list_price,
                 ];
@@ -145,20 +259,48 @@ class CustomerController extends Controller
 
         // Extract the search term
         $searchTerm = $validated['searchTerm'];
+        $user = Auth::user();
 
-        // Generate a cache key based on the search term
-        $cacheKey = 'search_customers_'.md5($searchTerm);
+        // Generate a cache key based on the search term and user
+        $cacheKey = 'search_customers_'.md5($searchTerm.'_'.$user->id);
         $cacheTime = 60; // Cache time in minutes
 
         // Attempt to retrieve data from cache
-        $customers = Cache::remember($cacheKey, $cacheTime, function () use ($searchTerm) {
+        $customers = Cache::remember($cacheKey, $cacheTime, function () use ($searchTerm, $user) {
             // Query customers using the search term
-            return Customer::where(function ($query) use ($searchTerm) {
-                $query->where('customer_id', 'like', '%'.$searchTerm.'%')
+            $query = Customer::query();
+            
+            // Apply role-based filtering
+            if ($user->role !== 'admin') {
+                // Role-based filtering for non-admin users
+                if ($user->role === 'supply-chain') {
+                    // Supply-chain users see customers from their Oracle organizations
+                    if ($user->isOracleMapped()) {
+                        $userOrgs = $user->getOracleOrganizations();
+                        if (!empty($userOrgs)) {
+                            $query->whereIn('oracle_ou_id', $userOrgs);
+                        } else {
+                            $query->where('customer_id', null);
+                        }
+                    }
+                } elseif ($user->role === 'user') {
+                    // Salesperson users see customers where salesperson matches their Oracle user name
+                    $salespersonName = $user->name ?: $user->name;
+                    $query->where('salesperson', $salespersonName);
+                } else {
+                    // Other roles get no access by default
+                    $query->where('customer_id', null);
+                }
+            }
+            
+            // Apply search filters
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('customer_id', 'like', '%'.$searchTerm.'%')
                     ->orWhere('customer_number', 'like', '%'.$searchTerm.'%')
                     ->orWhere('customer_name', 'like', '%'.$searchTerm.'%');
-            })
-                ->get();
+            });
+            
+            return $query->get();
         });
 
         // Return the results in JSON format
@@ -218,73 +360,123 @@ class CustomerController extends Controller
         ]);
 
         // Extract the search term and break it into individual words
-        $searchTerm = $validated['searchTerm'];
-        $terms = explode(' ', $searchTerm);
+        $searchTerm = $validated['searchTerm'] ?? '';
+        $terms = !empty($searchTerm) ? explode(' ', $searchTerm) : [];
 
-        // Generate a cache key based on customer ID and search term
-        $cacheKey = 'customer_'.$validated['customer_id'].'_search_'.md5($validated['searchTerm']);
+        $user = Auth::user();
+        // Generate a cache key based on customer ID, search term, and user
+        $cacheKey = 'customer_'.$validated['customer_id'].'_search_'.md5($searchTerm).'_user_'.$user->id;
         $cacheTime = 60; // Cache for 60 minutes
 
         // Attempt to retrieve data from cache
         $items = Cache::remember($cacheKey, $cacheTime, function () use ($terms, $validated, $searchTerm) {
-            // Retrieve the customer along with their item prices using the relation, applying eager loading for the related items
-            $customer = Customer::where('customer_id', $validated['customer_id'])->first();
+            $user = Auth::user();
+
+            // Build query with role-based access control
+            $query = Customer::where('customer_id', $validated['customer_id']);
+
+            // Apply role-based filtering
+            if ($user->role !== 'admin') {
+                // Role-based filtering for non-admin users
+                if ($user->role === 'supply-chain') {
+                    // Supply-chain users see customers from their Oracle organizations
+                    if ($user->isOracleMapped()) {
+                        $userOrgs = $user->getOracleOrganizations();
+                        if (!empty($userOrgs)) {
+                            $query->whereIn('oracle_ou_id', $userOrgs);
+                        } else {
+                            $query->where('customer_id', null);
+                        }
+                    }
+                } elseif ($user->role === 'user') {
+                    // Salesperson users see customers where salesperson matches their Oracle user name
+                    $salespersonName = $user->name ?: $user->name;
+                    $query->where('salesperson', $salespersonName);
+                } else {
+                    // Other roles get no access by default
+                    $query->where('customer_id', null);
+                }
+            }
+
+            // Retrieve the customer
+            $customer = $query->first();
 
             // Check if the customer exists
             if (! $customer) {
-                return response()->json([
-                    'success' => false,
-                    'status' => 404,
-                    'message' => 'Customer not found.',
-                ], 404);
-            } 
+                return null; // Return null to indicate customer not found
+            }
 
-            $customer->load(['itemPrices.item' => function ($query) use ($terms, $searchTerm) {
-                // Apply search term filtering on the related item within the itemPrices relationship
-                $query->where(function ($q) use ($terms) {
+            // If no search term, return customer's itemPrices as before
+            if (empty($searchTerm)) {
+                $customer->load(['itemPrices.item']);
+
+                return $customer->itemPrices
+                    ->map(function ($itemPrice) {
+                        return [
+                            'inventory_item_id' => $itemPrice->item?->inventory_item_id,
+                            'item_code' => $itemPrice->item_code ?: ($itemPrice->item?->item_code),
+                            'item_description' => $itemPrice->item_description ?: ($itemPrice->item?->item_description),
+                            'item_uom_code' => $itemPrice->uom,
+                            'item_price' => $itemPrice->list_price
+                        ];
+                    })
+                    ->values()
+                    ->all();
+            }
+
+            // Search ALL items (not just customer's price list)
+            $itemsQuery = \App\Models\Item::query();
+
+            // Apply search terms to item_code and item_description
+            if (!empty($terms)) {
+                $itemsQuery->where(function ($q) use ($terms) {
                     foreach ($terms as $term) {
-                        $q->where(function ($q) use ($term) {
-                            $q->where('item_description', 'like', '%' . $term . '%')
-                              ->orWhere('item_code', 'like', '%' . $term . '%');
+                        $q->where(function ($subQ) use ($term) {
+                            $subQ->where('item_description', 'like', '%' . trim($term) . '%')
+                                 ->orWhere('item_code', 'like', '%' . trim($term) . '%');
                         });
                     }
-                })
-                ->orderByRaw("
-                    CASE
-                        WHEN item_description LIKE ? OR item_code LIKE ? THEN 1                -- Exact match
-                        WHEN item_description LIKE ? OR item_code LIKE ? THEN 2                -- Terms in order
-                        WHEN item_description LIKE ? OR item_code LIKE ? THEN 3                -- Terms in reverse order
-                        ELSE 4
-                    END
-                ", [
-                    "%$searchTerm%",                          // Exact full-term match in either column
-                    "%$searchTerm%",
-                    "%" . implode('%', $terms) . "%",       // Terms in order
-                    "%" . implode('%', $terms) . "%",
-                    "%" . implode('%', array_reverse($terms)) . "%",  // Terms in reverse order
-                    "%" . implode('%', array_reverse($terms)) . "%"
-                ]);
-            }]);
+                });
+            }
 
+            // Get the items
+            $items = $itemsQuery->limit(50)->get();
 
-            // Transform the retrieved data
-            return $customer->itemPrices
-                ->filter(function ($itemPrice) {
-                    // Filter out item prices that don't have a matching item (based on search terms)
-                    return $itemPrice->item;
-                })
-                ->map(function ($itemPrice) {
+            // For each item, try to get the prices from customer's price list
+            // Only return items that have a price
+            return $items->flatMap(function ($item) use ($customer) {
+                // Try to find the prices for this customer's price list
+                // Match by price_list_id OR price_list_name (some records may have null price_list_id)
+                $itemPrices = \App\Models\ItemPrice::where('item_code', $item->item_code)
+                    ->where(function ($q) use ($customer) {
+                        $q->where('price_list_id', $customer->price_list_id)
+                          ->orWhere('price_list_name', $customer->price_list_name);
+                    })
+                    ->get();
+
+                // Map each price record to a response object
+                return $itemPrices->map(function ($itemPrice) use ($item) {
                     return [
-                        'inventory_item_id' => $itemPrice->item_id,
-                        'item_code' => $itemPrice->item->item_code,
-                        'item_description' => $itemPrice->item->item_description,
+                        'inventory_item_id' => $item->inventory_item_id,
+                        'item_code' => $item->item_code,
+                        'item_description' => $item->item_description,
                         'item_uom_code' => $itemPrice->uom,
-                        'item_price' => $itemPrice->list_price,
+                        'item_price' => $itemPrice->list_price
                     ];
-                })
-                ->values() // Reset the keys to create a numerically indexed array
-                ->all(); // Convert to a plain array
+                });
+            })
+            ->values() // Re-index array
+            ->all();
         });
+
+        // Check if customer was found
+        if ($items === null) {
+            return response()->json([
+                'success' => false,
+                'status' => 404,
+                'message' => 'Customer not found.',
+            ], 404);
+        }
 
         // Return the filtered items
         return response()->json([

@@ -1,0 +1,17 @@
+{
+  "customer_id": "240025",
+  "outstanding": 15000000.00,
+  "cash_amount": 25000000.00,
+  "currency": "PKR",
+  "cash_maturity_date": "2025-07-15",
+  "cheque_no": "CHQ-95254",
+  "cheque_amount": 25000000.00,
+  "maturity_date": "2025-08-30",
+  "cheque_comments": "Post-dated cheque for August payment. Bank: HBL Main Branch.",
+  "is_third_party_cheque": false,
+  "remittance_bank_id": "10001",
+  "remittance_bank_name": "Habib Bank Limited - Main Branch",
+  "customer_bank_id": "10002",
+  "customer_bank_name": "Allied Bank Limited - Gulberg Branch",
+  "description": "Payment received for January 2025 invoice. Mixed payment - cash and cheque combination for order settlement."
+}

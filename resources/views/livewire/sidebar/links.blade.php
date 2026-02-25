@@ -13,12 +13,6 @@
             </x-sidebar-link>
         </li>
         <li>
-            <x-sidebar-link :href="route('reciepts')" :active="request()->routeIs('reciepts')">
-                <x-link-icon icon="o-book-open" :active="request()->routeIs('reciepts')" />
-                <span>Reciepts</span>
-            </x-sidebar-link>
-        </li>
-        <li>
             <x-sidebar-link :href="route('products.all')" :active="request()->routeIs('products.all')">
                 <x-link-icon icon="o-shopping-bag" :active="request()->routeIs('products.all')" />
                 <span>Products</span>
@@ -36,9 +30,118 @@
                 <span>Users</span>
             </x-sidebar-link>
         </li>
+        <li>
+            <x-sidebar-link :href="route('price-lists.index')" :active="request()->routeIs('price-lists.*')">
+                <x-link-icon icon="o-currency-dollar" :active="request()->routeIs('price-lists.*')" />
+                <span>Price Lists</span>
+            </x-sidebar-link>
+        </li>
+        <li>
+            <x-sidebar-link :href="route('invoices.index')" :active="request()->routeIs('invoices.*')">
+                <x-link-icon icon="o-document-text" :active="request()->routeIs('invoices.*')" />
+                <span>Invoices</span>
+            </x-sidebar-link>
+        </li>
+        
+        {{-- HCM Module --}}
+        <li class="relative" x-data="{ openHcmMenu: {{ request()->routeIs('admin.hcm.*') ? 'true' : 'false' }} }">
+            <x-sidebar-link href="javascript:void(0)" @click="openHcmMenu = !openHcmMenu" aria-expanded="openHcmMenu" :active="request()->routeIs('admin.hcm.*')">
+                <x-link-icon icon="o-users" :active="request()->routeIs('admin.hcm.*')" />
+                <span class="flex-1 me-3">HCM</span>
+                <x-heroicon-s-chevron-down x-bind:class="{ 'rotate-180': openHcmMenu }" class="h-5 w-5 transform transition-transform" />
+            </x-sidebar-link>
+
+            <ul x-show="openHcmMenu" x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="opacity-0 transform scale-95"
+                x-transition:enter-end="opacity-100 transform scale-100"
+                x-transition:leave="transition ease-in duration-150"
+                x-transition:leave-start="opacity-100 transform scale-100"
+                x-transition:leave-end="opacity-0 transform scale-95" x-cloak class="mt-2 space-y-1 ps-4">
+                
+                <li>
+                    <x-sidebar-link :href="route('admin.hcm.dashboard')" :active="request()->routeIs('admin.hcm.dashboard')">
+                        <span>Overview</span>
+                    </x-sidebar-link>
+                </li>
+                
+                {{-- Hiring Sub-section --}}
+                <li class="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Hiring</li>
+                <li>
+                    <x-sidebar-link :href="route('admin.hcm.hiring.requisition')" :active="request()->routeIs('admin.hcm.hiring.requisition')">
+                        <span>Requisitions</span>
+                    </x-sidebar-link>
+                </li>
+                <li>
+                    <x-sidebar-link :href="route('admin.hcm.hiring.candidates')" :active="request()->routeIs('admin.hcm.hiring.candidates')">
+                        <span>Candidates</span>
+                    </x-sidebar-link>
+                </li>
+                <li>
+                    <x-sidebar-link :href="route('admin.hcm.hiring.onboarding')" :active="request()->routeIs('admin.hcm.hiring.onboarding')">
+                        <span>Onboarding</span>
+                    </x-sidebar-link>
+                </li>
+
+                {{-- Performance Sub-section --}}
+                <li class="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Performance</li>
+                <li>
+                    <x-sidebar-link :href="route('admin.hcm.performance.dashboard')" :active="request()->routeIs('admin.hcm.performance.dashboard')">
+                        <span>KPI Dashboard</span>
+                    </x-sidebar-link>
+                </li>
+                <li>
+                    <x-sidebar-link :href="route('admin.hcm.performance.goals')" :active="request()->routeIs('admin.hcm.performance.goals')">
+                        <span>Goal Setting</span>
+                    </x-sidebar-link>
+                </li>
+                <li>
+                    <x-sidebar-link :href="route('admin.hcm.performance.appraisals')" :active="request()->routeIs('admin.hcm.performance.appraisals')">
+                        <span>Appraisals</span>
+                    </x-sidebar-link>
+                </li>
+                
+                {{-- Integration --}}
+                <li class="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</li>
+                <li>
+                    <x-sidebar-link :href="route('admin.hcm.integration')" :active="request()->routeIs('admin.hcm.integration')">
+                        <span>Integration</span>
+                    </x-sidebar-link>
+                </li>
+            </ul>
+        </li>
     @endif
 
-    @if (Auth::user()->isSupplyChain())
+    {{-- Customer Receipts - Only for Admin and CMD users --}}
+    @if (Auth::user()->canAccessReceipts() && !Auth::user()->isScmLhr())
+        <li>
+            <x-sidebar-link :href="route('admin.receipts.index')" :active="request()->routeIs('admin.receipts.*')">
+                <x-link-icon icon="o-book-open" :active="request()->routeIs('admin.receipts.*')" />
+                <span>Receipts</span>
+            </x-sidebar-link>
+        </li>
+    @endif
+
+    {{-- Sales Head - CRM and Orders only --}}
+    @if (Auth::user()->isSalesHead())
+        <li>
+            <x-sidebar-link :href="route('orders.all')" :active="request()->routeIs('orders.all')">
+                <x-link-icon icon="o-shopping-cart" :active="request()->routeIs('orders.all')" />
+                <span>Orders</span>
+            </x-sidebar-link>
+        </li>
+    @endif
+
+    {{-- Price Uploads - Price Lists only --}}
+    @if (Auth::user()->isPriceUploads())
+        <li>
+            <x-sidebar-link :href="route('price-lists.index')" :active="request()->routeIs('price-lists.*')">
+                <x-link-icon icon="o-currency-dollar" :active="request()->routeIs('price-lists.*')" />
+                <span>Price Lists</span>
+            </x-sidebar-link>
+        </li>
+    @endif
+
+    @if (Auth::user()->isSupplyChain() || Auth::user()->isScmLhr())
         <li>
             <x-sidebar-link :href="route('orders.supply-chain.all')" :active="request()->routeIs('orders.supply-chain.all')">
                 <x-link-icon icon="o-shopping-cart" :active="request()->routeIs('orders.supply-chain.all')" />
@@ -47,7 +150,7 @@
         </li>
     @endif
 
-    @if (!Auth::user()->isSupplyChain())
+    @if (Auth::user()->isAdmin() || Auth::user()->isSalesHead() || Auth::user()->isScmLhr() || (!Auth::user()->isSupplyChain() && !Auth::user()->isPriceUploads()))
         <li class="relative" x-data="{ openCrmMenu: {{ request()->routeIs('monthlyTourPlans.all', 'visits.all', 'manage.tourplans') ? 'true' : 'false' }} }">
             <x-sidebar-link href="javascript:void" @click="openCrmMenu = !openCrmMenu" aria-expanded="openCrmMenu">
                 <x-link-icon icon="o-chart-pie" />
@@ -86,4 +189,15 @@
             </ul>
         </li>
     @endif
+
+    {{-- BI Dashboard - Available for Admin, Sales Head, CMD users, HOD, Line Managers, and Sales users --}}
+    @if (Auth::user()->isAdmin() || Auth::user()->isSalesHead() || Auth::user()->isCmdKhi() || Auth::user()->isCmdLhr() || Auth::user()->isSalesPerson() || Auth::user()->isHOD() || Auth::user()->isManager())
+        <li>
+            <x-sidebar-link :href="route('admin.bi-dashboard')" :active="request()->routeIs('admin.bi-dashboard.*')">
+                <x-link-icon icon="o-chart-bar" :active="request()->routeIs('admin.bi-dashboard.*')" />
+                <span>BI Dashboard</span>
+            </x-sidebar-link>
+        </li>
+    @endif
+    
 </ul>

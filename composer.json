@@ -18,6 +18,10 @@
         "laravel/tinker": "^2.9",
         "maatwebsite/excel": "^3.1",
         "ralphjsmit/livewire-urls": "^1.4",
+        "setasign/fpdf": "^1.8",
+        "setasign/fpdi": "^2.6",
+        "smalot/pdfparser": "^2.12",
+        "tecnickcom/tcpdf": "^6.10",
         "yajra/laravel-oci8": "^11.6"
     },
     "require-dev": {
@@ -26,7 +30,7 @@
         "laravel/pint": "^1.13",
         "laravel/sail": "^1.26",
         "mockery/mockery": "^1.6",
-        "nunomaduro/collision": "^8.0",
+        "nunomaduro/collision": "^8.4",
         "pestphp/pest": "^2.0",
         "pestphp/pest-plugin-laravel": "^2.0"
     },

@@ -7,10 +7,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Order extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -24,24 +25,40 @@ class Order extends Model
         'order_number',
         'notes',
         'oracle_at',
+        'pushed_by',
     ];
 
     /**
      * Automatically generate an order number before creating the model.
+     * Format: YYYYMMNNNNN (Year + Month + Sequence Number)
+     * Example: 202601 (January 2026, first order), 202602 (January 2026, second order)
+     * Continues from existing sequence (e.g., 202546 -> 202601 for January 2026)
      */
     protected static function booted()
     {
         static::creating(function ($order) {
             // Wrap the entire operation in a transaction
             DB::transaction(function () use ($order) {
-                // Fetch the latest order number with a lock
-                $lastOrder = Order::lockForUpdate()->latest('order_number')->first();
+                // Get current year and month in YYYYMM format
+                $monthPrefix = now()->format('Ym'); // e.g., 202601 for January 2026
 
-                // Calculate the new order number
-                $orderNumber = $lastOrder ? $lastOrder->order_number + 1 : 202500;
+                // Fetch the latest order number for this month with a lock
+                $lastOrder = Order::lockForUpdate()
+                    ->where('order_number', 'LIKE', $monthPrefix . '%')
+                    ->latest('order_number')
+                    ->first();
+                // Calculate the sequence number for this month
+                if ($lastOrder) {
+                    // Increment from the last order number
+                    $orderNumber = $lastOrder->order_number + 1;
+                } else {
+                    // First order of the month - start with 01
+                    $orderNumber = $monthPrefix . '01';
+                }
 
                 // Assign the generated order number
                 $order->order_number = $orderNumber;
+
             });
         });
     }
@@ -91,5 +108,10 @@ class Order extends Model
     public function salesperson()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function pushedBy()
+    {
+        return $this->belongsTo(User::class, 'pushed_by');
     }
 }

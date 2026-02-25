@@ -44,6 +44,7 @@ class SyncOracleProducts extends Command
                         'major_category' => $oracleProduct->major_category,
                         'minor_category' => $oracleProduct->minor_category,
                         'sub_minor_category' => $oracleProduct->sub_minor_category,
+                        'updated_at' => now(),
                     ]
                 );
             }

@@ -58,6 +58,7 @@ class OracleOrderHeader extends Model
         'ordered_date',
         'order_type_id',
         'sold_to_org_id',
+        'price_list_id',
         'payment_term_id',
         'operation_code',
         'created_by',

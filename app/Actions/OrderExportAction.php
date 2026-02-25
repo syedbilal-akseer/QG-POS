@@ -43,7 +43,7 @@ class OrderExportAction
         $query = Order::query();
     
         // Restrict results based on the user's role (non-admins only see their orders)
-        if (! auth()->user()->role->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             $query->where('user_id', auth()->id());
         }
     

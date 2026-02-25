@@ -13,25 +13,29 @@ class CheckRole
      * Handle an incoming request.
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     * @param  string  $role
+     * @param  string  ...$roles  Multiple roles can be passed
      */
-    public function handle(Request $request, Closure $next, $role): Response
+    public function handle(Request $request, Closure $next, ...$roles): Response
     {
-        // Check if the user is authenticated and has the required role or is an admin
-        if (Auth::check() && (Auth::user()->role->name === $role || Auth::user()->role->name === 'admin' || Auth::user()->role->name === 'hod' || Auth::user()->role->name === 'line-manager')) {
-            return $next($request); // Proceed to the next middleware/route
+        // Check if user is authenticated
+        if (!Auth::check()) {
+            return redirect('/login');
         }
-    
-        // If the user does not have access, return a response
-        // Option 1: Redirect to the home page or login page
-        return redirect('/login'); // Or any other page, e.g., '/'
-    
-        // Option 2: Return a JSON response with an error message
-        // return response()->json([
-        //     'error' => 'Unauthorized',
-        //     'message' => 'You do not have the required role to access this resource.',
-        //     'status' => 403,
-        // ], 403);
+
+        $userRole = Auth::user()->role;
+
+        // Check if user has one of the required roles
+        if (in_array($userRole, $roles)) {
+            return $next($request);
+        }
+
+        // Always allow these privileged roles access
+        $privilegedRoles = ['admin', 'hod', 'line-manager', 'sales-head', 'cmd-khi', 'price-uploads', 'scm-lhr', 'cmd-lhr', 'supply-chain'];
+        if (in_array($userRole, $privilegedRoles)) {
+            return $next($request);
+        }
+
+        // Redirect unauthorized users
+        return redirect('/login');
     }
-    
 }

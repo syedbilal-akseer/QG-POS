@@ -119,10 +119,13 @@
                                             Rs{{ number_format($orderItem->sub_total, 2) }}
                                         </td>
                                         <td class="px-4 py-3 text-gray-900 dark:text-gray-100">
-                                            <x-select name="orderItemWarehouses.{{ $index }}"
-                                                wire:model.defer="orderItemWarehouses.{{ $index }}"
-                                                class="mt-1 !w-[100px]"
-                                                :disabled="$order->oracle_at ? true : false" :options="$warehouses" />
+                                            <div wire:loading.class="opacity-50 pointer-events-none"
+                                                wire:target="enterOrderToOracle">
+                                                <x-select name="orderItemWarehouses.{{ $index }}"
+                                                    wire:model.defer="orderItemWarehouses.{{ $index }}"
+                                                    class="mt-1 !w-[100px]"
+                                                    :disabled="$order->oracle_at ? true : false" :options="$warehouses" />
+                                            </div>
                                             @error('orderItemWarehouses.' . $index)
                                                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                                             @enderror
@@ -159,9 +162,23 @@
                     {{ __('Cancel') }}
                 </x-secondary-button>
                 @if (!$order->oracle_at)
-                    <x-primary-button wire:click="enterOrderToOracle"
-                        class="bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-600">
-                        {{ __('Enter to Oracle') }}
+                    <x-primary-button wire:click="enterOrderToOracle" wire:loading.attr="disabled"
+                        wire:target="enterOrderToOracle"
+                        class="bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span wire:loading.remove wire:target="enterOrderToOracle">
+                            {{ __('Enter to Oracle') }}
+                        </span>
+                        <span wire:loading wire:target="enterOrderToOracle" class="flex items-center">
+                            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg"
+                                fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                    stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                </path>
+                            </svg>
+                            {{ __('Sending to Oracle...') }}
+                        </span>
                     </x-primary-button>
                 @else
                     <span class="text-sm text-gray-700 dark:text-gray-300">

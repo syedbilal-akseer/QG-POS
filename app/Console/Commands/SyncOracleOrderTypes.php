@@ -39,6 +39,7 @@ class SyncOracleOrderTypes extends Command
                     [
                         'order_type_id' => $oracleOrderType->order_type_id,
                         'line_type_id' => $oracleOrderType->line_type_id,
+                        'updated_at' => now(),
                     ]
                 );
             }

@@ -38,6 +38,24 @@ class OracleCustomer extends Model
     public $incrementing = false;
 
     /**
+     * Indicates if the model should be timestamped.
+     *
+     * @var bool
+     */
+    public $timestamps = false;
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'overall_credit_limit' => 'decimal:2',
+        'customer_balance' => 'decimal:2',
+        'credit_days' => 'integer',
+    ];
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array
@@ -53,16 +71,21 @@ class OracleCustomer extends Model
         'city',
         'area',
         'address1',
+        'customer_address',
         'contact_number',
         'email_address',
         'overall_credit_limit',
+        'customer_balance',
         'credit_days',
         'nic',
         'ntn',
         'sales_tax_registration_num',
         'category_code',
         'creation_date',
+        'cust_creation_date',
         'payment_terms_id',
         'payment_terms_name',
+        'price_list_id',
+        'price_list_name',
     ];
 }

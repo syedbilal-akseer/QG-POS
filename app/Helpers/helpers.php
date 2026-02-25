@@ -59,7 +59,13 @@ if (!function_exists('isManager')) {
      */
     function isManager(): bool
     {
-        return auth()->check() && auth()->user()->role->name === 'line-manager';
+        if (!auth()->check()) {
+            return false;
+        }
+        
+        $user = auth()->user();
+        $roleName = $user->role?->name ?? $user->role ?? null;
+        return $roleName === 'line-manager';
     }
 }
 
@@ -71,7 +77,13 @@ if (!function_exists('isHod')) {
      */
     function isHod(): bool
     {
-        return auth()->check() && auth()->user()->role->name === 'hod';
+        if (!auth()->check()) {
+            return false;
+        }
+        
+        $user = auth()->user();
+        $roleName = $user->role?->name ?? $user->role ?? null;
+        return $roleName === 'hod';
     }
 }
 
@@ -83,6 +95,48 @@ if (!function_exists('isAdmin')) {
      */
     function isAdmin(): bool
     {
-        return auth()->check() && auth()->user()->role->name === 'admin';
+        if (!auth()->check()) {
+            return false;
+        }
+        
+        $user = auth()->user();
+        $roleName = $user->role?->name ?? $user->role ?? null;
+        return $roleName === 'admin';
+    }
+}
+
+if (!function_exists('isSupplyChain')) {
+    /**
+     * Check if the authenticated user is a Supply Chain user.
+     *
+     * @return bool
+     */
+    function isSupplyChain(): bool
+    {
+        if (!auth()->check()) {
+            return false;
+        }
+        
+        $user = auth()->user();
+        $roleName = $user->role?->name ?? $user->role ?? null;
+        return $roleName === 'supply-chain';
+    }
+}
+
+if (!function_exists('isAccountUser')) {
+    /**
+     * Check if the authenticated user is an Account user.
+     *
+     * @return bool
+     */
+    function isAccountUser(): bool
+    {
+        if (!auth()->check()) {
+            return false;
+        }
+        
+        $user = auth()->user();
+        $roleName = $user->role?->name ?? $user->role ?? null;
+        return $roleName === 'account-user';
     }
 }

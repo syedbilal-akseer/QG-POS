@@ -91,7 +91,7 @@ class OldListMonthlyTourPlans extends Component implements HasForms, HasTable
 
     public function addNewPlan()
     {
-        $this->redirect(CreatePlan::class);
+        $this->redirectRoute('monthlyTourPlans.addNewPlan');
     }
 
     public function edit(MonthlyTourPlan $tourPlan)
@@ -136,11 +136,73 @@ class ListMonthlyTourPlans extends Component
 
     public $search = '';
     public $perPage = 10;
+    public $plans = [];
+    public $loading = false;
+    
+    public function updatedSearch()
+    {
+        $this->loadPlansFromDatabase();
+    }
+
+    public function mount()
+    {
+        $this->loadPlansFromDatabase();
+    }
+
+    public function loadPlansFromDatabase()
+    {
+        $user = Auth::user();
+        $query = MonthlyTourPlan::query();
+        
+        if (!$user->isAdmin()) {
+            $query->where('salesperson_id', $user->salesperson_id);
+        }
+        
+        if ($this->search) {
+            $query->where('month', 'like', '%' . $this->search . '%');
+        }
+        
+        // Convert to array to avoid Livewire property type issues
+        $this->plans = $query->latest()->get()->toArray();
+    }
+
+    public function callAPI($endpoint, $method = 'GET', $data = [])
+    {
+        $token = auth()->user()->createToken('CRM API')->plainTextToken;
+        
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL => url($endpoint),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST => $method,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $token,
+                'Content-Type: application/json',
+                'Accept: application/json'
+            ],
+            CURLOPT_POSTFIELDS => json_encode($data)
+        ]);
+        
+        $response = curl_exec($curl);
+        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        curl_close($curl);
+        
+        if ($httpCode !== 200) {
+            throw new \Exception('API call failed with status: ' . $httpCode);
+        }
+        
+        return json_decode($response, true);
+    }
+
+    public function refreshPlans()
+    {
+        $this->loadPlansFromDatabase();
+    }
 
     // Redirect to add new plan
     public function addNewPlan()
     {
-        $this->redirect(CreatePlan::class);
+        $this->redirectRoute('monthlyTourPlans.addNewPlan');
     }
 
     // Redirect to edit existing plan
@@ -157,13 +219,9 @@ class ListMonthlyTourPlans extends Component
 
     public function render()
     {
-        $plans = MonthlyTourPlan::where('salesperson_id', Auth::user()->id)
-            ->when($this->search, fn ($query) => $query->where('month', 'like', "%{$this->search}%"))
-            ->orderBy('created_at', 'desc')
-            ->paginate($this->perPage);
-
+        // Use the plans loaded in mount() or refreshPlans()
         return view('livewire.crm.monthly-plan.list-monthly-tour-plans', [
-            'plans' => $plans,
+            'plans' => $this->plans,
         ]);
     }
 }

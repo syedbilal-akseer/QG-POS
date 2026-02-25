@@ -59,6 +59,8 @@ class OracleOrderLine extends Model
         'ship_from_org_id',
         'org_id',
         'unit_selling_price',
+        'unit_list_price',
+        'calculate_price_flag',
         'price_list_id',
         'payment_term_id',
         'created_by',
@@ -66,6 +68,7 @@ class OracleOrderLine extends Model
         'last_updated_by',
         'last_update_date',
         'line_type_id',
+        'order_quantity_uom',  // Unit of measure
         'operation_code'
     ];
 }

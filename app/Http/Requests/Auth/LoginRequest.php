@@ -50,10 +50,11 @@ class LoginRequest extends FormRequest
             ]);
         }
 
-        $allowedRoles = ['admin', 'supply-chain', 'user', 'line-manager', 'hod'];
+        $allowedRoles = ['admin', 'supply-chain', 'user', 'line-manager', 'hod', 'sales', 'sales-head', 'price-uploads'];
 
-        // Check if the authenticated user has the 'admin' role
-        if (!in_array(Auth::user()->role->name, $allowedRoles)) {
+        // Check if the authenticated user has an allowed role
+        $userRole = Auth::user()->role?->name ?? Auth::user()->role;
+        if (!in_array($userRole, $allowedRoles)) {
             Auth::logout();
 
             throw ValidationException::withMessages([
