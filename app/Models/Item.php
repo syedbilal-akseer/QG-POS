@@ -25,7 +25,16 @@ class Item extends Model
      */
     public function itemPrices()
     {
-        return $this->hasMany(ItemPrice::class, 'item_id', 'inventory_item_id');
+        return $this->hasMany(ItemPrice::class, 'item_code', 'item_code');
+    }
+
+    /**
+     * Multi-level packing definitions for this item (KG / TB / BOX / CARTON).
+     */
+    public function packings()
+    {
+        return $this->hasMany(ItemPacking::class, 'item_code', 'item_code')
+            ->orderBy('level');
     }
 
     /**
@@ -33,6 +42,14 @@ class Item extends Model
      */
     public function itemPrice()
     {
-        return $this->belongsTo(ItemPrice::class, 'inventory_item_id', 'item_id');
+        return $this->belongsTo(ItemPrice::class, 'item_code', 'item_code');
+    }
+
+    /**
+     * Get the promotional item associated with the item.
+     */
+    public function promotionalItem()
+    {
+        return $this->hasOne(PromotionalItem::class, 'item_code', 'item_code');
     }
 }

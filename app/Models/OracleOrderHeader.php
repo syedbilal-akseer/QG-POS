@@ -58,6 +58,7 @@ class OracleOrderHeader extends Model
         'ordered_date',
         'order_type_id',
         'sold_to_org_id',
+        'price_list_id',
         'payment_term_id',
         'operation_code',
         'created_by',
@@ -68,4 +69,9 @@ class OracleOrderHeader extends Model
         'ship_to_org_id',
         'BOOKED_FLAG'
     ];
+
+    public function orderLines()
+    {
+        return $this->hasMany(OracleOrderLine::class, 'orig_sys_document_ref', 'orig_sys_document_ref');
+    }
 }

@@ -56,7 +56,7 @@
                 <x-toast />
 
                 <!-- Header -->
-                <x-header :$pageTitle />
+                <x-header :pageTitle="$pageTitle" />
 
                 <!-- Main content -->
                 <main class="py-5 dark:bg-neutral-900">
@@ -68,10 +68,18 @@
 
             @livewire('notifications')
 
+            @livewire('database-notifications')
+
             <!-- Scripts -->
+            @livewireScriptConfig
             @livewireScripts
             @filamentScripts
             @vite('resources/js/app.js')
+
+            {{-- Web push (Firebase Cloud Messaging) registration --}}
+            <x-firebase-push-init />
+
+            <x-keep-alive />
 
             @stack('scripts')
     </body>

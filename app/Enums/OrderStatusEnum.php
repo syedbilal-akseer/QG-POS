@@ -9,6 +9,7 @@ enum OrderStatusEnum: string
     case COMPLETED = 'completed';
     case CANCELED = 'canceled';
     case SYNCED = 'synced'; // New status for orders synced to Oracle
+    case ENTERED = 'entered'; // Enter to Oracle
 
     /**
      * Get the description for the status.
@@ -23,6 +24,7 @@ enum OrderStatusEnum: string
             self::COMPLETED => 'Order has been completed.',
             self::CANCELED => 'Order has been canceled.',
             self::SYNCED => 'Order has been synced with Oracle.', // Description for the new status
+            self::ENTERED => 'Order has been entered to Oracle.', // Description for the new status
         };
     }
 
@@ -39,6 +41,7 @@ enum OrderStatusEnum: string
             self::COMPLETED => 'Completed',
             self::CANCELED => 'Canceled',
             self::SYNCED => 'Synced with Oracle', // Name for the new status
+            self::ENTERED => 'Entered to Oracle', // Name for the new status
         };
     }
 
@@ -54,7 +57,8 @@ enum OrderStatusEnum: string
             self::PROCESSING->value => 'primary',  // Blue for processing
             self::COMPLETED->value => 'success',   // Green for completed
             self::CANCELED->value => 'danger',     // Red for canceled
-            self::SYNCED->value => 'info',         // Light blue for synced
+            self::SYNCED->value => 'success',      // Green for synced
+            self::ENTERED->value => 'success',     // Green for posted
         ];
     }
 
@@ -83,6 +87,7 @@ enum OrderStatusEnum: string
             (object)['id' => self::COMPLETED->value, 'name' => self::COMPLETED->name()],
             (object)['id' => self::CANCELED->value, 'name' => self::CANCELED->name()],
             (object)['id' => self::SYNCED->value, 'name' => self::SYNCED->name()], // New status object
+            (object)['id' => self::ENTERED->value, 'name' => self::ENTERED->name()], // New status object
         ];
     }
 
@@ -99,6 +104,7 @@ enum OrderStatusEnum: string
             self::COMPLETED->value => self::COMPLETED->name(),
             self::CANCELED->value => self::CANCELED->name(),
             self::SYNCED->value => self::SYNCED->name(), // Add synced to the array
+            self::ENTERED->value => self::ENTERED->name(), // Add posted to the array
         ];
     }
 

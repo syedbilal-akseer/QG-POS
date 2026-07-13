@@ -1,9 +1,8 @@
 import './bootstrap';
+import picker from "./picker.js";
+import { Livewire, Alpine } from '../../vendor/livewire/livewire/dist/livewire.esm';
+import Tooltip from "@ryangjchandler/alpine-tooltip";
 
-// import Alpine from 'alpinejs';
-
-// window.Alpine = Alpine;
-
-// Alpine.start();
-
-import 'preline'
+Alpine.plugin(Tooltip);
+Alpine.plugin(picker);
+Livewire.start();

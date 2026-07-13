@@ -16,7 +16,7 @@ return [
     |
     */
 
-    'default' => env('DB_CONNECTION', 'sqlite'),
+    'default' => env('DB_CONNECTION', 'mysql'),
 
     /*
     |--------------------------------------------------------------------------
@@ -47,7 +47,7 @@ return [
             'url' => env('DB_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '3306'),
-            'database' => env('DB_DATABASE', 'laravel'),
+            'database' => env('DB_DATABASE', 'qg_pos'),
             'username' => env('DB_USERNAME', 'root'),
             'password' => env('DB_PASSWORD', ''),
             'unix_socket' => env('DB_SOCKET', ''),
@@ -65,12 +65,12 @@ return [
         'oracle' => [
             'driver'         => 'oracle',
             'tns'            => env('DB_ORACLE_TNS', ''),
-            'host'           => env('DB_ORACLE_HOST', ''),
+            'host'           => env('DB_ORACLE_HOST', '192.168.1.101'),
             'port'           => env('DB_ORACLE_PORT', '1521'),
-            'database'       => env('DB_ORACLE_DATABASE', ''),
+            'database'       => env('DB_ORACLE_DATABASE', 'ebs_prod'),
             'service_name'   => env('DB_ORACLE_SERVICE_NAME', ''),
-            'username'       => env('DB_ORACLE_USERNAME', ''),
-            'password'       => env('DB_ORACLE_PASSWORD', ''),
+            'username'       => env('DB_ORACLE_USERNAME', 'QG_POS'),
+            'password'       => env('DB_ORACLE_PASSWORD', '87654321'),
             'charset'        => env('DB_ORACLE_CHARSET', 'AL32UTF8'),
             'prefix'         => '',
             'prefix_schema'  => '',

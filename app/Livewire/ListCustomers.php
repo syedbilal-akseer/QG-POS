@@ -5,6 +5,7 @@ namespace App\Livewire;
 use Livewire\Component;
 use App\Models\Customer;
 use Filament\Tables\Table;
+use Livewire\Attributes\Title;
 use Filament\Tables\Actions\Action;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Tables\Columns\TextColumn;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Tables\Concerns\InteractsWithTable;
 
+#[Title('Customers')]
 class ListCustomers extends Component implements HasForms, HasTable
 {
     use InteractsWithTable;

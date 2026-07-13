@@ -3,18 +3,18 @@
 
 
     @if ($customer)
-        <x-modal name="customer_detail" :show="true" focusable>
+        <x-modal name="customer_detail" :show="true">
             <div class="p-6 bg-white dark:bg-neutral-800">
                 <div class="flex justify-between items-center">
                     <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">Customer Details</h2>
-                    <button x-on:click="$dispatch('close'); @this.closeDetailModal()"
-                        class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                    <span x-on:click="$dispatch('close')"
+                        class="cursor-pointer text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
                         <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                             stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                    </button>
+                    </span>
                 </div>
                 <div class="mt-4 space-y-4">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

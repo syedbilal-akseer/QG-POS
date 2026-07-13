@@ -1,0 +1,22 @@
+:host {
+    --color-bg-default: theme('colors.white'); /* Main background color */
+    --color-fg-primary: theme('colors.primary.600'); /* Primary foreground color */
+    --color-fg-default: theme('colors.black'); /* Default foreground color */
+    --color-fg-accent: theme('colors.orange.500'); /* Accent color */
+    --color-bg-inrange: theme('colors.gray.800'); /* Background for in-range dates */
+    --color-bg-locked: theme('colors.danger.600');
+    --color-bg-unavailable: theme('colors.primary.50');
+    --day-width: 45px;
+    --day-height: 45px;
+}
+
+/* Dark Theme */
+.container[data-theme=dark] {
+    --color-bg-default: theme('colors.neutral.900'); /* Dark background */
+    --color-fg-primary: theme('colors.primary.600'); /* Dark primary foreground */
+    --color-fg-default: theme('colors.neutral.400'); /* Dark default foreground */
+    --color-bg-inrange: theme('colors.gray.800'); /* Dark background for in-range dates */
+    --color-bg-locked: theme('colors.danger.600');
+    --color-bg-unavailable: theme('colors.neutral.100');
+}
+

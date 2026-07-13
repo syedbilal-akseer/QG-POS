@@ -1,8 +1,9 @@
 <header
-    class="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white dark:bg-neutral-900 dark:text-gray-300 dark:border-neutral-700 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+    class="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 dark:bg-neutral-900 dark:text-gray-300 dark:border-neutral-700 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
 
     <!-- Sidebar Toggle Button -->
-    <button type="button" @click="isSidebarOpen = !isSidebarOpen" class="-m-2.5 p-2.5 text-gray-700 dark:text-gray-300 lg:hidden">
+    <button type="button" @click="isSidebarOpen = !isSidebarOpen"
+        class="-m-2.5 p-2.5 text-gray-700 dark:text-gray-300 lg:hidden">
         <span class="sr-only">Open sidebar</span>
         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
@@ -15,7 +16,7 @@
     <div class="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
         <div class="relative flex flex-1">
             <!-- Page Title -->
-            <h1 class="text-gray-700 text-xl font-semibold mt-4 dark:text-gray-300">{{ $pageTitle }}</h1>
+            {{-- <h1 class="text-gray-700 text-xl font-semibold mt-4 dark:text-gray-300">{{ $pageTitle }}</h1> --}}
         </div>
         <div class="flex items-center gap-x-4 lg:gap-x-6">
             <!-- Theme Toggle Buttons -->
@@ -52,6 +53,40 @@
             <!-- Separator -->
             <div class="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-900/10" aria-hidden="true"></div>
 
+            <x-filament::icon-button icon="heroicon-o-bell" size="xl"
+                class="-m-2.5 p-2.5 text-gray-400 dark:text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                x-data="{
+                    unreadCount: {{ auth()->user()->unreadNotifications->count() }},
+                    updateCount() {
+                        fetch('{{ route('app.notifications.unread') }}', {
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json'
+                            }
+                        })
+                        .then(res => {
+                            if (res.status === 401 || res.status === 419) {
+                                window.location.reload();
+                            }
+                            return res.ok ? res.json() : null;
+                        })
+                        .then(data => {
+                            if (data && typeof data.count !== 'undefined') {
+                                this.unreadCount = data.count;
+                            }
+                        });
+                    }
+                }" x-init="setInterval(() => updateCount(), 5000)"
+                x-on:click="$dispatch('open-modal', { id: 'database-notifications' })" label="Notifications">
+
+                <x-slot name="badge">
+                    <span x-text="unreadCount"></span>
+                </x-slot>
+            </x-filament::icon-button>
+
+            <!-- Separator -->
+            <div class="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-900/10" aria-hidden="true"></div>
+
             <!-- Profile dropdown -->
             <div class="relative">
                 <button type="button" class="-m-1.5 flex items-center p-1.5" @click="isDropdownOpen = !isDropdownOpen"
@@ -71,8 +106,8 @@
                     <span class="hidden lg:flex lg:items-center">
                         <span class="ml-4 text-sm font-semibold leading-6 text-gray-900 dark:text-gray-300"
                             aria-hidden="true">{{ auth()->user()->name }}</span>
-                        <svg class="ml-2 h-5 w-5 text-gray-400 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor"
-                            aria-hidden="true">
+                        <svg class="ml-2 h-5 w-5 text-gray-400 dark:text-gray-400" viewBox="0 0 20 20"
+                            fill="currentColor" aria-hidden="true">
                             <path fill-rule="evenodd"
                                 d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
                                 clip-rule="evenodd" />
@@ -88,7 +123,7 @@
                     x-transition:leave="transition ease-in duration-75"
                     x-transition:leave-start="transform opacity-100 scale-100"
                     x-transition:leave-end="transform opacity-0 scale-95"
-                    class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white dark:bg-neutral-800 py-2 px-3 shadow-lg ring-1 ring-gray-900/5 focus:outline-none"
+                    class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md  dark:bg-neutral-800 py-2 px-3 shadow-lg ring-1 ring-gray-900/5 focus:outline-none"
                     role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1">
                     <!-- Dropdown Items -->
                     <a class="flex items-center gap-x-3.5 py-2 px-3 rounded-lg text-sm text-gray-800 dark:text-gray-200 hover:bg-primary-600 hover:text-white dark:hover:bg-primary-600 dark:hover:text-white focus:outline-none"

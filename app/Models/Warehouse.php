@@ -38,6 +38,6 @@ class Warehouse extends Model
     protected $fillable = [
         'organization_id',
         'organization_code',
-        // Add other fields as necessary
+        'ou',
     ];
 }

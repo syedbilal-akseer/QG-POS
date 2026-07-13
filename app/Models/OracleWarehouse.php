@@ -28,7 +28,7 @@ class OracleWarehouse extends Model
      *
      * @var string
      */
-    protected $primaryKey = 'warehouse_id'; // Adjust as needed
+    protected $primaryKey = 'warehouse_id';  
 
     /**
      * Indicates if the IDs are auto-incrementing.
@@ -50,9 +50,8 @@ class OracleWarehouse extends Model
      * @var array
      */
     protected $fillable = [
-        'warehouse_id',
-        'warehouse_name',
-        'location',
-        // Add other fields as necessary
+        'organization_id',
+        'organization_code',
+        'ou',
     ];
 }

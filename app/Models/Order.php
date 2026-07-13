@@ -3,13 +3,15 @@
 namespace App\Models;
 
 use App\Enums\OrderStatusEnum;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Order extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -22,19 +24,55 @@ class Order extends Model
         'order_status',
         'order_number',
         'notes',
+        'remarks',
         'oracle_at',
+        'pushed_by',
+        'transporter_id',
+        'cancellation_reason',
+        'cancelled_at',
+        'cancelled_by',
+    ];
+
+    protected $casts = [
+        'oracle_at'    => 'datetime',
+        'cancelled_at' => 'datetime',
     ];
 
     /**
      * Automatically generate an order number before creating the model.
+     * Format: YYYYMMNNNNN (Year + Month + Sequence Number)
+     * Example: 202601 (January 2026, first order), 202602 (January 2026, second order)
+     * Continues from existing sequence (e.g., 202546 -> 202601 for January 2026)
      */
     protected static function booted()
     {
         static::creating(function ($order) {
-            // Ensure that the order number is generated only if it's not already set
-            if (empty($order->order_number)) {
-                $order->order_number = static::generateUniqueOrderNumber();
+            if ($order->order_number) {
+                return; // already set — don't override
             }
+
+            $monthPrefix   = now()->format('Ym');         // e.g. '202604'
+            $monthStartNum = (int) ($monthPrefix . '01'); // e.g.  20260401
+
+            // DB::table bypasses ALL Eloquent scopes (including SoftDeletes),
+            // so cancelled / soft-deleted rows are always visible.
+            // Order by id DESC to get the most recently inserted row —
+            // its order_number is the last number actually committed to the table.
+            // lockForUpdate blocks concurrent transactions until this one commits.
+            $lastOrderNumber = DB::table('orders')
+                ->lockForUpdate()
+                ->orderByDesc('id')
+                ->value('order_number');
+
+            $next = max((int) $lastOrderNumber + 1, $monthStartNum);
+
+            // Safety net: if a duplicate somehow slipped through (e.g. manual
+            // DB edits created a collision), keep incrementing until clear.
+            while (DB::table('orders')->where('order_number', (string) $next)->exists()) {
+                $next++;
+            }
+
+            $order->order_number = (string) $next;
         });
     }
 
@@ -83,5 +121,20 @@ class Order extends Model
     public function salesperson()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function cancelledBy()
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    public function pushedBy()
+    {
+        return $this->belongsTo(User::class, 'pushed_by');
+    }
+
+    public function transporter()
+    {
+        return $this->belongsTo(\App\Models\Transporter::class, 'transporter_id');
     }
 }

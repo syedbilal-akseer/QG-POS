@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use App\Models\User;
+use App\Models\Role;
+use Illuminate\Support\Facades\Cache;
 
 class LoginRequest extends FormRequest
 {
@@ -49,8 +52,16 @@ class LoginRequest extends FormRequest
             ]);
         }
 
-        // Check if the authenticated user has the 'admin' role
-        if (!Auth::user()->role->isAdmin() && !Auth::user()->role->isSupplyChain()) {
+        // Fetch allowed roles dynamically from the roles table
+        $allowedRoles = Cache::remember('allowed_login_roles', 3600, function () {
+            return Role::pluck('name')->toArray();
+        });
+
+        // Check if the authenticated user has an allowed role
+        $user = Auth::user();
+        $userRole = $user->role_name;
+
+        if (!$userRole || !in_array($userRole, $allowedRoles)) {
             Auth::logout();
 
             throw ValidationException::withMessages([

@@ -10,11 +10,20 @@
     "require": {
         "php": "^8.2",
         "blade-ui-kit/blade-heroicons": "^2.4",
+        "dompdf/dompdf": "^3.0",
         "filament/tables": "^3.2",
         "filament/widgets": "^3.2",
+        "fpdf/fpdf": "^1.86",
         "laravel/framework": "^11.9",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
+        "maatwebsite/excel": "^3.1",
+        "netflie/whatsapp-cloud-api": "^2.2",
+        "ralphjsmit/livewire-urls": "^1.4",
+        "setasign/fpdf": "^1.8",
+        "setasign/fpdi": "^2.6",
+        "smalot/pdfparser": "^2.12",
+        "tecnickcom/tcpdf": "^6.10",
         "yajra/laravel-oci8": "^11.6"
     },
     "require-dev": {
@@ -34,7 +43,8 @@
             "Database\\Seeders\\": "database/seeders/"
         },
         "files": [
-            "app/Helpers/helpers.php"
+            "app/Helpers/helpers.php",
+            "app/Helpers/transform.php"
         ]
     },
     "autoload-dev": {

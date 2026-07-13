@@ -4,11 +4,13 @@ namespace App\Console\Commands;
 
 use App\Models\Item;
 use App\Models\OracleItem;
+use App\Traits\OracleNlsSession;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 class SyncOracleProducts extends Command
 {
+    use OracleNlsSession;
     /**
      * The name and signature of the console command.
      *
@@ -28,6 +30,9 @@ class SyncOracleProducts extends Command
      */
     public function handle()
     {
+        // Set Oracle session parameters to avoid NLS mismatch errors (ORA-01858)
+        $this->setOracleNlsSession();
+
         DB::transaction(function () {
             // Fetch all products from Oracle
             $oracleProducts = OracleItem::all();
@@ -44,6 +49,7 @@ class SyncOracleProducts extends Command
                         'major_category' => $oracleProduct->major_category,
                         'minor_category' => $oracleProduct->minor_category,
                         'sub_minor_category' => $oracleProduct->sub_minor_category,
+                        'updated_at' => now(),
                     ]
                 );
             }

@@ -13,20 +13,53 @@ class CheckRole
      * Handle an incoming request.
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     * @param  string  $role
+     * @param  string  ...$roles  Multiple roles can be passed
      */
-    public function handle(Request $request, Closure $next, $role): Response
+    public function handle(Request $request, Closure $next, ...$roles): Response
     {
-        if (Auth::check() && (Auth::user()->role->value === $role || Auth::user()->role->value === 'admin')) {
+        // Check if user is authenticated
+        if (!Auth::check()) {
+            return redirect('/login');
+        }
+
+        $user = Auth::user();
+        $userRole = $user->role_name;
+
+        // 1. Direct role-string match against the required list (primary role)
+        if ($userRole && in_array($userRole, $roles)) {
             return $next($request);
         }
 
-        return redirect('/');
+        // 2. Additional roles (JSON) — secondary roles assigned to the user
+        //    that grant the SAME access as if they were the primary role.
+        //    Used for view-only roles like 'view-khi', 'view-all', etc., and
+        //    for combining work-roles (e.g. salesperson with admin view).
+        if (method_exists($user, 'getAdditionalRoles')) {
+            foreach ($user->getAdditionalRoles() as $extra) {
+                if (in_array($extra, $roles, true)) {
+                    return $next($request);
+                }
+            }
+        }
 
-        return response()->json([
-            'error' => 'Unauthorized',
-           'message' => 'You do not have the required role to access this resource.',
-           'status' => 403,
-        ], 403);
+        // 3. Method-based check — lets per-user email overrides on
+        //    is{Role}() helpers (e.g. isSalesHead) grant access even when
+        //    the user's role attribute doesn't match the required string.
+        //    'sales-head' → isSalesHead, 'cmd-khi' → isCmdKhi, etc.
+        foreach ($roles as $role) {
+            $method = 'is' . str_replace(' ', '', ucwords(str_replace('-', ' ', $role)));
+            if (method_exists($user, $method) && $user->{$method}()) {
+                return $next($request);
+            }
+        }
+
+        // 3. Always allow these privileged roles access
+        $privilegedRoles = ['admin', 'hod', 'line-manager', 'sales-head', 'cmd-khi', 'price-uploads', 'scm-lhr', 'cmd-lhr', 'supply-chain'];
+        if ($userRole && in_array($userRole, $privilegedRoles)) {
+            return $next($request);
+        }
+
+        // Redirect unauthorized users
+        return redirect('/login');
     }
 }

@@ -2,10 +2,15 @@
 
 namespace App\Providers;
 
+use App\Models\DayTourPlan;
+use App\Models\MonthlyVisitReport;
+use Carbon\Carbon;
 use Filament\Support\Colors\Color;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\ServiceProvider;
 use Filament\Support\Facades\FilamentColor;
+use Filament\Support\View\Components\Modal;
 use Filament\Notifications\Livewire\DatabaseNotifications;
 
 class AppServiceProvider extends ServiceProvider
@@ -25,6 +30,13 @@ class AppServiceProvider extends ServiceProvider
     {
         Model::unguard();
         Model::preventAccessingMissingAttributes();
+
+        // Serialize all Eloquent timestamps in the app timezone (Asia/Karachi / PKT)
+        // instead of UTC, so API responses show correct local dates.
+        Carbon::macro('jsonSerialize', function () {
+            /** @var Carbon $this */
+            return $this->copy()->setTimezone(config('app.timezone'))->toIso8601String();
+        });
         // Model::preventLazyLoading();
 
         FilamentColor::register([
@@ -44,5 +56,25 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         // DatabaseNotifications::trigger('notifications-trigger');
+
+        DatabaseNotifications::pollingInterval('15s');
+
+        Modal::closedByClickingAway(false);
+
+        Route::bind('plan', function ($value) {
+            // Attempt to find a MonthlyVisitReport
+            if ($monthlyVisitReport = MonthlyVisitReport::find($value)) {
+                return $monthlyVisitReport;
+            }
+
+            // Attempt to find a DayTourPlan
+            if ($dayTourPlan = DayTourPlan::find($value)) {
+                return $dayTourPlan;
+            }
+
+            // If neither exists, throw a 404
+            abort(404, 'Plan not found.');
+        });
+
     }
 }

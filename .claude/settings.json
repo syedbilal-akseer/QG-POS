@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(php artisan sync:oracle-customers)",
+      "PowerShell(php artisan sync:oracle-products)",
+      "PowerShell(php artisan sync:oracle-items-price)"
+    ]
+  }
+}
