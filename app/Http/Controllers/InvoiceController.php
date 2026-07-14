@@ -54,11 +54,19 @@ class InvoiceController extends Controller
         if ($request->boolean('unsent_only')) {
             $filterWhatsapp = 'pending';
         }
-
         // Build the base filter once and clone it for each downstream query so
         // search/date filters apply consistently to stats, the date pagination,
         // and the actual invoice load.
         $baseFilter = function ($q) use ($filterFrom, $filterTo, $filterStatus, $filterWhatsapp, $filterCustomer, $request) {
+              $admins = [
+                    'mahmood@quadri-group.com',
+                ];
+
+                // Other users can only see their own uploaded invoices
+                if (!in_array(auth()->user()->email, $admins)) {
+                    $q->where('uploaded_by', auth()->id());
+                }
+
             if ($filterFrom) {
                 $q->whereDate('uploaded_at', '>=', $filterFrom);
             }
@@ -194,7 +202,7 @@ class InvoiceController extends Controller
         $whatsappTemplates = array_filter($whatsappTemplates, function($t) {
             return $t['status'] === 'APPROVED' && in_array($t['name'], ['invoice_ready', 'invoice_urdu']);
         });
-
+        // dd($invoices->take(10), auth()->id());
         return view('admin.invoices.index', compact(
             'invoices', 'datesPage', 'stats',
             'whatsappTemplates', 'diskFiles',
