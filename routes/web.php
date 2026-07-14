@@ -21,14 +21,83 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PriceListController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\OrderRecieptsController;
+use App\Models\User;
 
+Route::get('/receipt-percentage', function () {
+
+    $month = 'jun-2026';
+
+    $karachiSalespersons = User::all()
+        ->filter(fn($user) => $user->isKHIUser())
+        ->pluck('name')
+        ->toArray();
+
+    $lahoreSalespersons = User::all()
+        ->filter(fn($user) => $user->isLHRUser())
+        ->pluck('name')
+        ->toArray();
+
+    // Karachi List
+    $karachi = DB::connection('oracle')
+        ->table('apps.qg_receipts_percentage')
+        ->select('salesperson', 'total_receipts', 'mobile_receipts', 'mobile_pct')
+        ->whereRaw('lower(receipt_month) = ?', [$month])
+        ->whereIn('salesperson', $karachiSalespersons)
+        ->orderBy('salesperson')
+        ->get();
+
+    // Lahore List
+    $lahore = DB::connection('oracle')
+        ->table('apps.qg_receipts_percentage')
+        ->select('salesperson', 'total_receipts', 'mobile_receipts', 'mobile_pct')
+        ->whereRaw('lower(receipt_month) = ?', [$month])
+        ->whereIn('salesperson', $lahoreSalespersons)
+        ->orderBy('salesperson')
+        ->get();
+
+    // Karachi Summary
+    $karachiTotal = $karachi->sum('total_receipts');
+    $karachiMobile = $karachi->sum('mobile_receipts');
+
+    $karachiPercentage = $karachiTotal
+        ? round(($karachiMobile / $karachiTotal) * 100, 2)
+        : 0;
+
+    // Lahore Summary
+    $lahoreTotal = $lahore->sum('total_receipts');
+    $lahoreMobile = $lahore->sum('mobile_receipts');
+
+    $lahorePercentage = $lahoreTotal
+        ? round(($lahoreMobile / $lahoreTotal) * 100, 2)
+        : 0;
+
+    return response()->json([
+        'karachi' => [
+            'salespersons' => $karachi,
+            'summary' => [
+                'total_receipts' => $karachiTotal,
+                'mobile_receipts' => $karachiMobile,
+                'percentage' => $karachiPercentage,
+            ]
+        ],
+
+        'lahore' => [
+            'salespersons' => $lahore,
+            'summary' => [
+                'total_receipts' => $lahoreTotal,
+                'mobile_receipts' => $lahoreMobile,
+                'percentage' => $lahorePercentage,
+            ]
+        ]
+    ]);
+});
 Route::get('/', function () {
     if (Auth::check()) {
         $user = Auth::user();
-        
+
         // Get role name safely - handle both old string role and new role relationship
         $roleName = $user->role?->name ?? $user->role ?? null;
-        
+
         // Check if user is already on the appropriate page to prevent infinite redirects
         if ($roleName === 'supply-chain' && !request()->is('app/supply-chain/orders*')) {
             return redirect()->route('orders.supply-chain.all');
@@ -276,7 +345,7 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
             Route::get('/history', [PriceListController::class, 'uploadHistory'])->name('history');
             Route::get('/template', [PriceListController::class, 'downloadTemplate'])->name('template');
             Route::put('/{price}/update', [PriceListController::class, 'updatePrice'])->name('update');
-            
+
             // Oracle Integration Routes
             Route::post('/sync-oracle', [PriceListController::class, 'syncOraclePrices'])->name('sync-oracle');
             Route::post('/process-oracle-comparison', [PriceListController::class, 'processWithOracleComparison'])->name('process-oracle-comparison');
@@ -411,7 +480,7 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
             Route::get('/history', [PriceListController::class, 'uploadHistory'])->name('history');
             Route::get('/template', [PriceListController::class, 'downloadTemplate'])->name('template');
             Route::put('/{price}/update', [PriceListController::class, 'updatePrice'])->name('update');
-            
+
             // Oracle Integration Routes
             Route::post('/sync-oracle', [PriceListController::class, 'syncOraclePrices'])->name('sync-oracle');
             Route::post('/process-oracle-comparison', [PriceListController::class, 'processWithOracleComparison'])->name('process-oracle-comparison');
@@ -425,7 +494,7 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
             Route::get('/export-comparison/{uploadId}', action: [PriceListController::class, 'exportComparison'])->name('export-comparison');
             Route::get('/export-upload-history/{uploadId}', [PriceListController::class, 'exportUploadHistory'])->name('export-upload-history');
         });
-        
+
         // CRM Routes (admin access)
         Route::get('/sales-teams', CRM\ListSalesTeam::class)->name('salesteam.all');
         Route::get('/manage-tour-plans', CRM\Manage\MonthlyTourPlanApproval::class)->name('manage.tourplans');
@@ -442,21 +511,21 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
         Route::get('/expense-detail/{expense}', CRM\Expenses\ExpenseDetail::class)->name('expense.details');
         Route::get('/add-expense/{visit}/{expenseId?}', CRM\Expenses\AddExpense::class)->name('expense.addExpense');
     });
-    
+
     // HCM Routes (Admin Only)
     Route::middleware(['auth'])->prefix('admin/hcm')->name('admin.hcm.')->group(function () {
         Route::get('/dashboard', [App\Http\Controllers\Admin\HcmController::class, 'dashboard'])->name('dashboard');
-        
+
         // Hiring
         Route::get('/hiring/requisition', [App\Http\Controllers\Admin\HcmController::class, 'requisition'])->name('hiring.requisition');
         Route::get('/hiring/candidates', [App\Http\Controllers\Admin\HcmController::class, 'candidates'])->name('hiring.candidates');
         Route::get('/hiring/onboarding', [App\Http\Controllers\Admin\HcmController::class, 'onboarding'])->name('hiring.onboarding');
-        
+
         // Performance
         Route::get('/performance/dashboard', [App\Http\Controllers\Admin\HcmController::class, 'performance'])->name('performance.dashboard');
         Route::get('/performance/goals', [App\Http\Controllers\Admin\HcmController::class, 'goals'])->name('performance.goals');
         Route::get('/performance/appraisals', [App\Http\Controllers\Admin\HcmController::class, 'appraisals'])->name('performance.appraisals');
-        
+
         // Integration
         Route::get('/integration', [App\Http\Controllers\Admin\HcmController::class, 'integration'])->name('integration');
     });
@@ -618,7 +687,7 @@ Route::get('/testing', function () {
 
 
     // Return the results as JSON for easy viewing
-    return response()->json($results); 
+    return response()->json($results);
 });
 
 Route::get('oracle/order/{orderNumber}', function ($orderNumber) {
@@ -663,7 +732,7 @@ Route::get('oracle/order/{orderNumber}', function ($orderNumber) {
 
     return response()->json($response);
 });
- 
+
 Route::get('/orders/export', [OrderController::class, 'orderExport']);
 
 require __DIR__ . '/auth.php';
