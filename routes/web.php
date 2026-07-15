@@ -1,5 +1,6 @@
 ﻿<?php
 
+use App\Http\Controllers\LedgerImportController;
 use App\Livewire\CRM;
 use App\Models\Order;
 use App\Livewire\ListUsers;
@@ -91,6 +92,18 @@ Route::get('/receipt-percentage', function () {
         ]
     ]);
 });
+
+Route::prefix('ledger-import')
+    ->name('ledger.import.')
+    ->group(function () {
+
+        Route::get('/', [LedgerImportController::class, 'index'])
+            ->name('index');
+
+        Route::post('/', [LedgerImportController::class, 'store'])
+            ->name('store');
+
+    });
 Route::get('/', function () {
     if (Auth::check()) {
         $user = Auth::user();

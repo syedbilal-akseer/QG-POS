@@ -40,7 +40,7 @@ class Customer extends Model
      * Ensure ou_id and ou_name are always accessible
      */
     protected $appends = [];
-    
+
     /**
      * Override to ensure attributes are accessible
      */
@@ -48,7 +48,7 @@ class Customer extends Model
     {
         return $value;
     }
-    
+
     public function getOuNameAttribute($value)
     {
         return $value;
@@ -107,5 +107,9 @@ class Customer extends Model
     public function receipts()
     {
         return $this->hasMany(CustomerReceipt::class, 'customer_id', 'customer_id');
+    }
+    public function ledgers()
+    {
+        return $this->hasMany(CustomerLedger::class, 'customer_code');
     }
 }
