@@ -434,8 +434,6 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
     // CMD-KHI / CMD-LHR / Admin / Sales-head — Customer Receipts access.
     // Sales-head and view-* roles are view-only (enforced inside the controller).
     Route::middleware(['checkRole:cmd-khi,cmd-lhr,admin,sales-head,view-khi,view-lhr,view-all'])->group(function () {
-       Route::get('receipts/performance-comparison', [\App\Http\Controllers\Admin\ReceiptController::class, 'performanceComparison'])->name('admin.receipts.performance_comparison');
-        Route::get('receipts/performance-comparison/export', [\App\Http\Controllers\Admin\ReceiptController::class, 'exportPerformanceComparison'])->name('admin.receipts.performance_comparison.export');
         Route::get('receipts/download-excel', [\App\Http\Controllers\Admin\ReceiptController::class, 'export'])->name('admin.receipts.download_excel');
         Route::resource('receipts', \App\Http\Controllers\Admin\ReceiptController::class)->names('admin.receipts');
     });
