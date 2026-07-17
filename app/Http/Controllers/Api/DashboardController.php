@@ -1,12 +1,9 @@
 <?php
-
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\CustomerReceipt;
-use App\Models\OracleCustMonthlyColl;
-use App\Models\OracleCustMonthlySales;
 use App\Models\Order;
 use App\Models\SalespersonTarget;
 use App\Models\User;
@@ -15,7 +12,6 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -56,7 +52,7 @@ class DashboardController extends Controller
         }
 
         $period = $request->input('period', 'month');
-        $year   = (int) $request->input('year',  now()->year);
+        $year   = (int) $request->input('year', now()->year);
         $month  = (int) $request->input('month', now()->month);
 
         [$start, $end] = $this->resolvePeriodRange($period, $year, $month);
@@ -65,7 +61,7 @@ class DashboardController extends Controller
         // don't have a target row in TARGET.xlsx and don't make individual
         // sales). Only build it when the caller is actually a salesperson, or
         // when admin explicitly scoped to another user via ?user_id=.
-        $isAdminViewingSelf = $authUser->isAdmin() && !$request->filled('user_id');
+        $isAdminViewingSelf = $authUser->isAdmin() && ! $request->filled('user_id');
 
         // Monthly breakdown always ships in the salesperson block now — the
         // mobile chart is a first-class part of the dashboard and the extra
@@ -90,15 +86,15 @@ class DashboardController extends Controller
             'success' => true,
             'status'  => 200,
             'message' => 'Dashboard data retrieved.',
-            'data' => [
-                'period'               => $period,
-                'year'                 => $year,
-                'month'                => $month,
-                'period_start'         => $start->toDateString(),
-                'period_end'           => $end->toDateString(),
-                'salesperson'          => $salespersonStats,
-                'aggregate'            => $aggregate,            // admin-only
-                'salespersons'         => $salespersonsBreakdown, // admin-only — per-salesperson target vs actual
+            'data'    => [
+                'period'       => $period,
+                'year'         => $year,
+                'month'        => $month,
+                'period_start' => $start->toDateString(),
+                'period_end'   => $end->toDateString(),
+                'salesperson'  => $salespersonStats,
+                'aggregate'    => $aggregate,             // admin-only
+                'salespersons' => $salespersonsBreakdown, // admin-only — per-salesperson target vs actual
             ],
         ], 200);
     }
@@ -112,13 +108,18 @@ class DashboardController extends Controller
     {
         // Pull all target rows for the period.
         $targetQuery = SalespersonTarget::where('year', $year);
-        if ($period !== 'year') $targetQuery->where('month', $month);
+        if ($period !== 'year') {
+            $targetQuery->where('month', $month);
+        }
+
         $targetRows = $targetQuery->get();
 
-        if ($targetRows->isEmpty()) return [];
+        if ($targetRows->isEmpty()) {
+            return [];
+        }
 
         // Group target rows by best-known identity (user_id if linked, else primary_name).
-        $grouped = $targetRows->groupBy(fn ($t) => $t->user_id ?: ('name:' . $t->primary_name));
+        $grouped = $targetRows->groupBy(fn($t) => $t->user_id ?: ('name:' . $t->primary_name));
 
         // ── Batch-resolve users in ONE query instead of User::find() per salesperson. ──
         // Previously this method ran ~50 User::find + ~50 Customer + ~50 CustomerReceipt
@@ -139,12 +140,12 @@ class DashboardController extends Controller
         // original User::where(name)->orWhere(oracle_user_name)->first() semantics.
         $users = User::query()
             ->where(function ($q) use ($userIdsNeeded, $namesNeeded) {
-                if (!empty($userIdsNeeded)) {
+                if (! empty($userIdsNeeded)) {
                     $q->orWhereIn('id', $userIdsNeeded);
                 }
-                if (!empty($namesNeeded)) {
+                if (! empty($namesNeeded)) {
                     $q->orWhereIn('name', $namesNeeded)
-                      ->orWhereIn('oracle_user_name', $namesNeeded);
+                        ->orWhereIn('oracle_user_name', $namesNeeded);
                 }
             })
             ->orderBy('id')
@@ -154,10 +155,10 @@ class DashboardController extends Controller
         $usersByName = [];
         foreach ($users as $u) {
             // ??= preserves "first row by id ASC" for ambiguous name matches.
-            if (!empty($u->name) && !isset($usersByName[$u->name])) {
+            if (! empty($u->name) && ! isset($usersByName[$u->name])) {
                 $usersByName[$u->name] = $u;
             }
-            if (!empty($u->oracle_user_name) && !isset($usersByName[$u->oracle_user_name])) {
+            if (! empty($u->oracle_user_name) && ! isset($usersByName[$u->oracle_user_name])) {
                 $usersByName[$u->oracle_user_name] = $u;
             }
         }
@@ -166,11 +167,11 @@ class DashboardController extends Controller
         // Mirrors salespersonCustomerIds(): match customers.salesperson against
         // either user.name or user.oracle_user_name, plucking local PKs.
         $allSalespersonStrings = $users
-            ->flatMap(fn ($u) => [$u->name, $u->oracle_user_name])
+            ->flatMap(fn($u) => [$u->name, $u->oracle_user_name])
             ->filter()->unique()->values()->all();
 
         $customersBySalesperson = [];
-        if (!empty($allSalespersonStrings)) {
+        if (! empty($allSalespersonStrings)) {
             foreach (Customer::query()
                 ->whereIn('salesperson', $allSalespersonStrings)
                 ->select('id', 'salesperson')
@@ -182,31 +183,40 @@ class DashboardController extends Controller
         $userCustomerIds = [];
         foreach ($users as $u) {
             $ids = [];
-            if (!empty($u->name) && isset($customersBySalesperson[$u->name])) {
+            if (! empty($u->name) && isset($customersBySalesperson[$u->name])) {
                 $ids = array_merge($ids, $customersBySalesperson[$u->name]);
             }
-            if (!empty($u->oracle_user_name) && isset($customersBySalesperson[$u->oracle_user_name])) {
+            if (! empty($u->oracle_user_name) && isset($customersBySalesperson[$u->oracle_user_name])) {
                 $ids = array_merge($ids, $customersBySalesperson[$u->oracle_user_name]);
             }
             $userCustomerIds[$u->id] = array_values(array_unique($ids));
         }
 
         // ── Batch-load all candidate receipts in ONE query. ──
-        $allUserIds = $users->pluck('id')->all();
+        $allUserIds        = $users->pluck('id')->all();
         $allCustomerIdsSet = [];
         foreach ($userCustomerIds as $list) {
-            foreach ($list as $cid) $allCustomerIdsSet[$cid] = true;
+            foreach ($list as $cid) {
+                $allCustomerIdsSet[$cid] = true;
+            }
+
         }
         $allCustomerIds = array_keys($allCustomerIdsSet);
 
         $candidateReceipts = collect();
-        if (!empty($allUserIds) || !empty($allCustomerIds)) {
+        if (! empty($allUserIds) || ! empty($allCustomerIds)) {
             $candidateReceipts = CustomerReceipt::query()
                 ->whereBetween('created_at', [$start, $end])
                 ->whereNull('cancelled_at')
                 ->where(function ($q) use ($allUserIds, $allCustomerIds) {
-                    if (!empty($allUserIds))     $q->orWhereIn('created_by', $allUserIds);
-                    if (!empty($allCustomerIds)) $q->orWhereIn('customer_id', $allCustomerIds);
+                    if (! empty($allUserIds)) {
+                        $q->orWhereIn('created_by', $allUserIds);
+                    }
+
+                    if (! empty($allCustomerIds)) {
+                        $q->orWhereIn('customer_id', $allCustomerIds);
+                    }
+
                 })
                 ->select('id', 'created_by', 'customer_id', 'receipt_amount')
                 ->get();
@@ -215,7 +225,7 @@ class DashboardController extends Controller
         // ── Compose the response. ──
         $out = [];
         foreach ($grouped as $key => $rows) {
-            $targetPkr = $rows->sum(fn ($t) => $t->receipt_target_pkr);
+            $targetPkr = $rows->sum(fn($t) => $t->receipt_target_pkr);
 
             if (str_starts_with((string) $key, 'name:')) {
                 $user = $usersByName[substr((string) $key, 5)] ?? null;
@@ -229,10 +239,10 @@ class DashboardController extends Controller
             $actual = 0.0;
             if ($user) {
                 $myCustomerIdsFlip = array_flip($userCustomerIds[$user->id] ?? []);
-                $userIdInt = (int) $user->id;
+                $userIdInt         = (int) $user->id;
                 foreach ($candidateReceipts as $cr) {
                     if (((int) $cr->created_by) === $userIdInt
-                        || (!empty($myCustomerIdsFlip) && isset($myCustomerIdsFlip[(int) $cr->customer_id]))) {
+                        || (! empty($myCustomerIdsFlip) && isset($myCustomerIdsFlip[(int) $cr->customer_id]))) {
                         $actual += (float) $cr->receipt_amount;
                     }
                 }
@@ -249,7 +259,7 @@ class DashboardController extends Controller
         }
 
         // Sort by collection_target descending so biggest targets bubble up.
-        usort($out, fn ($a, $b) => $b['collection_target'] <=> $a['collection_target']);
+        usort($out, fn($a, $b) => $b['collection_target'] <=> $a['collection_target']);
         return $out;
     }
 
@@ -259,7 +269,7 @@ class DashboardController extends Controller
 
     protected function buildSalespersonStats(?User $user, string $period, int $year, int $month, Carbon $start, Carbon $end, bool $withMonths = false): array
     {
-        if (!$user) {
+        if (! $user) {
             return $this->emptySalespersonStats();
         }
 
@@ -324,18 +334,42 @@ class DashboardController extends Controller
             ->where('year', $year)
             ->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id)
-                  ->orWhere('primary_name', $user->name)
-                  ->orWhere('salesman_name', $user->name)
-                  ->orWhere('primary_name', $user->oracle_user_name)
-                  ->orWhere('salesman_name', $user->oracle_user_name);
+                    ->orWhere('primary_name', $user->name)
+                    ->orWhere('salesman_name', $user->name)
+                    ->orWhere('primary_name', $user->oracle_user_name)
+                    ->orWhere('salesman_name', $user->oracle_user_name);
             });
+        $targetRows = $targetQuery->get();
+
+        Log::info('Dashboard Target Debug', [
+            'period'           => $period,
+            'month'            => $month,
+            'user'             => $user->name,
+            'count'            => $targetRows->count(),
+            'sales_target_sum' => $targetRows->sum('sales_target_pkr'),
+            'rows'             => $targetRows->map(function ($r) {
+                return [
+                    'id'               => $r->id,
+                    'month'            => $r->month,
+                    'year'             => $r->year,
+                    'user_id'          => $r->user_id,
+                    'primary_name'     => $r->primary_name,
+                    'salesman_name'    => $r->salesman_name,
+                    'sales_target_pkr' => $r->sales_target_pkr,
+                ];
+            })->values()->all(),
+        ]);
         if ($period !== 'year') {
             $targetQuery->where('month', $month);
         }
-        $targetRows = $targetQuery->get();
-        $collectionTarget = $targetRows->sum(fn ($t) => $t->receipt_target_pkr);
-        $salesTarget      = $targetRows->sum(fn ($t) => $t->sales_target_pkr);
-
+        $targetRows       = $targetQuery->get();
+        $collectionTarget = $targetRows->sum(fn($t) => $t->receipt_target_pkr);
+        $salesTarget      = $targetRows->sum(fn($t) => $t->sales_target_pkr);
+Log::info('MONTH TARGET', [
+    'request_month' => $month,
+    'sales_target' => $salesTarget,
+    'months_returned' => $targetRows->pluck('month')->all(),
+]);
         // ───── Customers' credit limit + Account Receivable (AR) ─────
         // AR for a salesperson = SUM of `customer_balance` across every
         // customer linked to them. customer_balance is the per-customer
@@ -364,39 +398,39 @@ class DashboardController extends Controller
         $breakdown = $this->buildPeriodBreakdown($user, $customerIds, $year, $month);
 
         return [
-            'name'            => $user->name,
-            'email'           => $user->email,
-            'profile_photo'   => $user->profile_photo
+            'name'               => $user->name,
+            'email'              => $user->email,
+            'profile_photo'      => $user->profile_photo
                 ? (str_starts_with($user->profile_photo, 'http') ? $user->profile_photo : asset('storage/' . $user->profile_photo))
                 : null,
 
-            'sales' => [
-                'target'                 => round($salesTarget, 2),
-                'actual'                 => round((float) $salesActual, 2),
-                'achievement_pct'        => $this->pct($salesActual, $salesTarget),
+            'sales'              => [
+                'target'          => round($salesTarget, 2),
+                'actual'          => round((float) $salesActual, 2),
+                'achievement_pct' => $this->pct($salesActual, $salesTarget),
             ],
 
-            'collection' => [
-                'target'                 => round($collectionTarget, 2),
-                'actual'                 => round((float) $collectionActual, 2),
-                'achievement_pct'        => $this->pct($collectionActual, $collectionTarget),
-                'gross_cash'             => round((float) $grossCash, 2),
-                'pdc_count'              => (int) $pdcCount,
-                'pdc_amount'             => round((float) $pdcAmount, 2),
+            'collection'         => [
+                'target'          => round($collectionTarget, 2),
+                'actual'          => round((float) $collectionActual, 2),
+                'achievement_pct' => $this->pct($collectionActual, $collectionTarget),
+                'gross_cash'      => round((float) $grossCash, 2),
+                'pdc_count'       => (int) $pdcCount,
+                'pdc_amount'      => round((float) $pdcAmount, 2),
             ],
 
-            'credit_limit_total'         => round((float) $creditTotals->credit_limit, 2),
-            'account_receivable'         => round((float) $creditTotals->account_receivable, 2),
+            'credit_limit_total' => round((float) $creditTotals->credit_limit, 2),
+            'account_receivable' => round((float) $creditTotals->account_receivable, 2),
 
             // New: per-period progress, default view in `day_to_month`.
-            'default_view' => 'day_to_month',
-            'day_to_month' => $breakdown['day_to_month'],
-            'day_to_year'  => $breakdown['day_to_year'],
+            'default_view'       => 'day_to_month',
+            'day_to_month'       => $breakdown['day_to_month'],
+            'day_to_year'        => $breakdown['day_to_year'],
 
             // Per-calendar-month roll-up for the requested year. Only computed
             // when the caller passed ?breakdown=months so the default payload
             // doesn't pay the extra queries.
-            'months' => $withMonths
+            'months'             => $withMonths
                 ? $this->buildMonthlyBreakdown($user, $customerIds, $year)
                 : null,
         ];
@@ -447,30 +481,30 @@ class DashboardController extends Controller
             ->where('year', $year)
             ->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id)
-                  ->orWhere('primary_name', $user->name)
-                  ->orWhere('salesman_name', $user->name)
-                  ->orWhere('primary_name', $user->oracle_user_name)
-                  ->orWhere('salesman_name', $user->oracle_user_name);
+                    ->orWhere('primary_name', $user->name)
+                    ->orWhere('salesman_name', $user->name)
+                    ->orWhere('primary_name', $user->oracle_user_name)
+                    ->orWhere('salesman_name', $user->oracle_user_name);
             })
             ->get()
             ->groupBy('month');
 
-        $labels = [1=>'Jan',2=>'Feb',3=>'Mar',4=>'Apr',5=>'May',6=>'Jun',
-                   7=>'Jul',8=>'Aug',9=>'Sep',10=>'Oct',11=>'Nov',12=>'Dec'];
+        $labels = [1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4  => 'Apr', 5  => 'May', 6  => 'Jun',
+            7            => 'Jul', 8 => 'Aug', 9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dec'];
 
         $rows = [];
         for ($m = 1; $m <= 12; $m++) {
-            $rowsForMonth = $targetRows->get($m, collect());
-            $salesTgt      = (float) $rowsForMonth->sum(fn ($t) => $t->sales_target_pkr);
-            $collectionTgt = (float) $rowsForMonth->sum(fn ($t) => $t->receipt_target_pkr);
+            $rowsForMonth  = $targetRows->get($m, collect());
+            $salesTgt      = (float) $rowsForMonth->sum(fn($t) => $t->sales_target_pkr);
+            $collectionTgt = (float) $rowsForMonth->sum(fn($t) => $t->receipt_target_pkr);
 
             $salesAct      = (float) ($salesByMonth[$m] ?? 0);
             $collectionAct = (float) ($collectionByMonth[$m] ?? 0);
 
             $rows[] = [
-                'month' => $m,
-                'label' => $labels[$m],
-                'sales' => [
+                'month'      => $m,
+                'label'      => $labels[$m],
+                'sales'      => [
                     'target'          => round($salesTgt, 2),
                     'actual'          => round($salesAct, 2),
                     'achievement_pct' => $this->pct($salesAct, $salesTgt),
@@ -527,11 +561,11 @@ class DashboardController extends Controller
 
         // DtM (current month + carryforward from earlier months in same year).
         // Sales uses sales targets; collection uses receipt targets.
-        $dtmSales      = $this->breakdownForMonth($monthlyTargets['sales'],   $monthlySalesActuals,      $year, $month, $remainingWorkingDays);
+        $dtmSales      = $this->breakdownForMonth($monthlyTargets['sales'], $monthlySalesActuals, $year, $month, $remainingWorkingDays);
         $dtmCollection = $this->breakdownForMonth($monthlyTargets['receipt'], $monthlyCollectionActuals, $year, $month, $remainingWorkingDays);
 
         // DtY (cumulative Jan → current month)
-        $dtySales      = $this->breakdownForYear($monthlyTargets['sales'],   $monthlySalesActuals,      $year, $month);
+        $dtySales      = $this->breakdownForYear($monthlyTargets['sales'], $monthlySalesActuals, $year, $month);
         $dtyCollection = $this->breakdownForYear($monthlyTargets['receipt'], $monthlyCollectionActuals, $year, $month);
 
         return [
@@ -542,11 +576,11 @@ class DashboardController extends Controller
                 'sales'                  => $dtmSales,
                 'collection'             => $dtmCollection,
             ],
-            'day_to_year' => [
-                'period_label' => "Jan – " . Carbon::create($year, $month, 1)->format('M Y'),
-                'through_month'=> $month,
-                'sales'        => $dtySales,
-                'collection'   => $dtyCollection,
+            'day_to_year'  => [
+                'period_label'  => "Jan – " . Carbon::create($year, $month, 1)->format('M Y'),
+                'through_month' => $month,
+                'sales'         => $dtySales,
+                'collection'    => $dtyCollection,
             ],
         ];
     }
@@ -567,18 +601,31 @@ class DashboardController extends Controller
             ->where('year', $year)
             ->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id)
-                  ->orWhere('primary_name', $user->name)
-                  ->orWhere('salesman_name', $user->name)
-                  ->orWhere('primary_name', $user->oracle_user_name)
-                  ->orWhere('salesman_name', $user->oracle_user_name);
+                    ->orWhere('primary_name', $user->name)
+                    ->orWhere('salesman_name', $user->name)
+                    ->orWhere('primary_name', $user->oracle_user_name)
+                    ->orWhere('salesman_name', $user->oracle_user_name);
             })
             ->get();
-
+        Log::info('Monthly Targets Debug', [
+            'user' => $user->name,
+            'year' => $year,
+            'rows' => $rows->map(function ($r) {
+                return [
+                    'id'               => $r->id,
+                    'month'            => $r->month,
+                    'sales_target_pkr' => $r->sales_target_pkr,
+                ];
+            })->values()->all(),
+        ]);
         $receiptByMonth = array_fill(1, 12, 0.0);
         $salesByMonth   = array_fill(1, 12, 0.0);
         foreach ($rows as $r) {
             $m = (int) $r->month;
-            if ($m < 1 || $m > 12) continue;
+            if ($m < 1 || $m > 12) {
+                continue;
+            }
+
             $receiptByMonth[$m] += (float) $r->receipt_target_pkr;
             $salesByMonth[$m]   += (float) $r->sales_target_pkr;
         }
@@ -616,7 +663,7 @@ class DashboardController extends Controller
             $rows = $modelClass::query()
                 ->where(function ($q) use ($oracleCustomerIds) {
                     $q->orWhereIn('customer_id', $oracleCustomerIds)
-                      ->orWhereIn('customer_number', $oracleCustomerIds);
+                        ->orWhereIn('customer_number', $oracleCustomerIds);
                 })
                 ->get();
 
@@ -629,25 +676,33 @@ class DashboardController extends Controller
                     $period = $modelClass::valueOf($row, ['period_date', 'period']);
                     if ($period) {
                         try {
-                            $parsed = Carbon::parse($period);
+                            $parsed   = Carbon::parse($period);
                             $rowYear  = $parsed->year;
                             $rowMonth = $parsed->month;
                         } catch (\Throwable $e) {}
                     }
                 }
 
-                if ($rowYear !== $year)              continue;
-                if ($rowMonth < 1 || $rowMonth > 12) continue;
-                if ($rowMonth > $thruMonth)          continue;
+                if ($rowYear !== $year) {
+                    continue;
+                }
+
+                if ($rowMonth < 1 || $rowMonth > 12) {
+                    continue;
+                }
+
+                if ($rowMonth > $thruMonth) {
+                    continue;
+                }
 
                 $byMonth[$rowMonth] += (float) $modelClass::valueOf($row, $amountCandidates, 0);
             }
         } catch (\Throwable $e) {
             Log::error('Oracle monthly view query failed', [
-                'model'    => $modelClass,
-                'year'     => $year,
+                'model'     => $modelClass,
+                'year'      => $year,
                 'customers' => count($oracleCustomerIds),
-                'error'    => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
         }
 
@@ -788,12 +843,14 @@ class DashboardController extends Controller
      */
     protected function workingDaysRemainingInMonth(int $year, int $month): int
     {
-        $today = now()->startOfDay();
+        $today      = now()->startOfDay();
         $monthStart = Carbon::create($year, $month, 1)->startOfDay();
         $monthEnd   = (clone $monthStart)->endOfMonth()->startOfDay();
 
         // If the requested month is in the past, no remaining days.
-        if ($today->greaterThan($monthEnd)) return 0;
+        if ($today->greaterThan($monthEnd)) {
+            return 0;
+        }
 
         $cursor = $today->greaterThan($monthStart) ? $today->copy() : $monthStart->copy();
         $count  = 0;
@@ -827,7 +884,7 @@ class DashboardController extends Controller
         // salespersons, normalised to PKR (each row's `unit` is honoured).
         $yearTarget = SalespersonTarget::where('year', $year)
             ->get()
-            ->sum(fn ($t) => $t->receipt_target_pkr);
+            ->sum(fn($t) => $t->receipt_target_pkr);
 
         // Sales aggregates
         $salesYtd = (float) Order::whereBetween('created_at', [$ytdStart, $ytdEnd])
@@ -846,19 +903,19 @@ class DashboardController extends Controller
             ->groupBy('m')
             ->pluck('total', 'm');
 
-        $monthly = collect(range(1, 12))->map(fn ($m) => [
+        $monthly = collect(range(1, 12))->map(fn($m) => [
             'month'      => $m,
             'month_name' => Carbon::create()->month($m)->format('M'),
             'sales'      => round((float) ($monthly[$m] ?? 0), 2),
         ])->all();
 
         return [
-            'year_target'                 => round($yearTarget, 2),
-            'sales_year_to_date'          => round($salesYtd, 2),
-            'sales_month_to_date'         => round($salesMtd, 2),
-            'ytd_achievement_pct'         => $this->pct($salesYtd, $yearTarget),
-            'mtd_achievement_pct'         => $this->pct($salesMtd, $yearTarget / 12),
-            'month_to_month_sales'        => $monthly,
+            'year_target'          => round($yearTarget, 2),
+            'sales_year_to_date'   => round($salesYtd, 2),
+            'sales_month_to_date'  => round($salesMtd, 2),
+            'ytd_achievement_pct'  => $this->pct($salesYtd, $yearTarget),
+            'mtd_achievement_pct'  => $this->pct($salesMtd, $yearTarget / 12),
+            'month_to_month_sales' => $monthly,
         ];
     }
 
@@ -887,46 +944,49 @@ class DashboardController extends Controller
         return Customer::query()
             ->where(function ($q) use ($user) {
                 $q->where('salesperson', $user->name)
-                  ->orWhere('salesperson', $user->oracle_user_name);
+                    ->orWhere('salesperson', $user->oracle_user_name);
             })
             ->pluck('id');
     }
 
-    protected function pct(float|int|null $actual, float|int|null $target): float
+    protected function pct(float | int | null $actual, float | int | null $target): float
     {
         $target = (float) $target;
-        if ($target <= 0) return 0.0;
+        if ($target <= 0) {
+            return 0.0;
+        }
+
         return round(((float) $actual / $target) * 100, 2);
     }
 
     protected function emptySalespersonStats(): array
     {
         $emptyDtm = [
-            'target' => 0, 'original_target' => 0, 'carryforward' => 0,
-            'achieved' => 0, 'remaining' => 0, 'achievement_pct' => 0,
+            'target'                 => 0, 'original_target' => 0, 'carryforward'    => 0,
+            'achieved'               => 0, 'remaining'       => 0, 'achievement_pct' => 0,
             'remaining_working_days' => 0,
         ];
         $emptyDty = ['target' => 0, 'achieved' => 0, 'remaining' => 0, 'achievement_pct' => 0];
 
         return [
-            'name' => null, 'email' => null, 'profile_photo' => null,
-            'sales'      => ['target' => 0, 'actual' => 0, 'achievement_pct' => 0],
-            'collection' => [
-                'target' => 0, 'actual' => 0, 'achievement_pct' => 0,
-                'gross_cash' => 0, 'pdc_count' => 0, 'pdc_amount' => 0,
+            'name'               => null, 'email' => null, 'profile_photo' => null,
+            'sales'              => ['target' => 0, 'actual' => 0, 'achievement_pct' => 0],
+            'collection'         => [
+                'target'     => 0, 'actual'    => 0, 'achievement_pct' => 0,
+                'gross_cash' => 0, 'pdc_count' => 0, 'pdc_amount'      => 0,
             ],
             'credit_limit_total' => 0,
             'account_receivable' => 0,
 
-            'default_view' => 'day_to_month',
-            'day_to_month' => [
+            'default_view'       => 'day_to_month',
+            'day_to_month'       => [
                 'period_label'           => now()->format('M Y'),
                 'remaining_working_days' => 0,
                 'working_day_rule'       => 'Mon–Sat (Sun excluded)',
                 'sales'                  => $emptyDtm,
                 'collection'             => $emptyDtm,
             ],
-            'day_to_year' => [
+            'day_to_year'        => [
                 'period_label'  => 'Jan – ' . now()->format('M Y'),
                 'through_month' => now()->month,
                 'sales'         => $emptyDty,

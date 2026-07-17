@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use App\Livewire\CRM;
 use App\Models\Order;
@@ -21,6 +21,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PriceListController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\OrderRecieptsController;
+use App\Http\Controllers\VendorBillController2;
 use App\Models\User;
 
 Route::get('/receipt-percentage', function () {
@@ -291,7 +292,20 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
             Route::get('/attachment/{attachment}',[App\Http\Controllers\VendorBillController::class, 'attachment'])->name('attachment');
         });
     });
-
+    Route::middleware(['checkRole:admin,account-user,cmd-khi,cmd-lhr,director'])->group(function () {
+        Route::prefix('admin/vendor-bills-2')->name('vendor-bills-2.')->group(function () {
+            Route::get('/',                       [VendorBillController2::class, 'index'])->name('index');
+            Route::get('/search-vendors',         [VendorBillController2::class, 'searchVendors'])->name('searchVendors');
+            Route::get('/create',                 [VendorBillController2::class, 'create'])->name('create');
+            Route::post('/',                      [VendorBillController2::class, 'store'])->name('store');
+            Route::get('/{vendorBill}',           [VendorBillController2::class, 'show'])->name('show');
+            Route::get('/{vendorBill}/edit',      [VendorBillController2::class, 'edit'])->name('edit');
+            Route::put('/{vendorBill}',           [VendorBillController2::class, 'update'])->name('update');
+            Route::post('/{vendorBill}/approve',  [VendorBillController2::class, 'approve'])->name('approve');
+            Route::post('/{vendorBill}/reject',   [VendorBillController2::class, 'reject'])->name('reject');
+            Route::get('/attachment/{attachment}',[VendorBillController2::class, 'attachment'])->name('attachment');
+        });
+    });
     // Documents browser — customer-wise nested folders (Invoices, Builties,
     // …). Read-only listing of files already managed by the modules above,
     // so the same RBAC set that gets to see invoices view + builty rows

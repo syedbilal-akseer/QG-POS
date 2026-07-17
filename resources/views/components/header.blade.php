@@ -53,7 +53,7 @@
             <!-- Separator -->
             <div class="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-900/10" aria-hidden="true"></div>
 
-            <x-filament::icon-button icon="heroicon-o-bell" size="xl"
+            {{-- <x-filament::icon-button icon="heroicon-o-bell" size="xl"
                 class="-m-2.5 p-2.5 text-gray-400 dark:text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
                 x-data="{
                     unreadCount: {{ auth()->user()->unreadNotifications->count() }},
@@ -82,7 +82,7 @@
                 <x-slot name="badge">
                     <span x-text="unreadCount"></span>
                 </x-slot>
-            </x-filament::icon-button>
+            </x-filament::icon-button> --}}
 
             <!-- Separator -->
             <div class="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-900/10" aria-hidden="true"></div>

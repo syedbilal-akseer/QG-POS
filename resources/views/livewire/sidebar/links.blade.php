@@ -118,7 +118,15 @@
             </x-sidebar-link>
         </li>
     @endif
-
+     {{-- Vendors AP 2 — bill upload + 2-stage approval (CMD → Director). --}}
+    @if (Auth::user()->isAdmin())
+        <li>
+            <x-sidebar-link :href="route('vendor-bills-2.index')" :active="request()->routeIs('vendor-bills.*')">
+                <x-link-icon icon="o-banknotes" :active="request()->routeIs('vendor-bills-2.*')" />
+                <span>Vendors AP 2</span>
+            </x-sidebar-link>
+        </li>
+    @endif
     {{-- App Version — admin manages the mobile minimum supported version
          the /api/* middleware checks against. --}}
     @if (Auth::user()->isAdmin())
@@ -264,13 +272,13 @@
                 x-transition:leave="transition ease-in duration-150"
                 x-transition:leave-start="opacity-100 transform scale-100"
                 x-transition:leave-end="opacity-0 transform scale-95" x-cloak class="mt-2 space-y-1 ps-4">
-                
+
                 <li>
                     <x-sidebar-link :href="route('admin.hcm.dashboard')" :active="request()->routeIs('admin.hcm.dashboard')">
                         <span>Overview</span>
                     </x-sidebar-link>
                 </li>
-                
+
                 {{-- Hiring Sub-section --}}
                 <li class="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Hiring</li>
                 <li>
@@ -306,7 +314,7 @@
                         <span>Appraisals</span>
                     </x-sidebar-link>
                 </li>
-                
+
                 {{-- Admin --}}
                 <li class="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</li>
                 <li>
@@ -332,7 +340,7 @@
                 x-transition:leave="transition ease-in duration-150"
                 x-transition:leave-start="opacity-100 transform scale-100"
                 x-transition:leave-end="opacity-0 transform scale-95" x-cloak class="mt-2 space-y-1 ps-4">
-                
+
                 <li>
                     <x-sidebar-link :href="route('wms.locations')" :active="request()->routeIs('wms.locations')">
                         <span>Locations & Racking</span>
