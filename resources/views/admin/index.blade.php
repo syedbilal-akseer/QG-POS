@@ -297,7 +297,7 @@
         {{-- Each location (Karachi / Lahore) gets one row with Orders and Receipts
              cards side by side. Cards the user can't access are skipped; a row
              without any visible card is hidden entirely. --}}
-        @if(!empty($topSalespeople) && ($dashAccess['any'] ?? false))
+        @if($dashAccess['any'] ?? false)
             {{-- Leaderboard filters — date range + single-salesperson dropdown.
                  Defaults to the current month. Submits as GET so the URL can be
                  bookmarked / shared. Styled to match the Orders-page filter row. --}}
@@ -383,147 +383,13 @@
                 </div>
             </div>
 
-            @php
-                $detail = $dashAccess['detail'] ?? true;
-
-                $locationDefs = [
-                    'khi' => [
-                        'title'        => 'Karachi',
-                        'orders_color' => [
-                            'badge_class' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-                            'count_class' => 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-                        ],
-                        'receipts_color' => [
-                            'badge_class' => 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-                            'count_class' => 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-                        ],
-                    ],
-                    'lhr' => [
-                        'title'        => 'Lahore',
-                        'orders_color' => [
-                            'badge_class' => 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-                            'count_class' => 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-                        ],
-                        'receipts_color' => [
-                            'badge_class' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-                            'count_class' => 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-                        ],
-                    ],
-                ];
-
-                $locationRows = [];
-                foreach ($locationDefs as $locKey => $loc) {
-                    $cards = [];
-                    if ($dashAccess['orders'][$locKey] ?? false) {
-                        $cards[] = [
-                            'unit'        => 'orders',
-                            'rows'        => $topSalespeople['orders'][$locKey],
-                            'overall'     => $topSalespeople['orders'][$locKey . '_total'],
-                            'badge_class' => $loc['orders_color']['badge_class'],
-                            'count_class' => $loc['orders_color']['count_class'],
-                        ];
-                    }
-                    if ($dashAccess['receipts'][$locKey] ?? false) {
-                        $cards[] = [
-                            'unit'        => 'receipts',
-                            'rows'        => $topSalespeople['receipts'][$locKey],
-                            'overall'     => $topSalespeople['receipts'][$locKey . '_total'],
-                            'badge_class' => $loc['receipts_color']['badge_class'],
-                            'count_class' => $loc['receipts_color']['count_class'],
-                        ];
-                    }
-                    if (!empty($cards)) {
-                        $locationRows[] = [
-                            'title' => $loc['title'],
-                            'cards' => $cards,
-                        ];
-                    }
-                }
-            @endphp
-
-            @foreach($locationRows as $location)
-                <div class="mt-8">
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">
-                        {{ $detail ? $location['title'] . ' — Top Salespeople' : $location['title'] . ' Overview' }}
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        @foreach($location['cards'] as $card)
-                            <div>
-                                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 h-full">
-                                    <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
-                                        <h4 class="text-base font-semibold text-gray-800 dark:text-gray-100">
-                                            {{ ucfirst($card['unit']) }}
-                                        </h4>
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700 dark:bg-neutral-700 dark:text-gray-200">
-                                                Total: <span class="font-semibold">{{ number_format($card['overall']) }}</span> {{ $card['unit'] }}
-                                            </span>
-                                            @if($detail)
-                                                <span class="text-xs px-2 py-1 rounded-full {{ $card['badge_class'] }}">
-                                                    Top 5
-                                                </span>
-                                            @endif
-                                        </div>
-                                    </div>
-
-                                    @if(!$detail)
-                                        {{-- Overall-count card (no top-5 detail) — for users like Fahim --}}
-                                        <div class="text-center py-6">
-                                            <p class="text-4xl font-bold text-gray-900 dark:text-gray-100">
-                                                {{ number_format($card['overall']) }}
-                                            </p>
-                                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                                Total {{ $card['unit'] }} in {{ $location['title'] }}
-                                            </p>
-                                        </div>
-                                    @elseif(count($card['rows']) === 0)
-                                        <p class="text-sm text-gray-400 dark:text-gray-500 text-center py-6">
-                                            No {{ $card['unit'] }} yet.
-                                        </p>
-                                    @else
-                                        <div class="overflow-hidden border border-gray-100 dark:border-neutral-700 rounded">
-                                            <table class="min-w-full divide-y divide-gray-100 dark:divide-neutral-700 text-sm">
-                                                <thead class="bg-gray-50 dark:bg-neutral-900">
-                                                    <tr>
-                                                        <th class="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">#</th>
-                                                        <th class="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Salesperson</th>
-                                                        <th class="px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ ucfirst($card['unit']) }}</th>
-                                                        <th class="px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-neutral-700">
-                                                    @foreach($card['rows'] as $i => $row)
-                                                        <tr>
-                                                            <td class="px-3 py-2 text-gray-500 dark:text-gray-400">
-                                                                @if($i === 0) 🥇
-                                                                @elseif($i === 1) 🥈
-                                                                @elseif($i === 2) 🥉
-                                                                @else {{ $i + 1 }}
-                                                                @endif
-                                                            </td>
-                                                            <td class="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">
-                                                                {{ $row['name'] }}
-                                                            </td>
-                                                            <td class="px-3 py-2 text-right">
-                                                                <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold {{ $card['count_class'] }}">
-                                                                    {{ number_format($row['count']) }}
-                                                                </span>
-                                                            </td>
-                                                            <td class="px-3 py-2 text-right text-gray-700 dark:text-gray-300 font-mono text-xs">
-                                                                Rs {{ number_format($row['total_amount'], 0) }}
-                                                            </td>
-                                                        </tr>
-                                                    @endforeach
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            @endforeach
+            @livewire('dashboard.sales-leaderboard', [
+                'access'         => $dashAccess,
+                'detail'         => $dashAccess['detail'] ?? true,
+                'startDate'      => $leaderboardFilters['from'],
+                'endDate'        => $leaderboardFilters['to'],
+                'salespersonIds' => ($leaderboardFilters['salesperson_id'] ?? null) ? [$leaderboardFilters['salesperson_id']] : [],
+            ], key('dashboard-sales-leaderboard-' . $leaderboardFilters['from'] . '-' . $leaderboardFilters['to'] . '-' . ($leaderboardFilters['salesperson_id'] ?? 'all')))
         @endif
 
         @if(!$permissions['show_orders'] && !$permissions['show_products'] && !$permissions['show_price_lists'] && !$permissions['show_receipts'] && !$permissions['show_visits'] && !$permissions['show_customers'])

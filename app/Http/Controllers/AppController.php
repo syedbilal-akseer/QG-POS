@@ -86,10 +86,10 @@ class AppController extends Controller
 
         // Top salespeople per location — visibility per section is driven by
         // the user's role / specific email overrides for the sales team leads.
+        // The actual leaderboard tables are rendered (and paginated) by the
+        // Dashboard\SalesLeaderboard Livewire component; we only resolve
+        // access + filters here.
         $dashAccess = $this->getDashboardLeaderboardAccess($user);
-        $topSalespeople = ($dashAccess['any'] ?? false)
-            ? $this->getTopSalespeoplePerLocation($dashAccess, $startDate, $endDate, $filterSalespersonIds)
-            : null;
 
         $leaderboardFilters = [
             'from'                => $filterFrom,
@@ -102,7 +102,7 @@ class AppController extends Controller
 
         return view('admin.index', compact(
             'pageTitle', 'stats', 'user', 'permissions',
-            'topSalespeople', 'dashAccess', 'leaderboardFilters'
+            'dashAccess', 'leaderboardFilters'
         ));
     }
 
@@ -225,386 +225,27 @@ class AppController extends Controller
     }
 
     /**
-     * Top 5 salespeople for KHI / LHR by order count + receipt count.
-     *
-     * Returns:
-     *   [
-     *     'orders'   => ['khi' => Collection, 'lhr' => Collection, 'khi_total', 'lhr_total'],
-     *     'receipts' => ['khi' => Collection, 'lhr' => Collection, 'khi_total', 'lhr_total'],
-     *   ]
-     *
-     * Each collection is { user_id, name, count, total_amount }.
-     * Sections the caller doesn't have access to are returned empty so
-     * we don't burn DB time computing data that won't be rendered.
-     */
-    protected function getTopSalespeoplePerLocation(
-        ?array $access = null,
-        ?Carbon $start = null,
-        ?Carbon $end = null,
-        array $salespersonIds = []
-    ): array {
-        // Default: full access (preserves backward compatibility if called without arg)
-        $access = $access ?? [
-            'orders'   => ['khi' => true, 'lhr' => true],
-            'receipts' => ['khi' => true, 'lhr' => true],
-            'detail'   => true,
-        ];
-        $detail = $access['detail'] ?? true;
-
-        // Default to current month if no range provided.
-        $start = $start ?? now()->startOfMonth();
-        $end   = $end   ?? now()->endOfMonth();
-
-        $khi = [102, 103, 104, 105, 106];
-        $lhr = [108, 109];
-
-        // Admin users are excluded from the leaderboard AND from the per-location
-        // totals shown above each table — they aren't field salespeople, so their
-        // activity skews the rankings. Covers both the string `role` column and
-        // a role_id pointing to a role named 'admin' (matches User::isAdmin()).
-        $adminUserIds = \App\Models\User::query()
-            ->where(function ($q) {
-                $q->where('role', 'admin')
-                  ->orWhereHas('role', fn ($r) => $r->where('name', 'admin'));
-            })
-            ->pluck('id')
-            ->all();
-
-        // Each salesperson gets classified to exactly one location based on
-        // where the majority of their assigned customers live. Prevents the
-        // same person showing up in both Karachi and Lahore leaderboards when
-        // they happen to have placed orders for customers in both regions.
-        $userLocation = $this->getSalespersonLocations($khi, $lhr);
-        $khiUserIds = array_keys(array_filter($userLocation, fn ($l) => $l === 'khi'));
-        $lhrUserIds = array_keys(array_filter($userLocation, fn ($l) => $l === 'lhr'));
-
-        // Overridden users (e.g. Umair Quadri) — their orders/receipts must
-        // count toward their pinned location even when their assigned
-        // customers still carry the wrong ou_id, so the closures below OR
-        // these IDs in instead of requiring the customer.ou_id join match.
-        $overrides           = $this->getSalespersonOverrideIds();
-        $khiOverrideUserIds  = $overrides['khi'] ?? [];
-        $lhrOverrideUserIds  = $overrides['lhr'] ?? [];
-
-        // If the user picked specific salespeople from the filter, intersect with
-        // each location's pre-computed set so a salesperson only appears under
-        // their home location.
-        if (!empty($salespersonIds)) {
-            $khiUserIds         = array_values(array_intersect($khiUserIds, $salespersonIds));
-            $lhrUserIds         = array_values(array_intersect($lhrUserIds, $salespersonIds));
-            $khiOverrideUserIds = array_values(array_intersect($khiOverrideUserIds, $salespersonIds));
-            $lhrOverrideUserIds = array_values(array_intersect($lhrOverrideUserIds, $salespersonIds));
-        }
-
-        // Use DB::table() so we get raw rows (stdClass), not Eloquent models.
-        // Aggregate queries with SELECT only on a subset of columns trip
-        // Eloquent's "attribute [id] not retrieved" guard.
-        $orderTops = function (array $ouIds, array $locationUserIds, array $overrideUserIds = []) use ($adminUserIds, $start, $end) {
-            if (empty($locationUserIds) && empty($overrideUserIds)) return collect();
-            // orders.customer_id references customers.customer_id (Oracle number),
-            // NOT customers.id (local PK). See Customer::orders() relationship.
-            // NOTE: order_status filter intentionally removed — counts cover every
-            // status (pending, pushed, cancelled, etc.) per the dashboard spec.
-            //
-            // Standard row qualifies when customer.ou_id matches the location AND
-            // the order's user is in locationUserIds. Override users (Umair, etc.)
-            // qualify regardless of customer.ou_id since their customers carry
-            // the wrong tagging.
-            $rows = \DB::table('orders')
-                ->join('customers', 'customers.customer_id', '=', 'orders.customer_id')
-                ->select('orders.user_id',
-                    \DB::raw('COUNT(*) as cnt'),
-                    \DB::raw('COALESCE(SUM(orders.total_amount), 0) as total_amount'))
-                ->where(function ($q) use ($ouIds, $locationUserIds, $overrideUserIds) {
-                    if (!empty($locationUserIds)) {
-                        $q->orWhere(function ($a) use ($ouIds, $locationUserIds) {
-                            $a->whereIn('customers.ou_id', $ouIds)
-                              ->whereIn('orders.user_id', $locationUserIds);
-                        });
-                    }
-                    if (!empty($overrideUserIds)) {
-                        $q->orWhereIn('orders.user_id', $overrideUserIds);
-                    }
-                })
-                ->whereNotIn('orders.user_id', $adminUserIds)
-                ->whereBetween('orders.created_at', [$start, $end])
-                ->groupBy('orders.user_id')
-                ->orderByDesc('cnt')
-                ->limit(5)
-                ->get();
-
-            // Resolve names in a single follow-up query rather than N+1.
-            $names = \App\Models\User::whereIn('id', $rows->pluck('user_id'))
-                ->pluck('name', 'id');
-
-            return $rows->map(fn ($row) => [
-                'user_id'      => $row->user_id,
-                'name'         => $names[$row->user_id] ?? 'Unknown',
-                'count'        => (int) $row->cnt,
-                'total_amount' => (float) $row->total_amount,
-            ]);
-        };
-
-        $receiptTops = function (array $ouIds, array $locationUserIds, array $overrideUserIds = []) use ($adminUserIds, $start, $end) {
-            if (empty($locationUserIds) && empty($overrideUserIds)) return collect();
-            // customer_receipts.customer_id references customers.customer_id,
-            // NOT customers.id. See CustomerReceipt::customer() relationship.
-            // Override users count regardless of ou_id tagging.
-            $rows = \DB::table('customer_receipts')
-                ->leftJoin('customers', 'customers.customer_id', '=', 'customer_receipts.customer_id')
-                ->select('customer_receipts.created_by',
-                    \DB::raw('COUNT(*) as cnt'),
-                    \DB::raw('COALESCE(SUM(customer_receipts.receipt_amount), 0) as total_amount'))
-                ->where(function ($q) use ($ouIds, $locationUserIds, $overrideUserIds) {
-                    if (!empty($locationUserIds)) {
-                        $q->orWhere(function ($a) use ($ouIds, $locationUserIds) {
-                            $a->where(function ($inner) use ($ouIds) {
-                                $inner->whereIn('customer_receipts.ou_id', $ouIds)
-                                      ->orWhereIn('customers.ou_id', $ouIds);
-                            })
-                            ->whereIn('customer_receipts.created_by', $locationUserIds);
-                        });
-                    }
-                    if (!empty($overrideUserIds)) {
-                        $q->orWhereIn('customer_receipts.created_by', $overrideUserIds);
-                    }
-                })
-                ->whereNotIn('customer_receipts.created_by', $adminUserIds)
-                ->whereBetween('customer_receipts.created_at', [$start, $end])
-                ->groupBy('customer_receipts.created_by')
-                ->orderByDesc('cnt')
-                ->limit(5)
-                ->get();
-
-            $names = \App\Models\User::whereIn('id', $rows->pluck('created_by'))
-                ->pluck('name', 'id');
-
-            return $rows->map(fn ($row) => [
-                'user_id'      => $row->created_by,
-                'name'         => $names[$row->created_by] ?? 'Unknown',
-                'count'        => (int) $row->cnt,
-                'total_amount' => (float) $row->total_amount,
-            ]);
-        };
-
-        // Overall totals per location for the card headers — also exclude admin
-        // activity and stay consistent with the location-bound leaderboard below.
-        $orderTotal = function (array $ouIds, array $locationUserIds, array $overrideUserIds = []) use ($adminUserIds, $start, $end) {
-            if (empty($locationUserIds) && empty($overrideUserIds)) return 0;
-            return \DB::table('orders')
-                ->join('customers', 'customers.customer_id', '=', 'orders.customer_id')
-                ->where(function ($q) use ($ouIds, $locationUserIds, $overrideUserIds) {
-                    if (!empty($locationUserIds)) {
-                        $q->orWhere(function ($a) use ($ouIds, $locationUserIds) {
-                            $a->whereIn('customers.ou_id', $ouIds)
-                              ->whereIn('orders.user_id', $locationUserIds);
-                        });
-                    }
-                    if (!empty($overrideUserIds)) {
-                        $q->orWhereIn('orders.user_id', $overrideUserIds);
-                    }
-                })
-                ->whereNotIn('orders.user_id', $adminUserIds)
-                ->whereBetween('orders.created_at', [$start, $end])
-                ->count();
-        };
-
-        $receiptTotal = function (array $ouIds, array $locationUserIds, array $overrideUserIds = []) use ($adminUserIds, $start, $end) {
-            if (empty($locationUserIds) && empty($overrideUserIds)) return 0;
-            return \DB::table('customer_receipts')
-                ->leftJoin('customers', 'customers.customer_id', '=', 'customer_receipts.customer_id')
-                ->where(function ($q) use ($ouIds, $locationUserIds, $overrideUserIds) {
-                    if (!empty($locationUserIds)) {
-                        $q->orWhere(function ($a) use ($ouIds, $locationUserIds) {
-                            $a->where(function ($inner) use ($ouIds) {
-                                $inner->whereIn('customer_receipts.ou_id', $ouIds)
-                                      ->orWhereIn('customers.ou_id', $ouIds);
-                            })
-                            ->whereIn('customer_receipts.created_by', $locationUserIds);
-                        });
-                    }
-                    if (!empty($overrideUserIds)) {
-                        $q->orWhereIn('customer_receipts.created_by', $overrideUserIds);
-                    }
-                })
-                ->whereNotIn('customer_receipts.created_by', $adminUserIds)
-                ->whereBetween('customer_receipts.created_at', [$start, $end])
-                ->count();
-        };
-
-        $emptyCol = collect();
-
-        return [
-            'orders' => [
-                'khi'       => ($detail && ($access['orders']['khi'] ?? false)) ? $orderTops($khi, $khiUserIds, $khiOverrideUserIds) : $emptyCol,
-                'lhr'       => ($detail && ($access['orders']['lhr'] ?? false)) ? $orderTops($lhr, $lhrUserIds, $lhrOverrideUserIds) : $emptyCol,
-                'khi_total' => ($access['orders']['khi'] ?? false) ? $orderTotal($khi, $khiUserIds, $khiOverrideUserIds) : 0,
-                'lhr_total' => ($access['orders']['lhr'] ?? false) ? $orderTotal($lhr, $lhrUserIds, $lhrOverrideUserIds) : 0,
-            ],
-            'receipts' => [
-                'khi'       => ($detail && ($access['receipts']['khi'] ?? false)) ? $receiptTops($khi, $khiUserIds, $khiOverrideUserIds) : $emptyCol,
-                'lhr'       => ($detail && ($access['receipts']['lhr'] ?? false)) ? $receiptTops($lhr, $lhrUserIds, $lhrOverrideUserIds) : $emptyCol,
-                'khi_total' => ($access['receipts']['khi'] ?? false) ? $receiptTotal($khi, $khiUserIds, $khiOverrideUserIds) : 0,
-                'lhr_total' => ($access['receipts']['lhr'] ?? false) ? $receiptTotal($lhr, $lhrUserIds, $lhrOverrideUserIds) : 0,
-            ],
-        ];
-    }
-
-    /**
-     * Each salesperson is assigned to ONE location. Returns [user_id => 'khi'|'lhr'].
-     *
-     * Source-of-truth precedence:
-     *   1. user_organizations.oracle_ou_id — the actual org assignment the
-     *      admin set on the user record. This is authoritative.
-     *   2. Fallback for users with no org row: customer-distribution majority
-     *      (where do most of their assigned customers live?). Keeps people
-     *      who haven't been mapped yet from disappearing from the leaderboard.
-     *
-     * Why this matters: a salesperson with KHI org assignment who happens to
-     * have placed orders for a few Lahore customers would otherwise land in
-     * the Lahore leaderboard instead of Karachi (Umair Quadri case).
-     *
-     * Tied org assignments (one user assigned to both KHI and LHR orgs) and
-     * tied customer counts stay unclassified — they appear in neither leaderboard
-     * rather than ambiguously in both.
-     */
-    /**
-     * Hard-coded name → location overrides. These users get pinned to a
-     * specific location regardless of user_organizations or the customer
-     * fallback — and their orders/receipts also count toward that location
-     * even when their assigned customers still carry the wrong ou_id.
-     * Same pattern as User::salesLeadEmailOuOverride().
-     *
-     * Umair Quadri: no user_organizations rows; every customer assigned
-     * to him still has ou_id=108 (Lahore) from before the KHI move.
+     * The per-location salesperson leaderboard (orders + receipts tables,
+     * paginated) is rendered by the Dashboard\SalesLeaderboard Livewire
+     * component — see app/Livewire/Dashboard/SalesLeaderboard.php. The
+     * classifier/override logic below is kept on the controller (rather
+     * than only living in App\Services\SalespersonLeaderboardService)
+     * because DiagnoseSalespersonLocation reflects into
+     * getSalespersonLocations() by method name.
      */
     protected function salespersonLocationNameOverrides(): array
     {
-        return [
-            'Umair Quadri' => 'khi',
-        ];
+        return app(\App\Services\SalespersonLeaderboardService::class)->salespersonLocationNameOverrides();
     }
 
-    /**
-     * Resolve overrides to user IDs grouped by target location.
-     * Returns ['khi' => [user_id, ...], 'lhr' => [...]].
-     */
     protected function getSalespersonOverrideIds(): array
     {
-        $cacheKey = 'dashboard_salesperson_overrides_v1';
-        return Cache::remember($cacheKey, now()->addMinutes(30), function () {
-            $names = $this->salespersonLocationNameOverrides();
-            if (empty($names)) return ['khi' => [], 'lhr' => []];
-
-            $users = User::query()
-                ->select('id', 'name')
-                ->whereIn('name', array_keys($names))
-                ->get();
-
-            $out = ['khi' => [], 'lhr' => []];
-            foreach ($users as $u) {
-                $loc = $names[$u->name] ?? null;
-                if ($loc && isset($out[$loc])) {
-                    $out[$loc][] = (int) $u->id;
-                }
-            }
-            return $out;
-        });
+        return app(\App\Services\SalespersonLeaderboardService::class)->getSalespersonOverrideIds();
     }
 
     protected function getSalespersonLocations(array $khiOus, array $lhrOus): array
     {
-        $cacheKey = 'dashboard_salesperson_locations_v3';
-        return Cache::remember($cacheKey, now()->addMinutes(30), function () use ($khiOus, $lhrOus) {
-            $nameOverrides = $this->salespersonLocationNameOverrides();
-
-            // ── Primary source: user_organizations.oracle_ou_id ──
-            $orgRows = DB::table('user_organizations')
-                ->select('user_id', 'oracle_ou_id')
-                ->where('is_active', true)
-                ->whereNotNull('oracle_ou_id')
-                ->get();
-
-            $perUser = [];
-            foreach ($orgRows as $r) {
-                $ouInt = (int) $r->oracle_ou_id;
-                $loc = in_array($ouInt, $khiOus, true) ? 'khi'
-                    : (in_array($ouInt, $lhrOus, true) ? 'lhr' : null);
-                if (!$loc) continue;
-                if (!isset($perUser[$r->user_id])) {
-                    $perUser[$r->user_id] = ['khi' => 0, 'lhr' => 0];
-                }
-                $perUser[$r->user_id][$loc]++;
-            }
-
-            $result = [];
-            foreach ($perUser as $userId => $counts) {
-                if ($counts['khi'] > $counts['lhr']) $result[(int) $userId] = 'khi';
-                elseif ($counts['lhr'] > $counts['khi']) $result[(int) $userId] = 'lhr';
-                // tied (assigned to both KHI and LHR) → not classified
-            }
-
-            // ── Fallback for users with NO active org row: customer-distribution majority ──
-            // Find every distinct salesperson name in customers, see which of
-            // them already have a classification via $result, and only fall back
-            // for the rest. Prevents users without an org assignment from
-            // disappearing from the leaderboard entirely.
-            $custRows = DB::table('customers')
-                ->select('salesperson', 'ou_id', DB::raw('COUNT(*) as cnt'))
-                ->whereNotNull('salesperson')
-                ->whereNotNull('ou_id')
-                ->groupBy('salesperson', 'ou_id')
-                ->get();
-
-            $perName = [];
-            foreach ($custRows as $r) {
-                $ouInt = (int) $r->ou_id;
-                $loc = in_array($ouInt, $khiOus, true) ? 'khi'
-                    : (in_array($ouInt, $lhrOus, true) ? 'lhr' : null);
-                if (!$loc) continue;
-                if (!isset($perName[$r->salesperson])) {
-                    $perName[$r->salesperson] = ['khi' => 0, 'lhr' => 0];
-                }
-                $perName[$r->salesperson][$loc] += (int) $r->cnt;
-            }
-
-            if (!empty($perName)) {
-                $names = array_keys($perName);
-                $users = User::query()
-                    ->select('id', 'name', 'oracle_user_name')
-                    ->where(function ($q) use ($names) {
-                        $q->whereIn('name', $names)
-                          ->orWhereIn('oracle_user_name', $names);
-                    })
-                    ->get();
-
-                foreach ($users as $u) {
-                    $uid = (int) $u->id;
-                    if (isset($result[$uid])) continue; // already classified via org
-
-                    $counts = $perName[$u->name]
-                        ?? $perName[$u->oracle_user_name]
-                        ?? null;
-                    if (!$counts) continue;
-
-                    if ($counts['khi'] > $counts['lhr']) $result[$uid] = 'khi';
-                    elseif ($counts['lhr'] > $counts['khi']) $result[$uid] = 'lhr';
-                }
-            }
-
-            // ── Apply name overrides LAST so they trump both sources. ──
-            if (!empty($nameOverrides)) {
-                $overrideUsers = User::query()
-                    ->select('id', 'name')
-                    ->whereIn('name', array_keys($nameOverrides))
-                    ->get();
-                foreach ($overrideUsers as $u) {
-                    $result[(int) $u->id] = $nameOverrides[$u->name];
-                }
-            }
-
-            return $result;
-        });
+        return app(\App\Services\SalespersonLeaderboardService::class)->getSalespersonLocations($khiOus, $lhrOus);
     }
 
     /**
