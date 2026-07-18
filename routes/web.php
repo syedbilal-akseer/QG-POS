@@ -1,40 +1,40 @@
 <?php
 
+use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\AppController;
+use App\Http\Controllers\OrderRecieptsController;
+use App\Http\Controllers\PriceListController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\VendorBillController2;
 use App\Livewire\CRM;
-use App\Models\Order;
-use App\Livewire\ListUsers;
-use App\Livewire\ListOrders;
-use App\Models\OracleProduct;
-use App\Livewire\ListProducts;
-use App\Models\OracleCustomer;
 use App\Livewire\ListCustomers;
+use App\Livewire\ListOrders;
+use App\Livewire\ListProducts;
+use App\Livewire\ListUsers;
+use App\Models\OracleCustomer;
+use App\Models\OracleOrderHeader;
 use App\Models\OracleOrderLine;
 use App\Models\OracleOrderType;
+use App\Models\OracleProduct;
 use App\Models\OracleWarehouse;
-use App\Models\OracleOrderHeader;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AppController;
-use Illuminate\Support\Facades\Artisan;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\PriceListController;
-use App\Http\Controllers\Api\OrderController;
-use App\Http\Controllers\OrderRecieptsController;
-use App\Http\Controllers\VendorBillController2;
+use App\Models\Order;
 use App\Models\User;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/receipt-percentage', function () {
 
     $month = 'jun-2026';
 
     $karachiSalespersons = User::all()
-        ->filter(fn($user) => $user->isKHIUser())
+        ->filter(fn ($user) => $user->isKHIUser())
         ->pluck('name')
         ->toArray();
 
     $lahoreSalespersons = User::all()
-        ->filter(fn($user) => $user->isLHRUser())
+        ->filter(fn ($user) => $user->isLHRUser())
         ->pluck('name')
         ->toArray();
 
@@ -79,7 +79,7 @@ Route::get('/receipt-percentage', function () {
                 'total_receipts' => $karachiTotal,
                 'mobile_receipts' => $karachiMobile,
                 'percentage' => $karachiPercentage,
-            ]
+            ],
         ],
 
         'lahore' => [
@@ -88,8 +88,8 @@ Route::get('/receipt-percentage', function () {
                 'total_receipts' => $lahoreTotal,
                 'mobile_receipts' => $lahoreMobile,
                 'percentage' => $lahorePercentage,
-            ]
-        ]
+            ],
+        ],
     ]);
 });
 Route::get('/', function () {
@@ -100,7 +100,7 @@ Route::get('/', function () {
         $roleName = $user->role?->name ?? $user->role ?? null;
 
         // Check if user is already on the appropriate page to prevent infinite redirects
-        if ($roleName === 'supply-chain' && !request()->is('app/supply-chain/orders*')) {
+        if ($roleName === 'supply-chain' && ! request()->is('app/supply-chain/orders*')) {
             return redirect()->route('orders.supply-chain.all');
         }
 
@@ -109,35 +109,35 @@ Route::get('/', function () {
         // role attribute is 'user'. Without this, the next branch would force
         // them into Monthly Tour Plans.
         if (method_exists($user, 'isSalesHead') && $user->isSalesHead()) {
-            if (!request()->is('dashboard*')) {
+            if (! request()->is('dashboard*')) {
                 return redirect()->route('dashboard');
             }
             // already on dashboard — let the request through
         }
 
-        if ($roleName === 'user' && !request()->is('app/monthly-tour-plans*')) {
+        if ($roleName === 'user' && ! request()->is('app/monthly-tour-plans*')) {
             return redirect()->route('monthlyTourPlans.all');
         }
 
-        if (in_array($roleName, ['cmd-khi', 'cmd-lhr']) && !request()->is('dashboard*')) {
+        if (in_array($roleName, ['cmd-khi', 'cmd-lhr']) && ! request()->is('dashboard*')) {
             return redirect()->route('dashboard');
         }
 
-        if ($roleName === 'scm-lhr' && !request()->is('app/scm-lhr/orders*')) {
+        if ($roleName === 'scm-lhr' && ! request()->is('app/scm-lhr/orders*')) {
             return redirect()->route('orders.scm-lhr.all');
         }
 
-        if ($roleName === 'inventory-manager' && !request()->is('wms*')) {
+        if ($roleName === 'inventory-manager' && ! request()->is('wms*')) {
             return redirect()->route('wms.locations');
         }
 
-        if ($roleName === 'invoice-manager' && !request()->is('app/admin/invoices*')) {
+        if ($roleName === 'invoice-manager' && ! request()->is('app/admin/invoices*')) {
             return redirect()->route('invoices.view');
         }
 
         // If the user is an admin or any other role NOT covered above, send to dashboard.
         // invoice-manager is excluded — dashboard is gated to admin/cmd-* and would redirect-loop.
-        if (!in_array($roleName, ['supply-chain', 'user', 'cmd-khi', 'cmd-lhr', 'scm-lhr', 'inventory-manager', 'invoice-manager'])) {
+        if (! in_array($roleName, ['supply-chain', 'user', 'cmd-khi', 'cmd-lhr', 'scm-lhr', 'inventory-manager', 'invoice-manager'])) {
             return redirect()->route('dashboard');
         }
     }
@@ -153,18 +153,18 @@ Route::get('/', function () {
 // Path traversal protection: realpath() resolves any "../" tricks and we
 // reject anything that escapes the invoices base directory.
 Route::get('/invoices/{path}', function (string $path) {
-    $base = storage_path('app' . DIRECTORY_SEPARATOR . 'invoices');
-    $full = realpath($base . DIRECTORY_SEPARATOR . str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $path));
+    $base = storage_path('app'.DIRECTORY_SEPARATOR.'invoices');
+    $full = realpath($base.DIRECTORY_SEPARATOR.str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $path));
     $baseReal = realpath($base);
 
-    if (!$full || !$baseReal || !str_starts_with($full, $baseReal) || !is_file($full)) {
+    if (! $full || ! $baseReal || ! str_starts_with($full, $baseReal) || ! is_file($full)) {
         abort(404, 'Invoice file not found.');
     }
 
     return response()->file($full, [
-        'Content-Type'        => 'application/pdf',
-        'Content-Disposition' => 'inline; filename="' . basename($full) . '"',
-        'Cache-Control'       => 'private, max-age=300',
+        'Content-Type' => 'application/pdf',
+        'Content-Disposition' => 'inline; filename="'.basename($full).'"',
+        'Cache-Control' => 'private, max-age=300',
     ]);
 })->where('path', '.+\.pdf')->name('invoices.serve-pdf');
 
@@ -174,12 +174,12 @@ Route::middleware(['auth'])->post('/fcm-token', function (\Illuminate\Http\Reque
     $request->validate(['fcm_token' => 'required|string|min:10|max:4096']);
     $user = auth()->user();
     $user->update([
-        'fcm_token'            => $request->input('fcm_token'),
+        'fcm_token' => $request->input('fcm_token'),
         'fcm_token_updated_at' => now(),
     ]);
+
     return response()->json(['success' => true]);
 })->name('fcm-token.update');
-
 
 Route::prefix('app')->middleware(['auth'])->group(function () {
     // Dedicated full-page order viewer (replaces the in-list modal). Sits
@@ -205,8 +205,8 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
 
         // Receipts — view only. Edit/update/delete/enter-to-oracle routes are
         // gated to admin/cmd-* below, so they 403 for sales-head automatically.
-        Route::get('/reciepts',          [OrderRecieptsController::class, 'index'])->name('reciepts.sales-head');
-        Route::get('/reciepts/{id}',     [OrderRecieptsController::class, 'show'])->name('reciepts.show.sales-head');
+        Route::get('/reciepts', [OrderRecieptsController::class, 'index'])->name('reciepts.sales-head');
+        Route::get('/reciepts/{id}', [OrderRecieptsController::class, 'show'])->name('reciepts.show.sales-head');
 
         // CRM Routes for sales-head
         Route::get('/sales-teams', CRM\ListSalesTeam::class)->name('salesteam.all');
@@ -251,15 +251,32 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
         });
     });
 
+    // Ledger Import / Send — split the bulk "Customer Ledger" Oracle PDF
+    // per customer, resolve salesperson against users, and let staff
+    // multiselect + trigger WhatsApp sends. Same role gate as Invoices.
+    Route::middleware(['checkRole:admin,invoice-manager'])->group(function () {
+        Route::prefix('admin/ledgers')->name('ledgers.')->group(function () {
+            Route::get('/', [App\Http\Controllers\LedgerController::class, 'index'])->name('index');
+            Route::get('/upload', [App\Http\Controllers\LedgerController::class, 'uploadForm'])->name('upload');
+            Route::post('/upload', [App\Http\Controllers\LedgerController::class, 'store'])->name('store');
+            Route::get('/whatsapp-queue-status', [App\Http\Controllers\LedgerController::class, 'getQueueStatus'])->name('whatsapp-status');
+            Route::post('/bulk-send-whatsapp', [App\Http\Controllers\LedgerController::class, 'bulkSendWhatsApp'])->name('bulk-send');
+            Route::post('/{ledger}/update-phone', [App\Http\Controllers\LedgerController::class, 'updatePhone'])->name('update-phone');
+            Route::post('/{ledger}/send-whatsapp', [App\Http\Controllers\LedgerController::class, 'sendWhatsApp'])->name('send-whatsapp');
+            Route::get('/download/{ledger}', [App\Http\Controllers\LedgerController::class, 'download'])->name('download');
+            Route::delete('/{ledger}', [App\Http\Controllers\LedgerController::class, 'destroy'])->name('destroy');
+        });
+    });
+
     // ── Announcements (admin only) — admin composes a title + body and
     // the AnnouncementController fires FCM pushes to the chosen audience
     // (everyone with an fcm_token, or filtered by role). ──
     Route::middleware(['checkRole:admin'])->group(function () {
         Route::prefix('admin/announcements')->name('announcements.')->group(function () {
-            Route::get('/',              [App\Http\Controllers\AnnouncementController::class, 'index'])->name('index');
-            Route::get('/create',        [App\Http\Controllers\AnnouncementController::class, 'create'])->name('create');
-            Route::post('/',             [App\Http\Controllers\AnnouncementController::class, 'store'])->name('store');
-            Route::get('/{announcement}',[App\Http\Controllers\AnnouncementController::class, 'show'])->name('show');
+            Route::get('/', [App\Http\Controllers\AnnouncementController::class, 'index'])->name('index');
+            Route::get('/create', [App\Http\Controllers\AnnouncementController::class, 'create'])->name('create');
+            Route::post('/', [App\Http\Controllers\AnnouncementController::class, 'store'])->name('store');
+            Route::get('/{announcement}', [App\Http\Controllers\AnnouncementController::class, 'show'])->name('show');
             Route::delete('/{announcement}', [App\Http\Controllers\AnnouncementController::class, 'destroy'])->name('destroy');
         });
     });
@@ -268,8 +285,8 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
     // version the enforceAppVersion middleware checks on /api/* calls. ──
     Route::middleware(['checkRole:admin'])->group(function () {
         Route::prefix('admin/app-versions')->name('app-versions.')->group(function () {
-            Route::get('/',                  [App\Http\Controllers\AppVersionController::class, 'index'])->name('index');
-            Route::put('/{appVersion}',      [App\Http\Controllers\AppVersionController::class, 'update'])->name('update');
+            Route::get('/', [App\Http\Controllers\AppVersionController::class, 'index'])->name('index');
+            Route::put('/{appVersion}', [App\Http\Controllers\AppVersionController::class, 'update'])->name('update');
         });
     });
 
@@ -280,30 +297,30 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
     // need access for their queues.
     Route::middleware(['checkRole:admin,account-user,cmd-khi,cmd-lhr,director'])->group(function () {
         Route::prefix('admin/vendor-bills')->name('vendor-bills.')->group(function () {
-            Route::get('/',                       [App\Http\Controllers\VendorBillController::class, 'index'])->name('index');
-            Route::get('/search-vendors',         [App\Http\Controllers\VendorBillController::class, 'searchVendors'])->name('searchVendors');
-            Route::get('/create',                 [App\Http\Controllers\VendorBillController::class, 'create'])->name('create');
-            Route::post('/',                      [App\Http\Controllers\VendorBillController::class, 'store'])->name('store');
-            Route::get('/{vendorBill}',           [App\Http\Controllers\VendorBillController::class, 'show'])->name('show');
-            Route::get('/{vendorBill}/edit',      [App\Http\Controllers\VendorBillController::class, 'edit'])->name('edit');
-            Route::put('/{vendorBill}',           [App\Http\Controllers\VendorBillController::class, 'update'])->name('update');
-            Route::post('/{vendorBill}/approve',  [App\Http\Controllers\VendorBillController::class, 'approve'])->name('approve');
-            Route::post('/{vendorBill}/reject',   [App\Http\Controllers\VendorBillController::class, 'reject'])->name('reject');
-            Route::get('/attachment/{attachment}',[App\Http\Controllers\VendorBillController::class, 'attachment'])->name('attachment');
+            Route::get('/', [App\Http\Controllers\VendorBillController::class, 'index'])->name('index');
+            Route::get('/search-vendors', [App\Http\Controllers\VendorBillController::class, 'searchVendors'])->name('searchVendors');
+            Route::get('/create', [App\Http\Controllers\VendorBillController::class, 'create'])->name('create');
+            Route::post('/', [App\Http\Controllers\VendorBillController::class, 'store'])->name('store');
+            Route::get('/{vendorBill}', [App\Http\Controllers\VendorBillController::class, 'show'])->name('show');
+            Route::get('/{vendorBill}/edit', [App\Http\Controllers\VendorBillController::class, 'edit'])->name('edit');
+            Route::put('/{vendorBill}', [App\Http\Controllers\VendorBillController::class, 'update'])->name('update');
+            Route::post('/{vendorBill}/approve', [App\Http\Controllers\VendorBillController::class, 'approve'])->name('approve');
+            Route::post('/{vendorBill}/reject', [App\Http\Controllers\VendorBillController::class, 'reject'])->name('reject');
+            Route::get('/attachment/{attachment}', [App\Http\Controllers\VendorBillController::class, 'attachment'])->name('attachment');
         });
     });
     Route::middleware(['checkRole:admin,account-user,cmd-khi,cmd-lhr,director'])->group(function () {
         Route::prefix('admin/vendor-bills-2')->name('vendor-bills-2.')->group(function () {
-            Route::get('/',                       [VendorBillController2::class, 'index'])->name('index');
-            Route::get('/search-vendors',         [VendorBillController2::class, 'searchVendors'])->name('searchVendors');
-            Route::get('/create',                 [VendorBillController2::class, 'create'])->name('create');
-            Route::post('/',                      [VendorBillController2::class, 'store'])->name('store');
-            Route::get('/{vendorBill}',           [VendorBillController2::class, 'show'])->name('show');
-            Route::get('/{vendorBill}/edit',      [VendorBillController2::class, 'edit'])->name('edit');
-            Route::put('/{vendorBill}',           [VendorBillController2::class, 'update'])->name('update');
-            Route::post('/{vendorBill}/approve',  [VendorBillController2::class, 'approve'])->name('approve');
-            Route::post('/{vendorBill}/reject',   [VendorBillController2::class, 'reject'])->name('reject');
-            Route::get('/attachment/{attachment}',[VendorBillController2::class, 'attachment'])->name('attachment');
+            Route::get('/', [VendorBillController2::class, 'index'])->name('index');
+            Route::get('/search-vendors', [VendorBillController2::class, 'searchVendors'])->name('searchVendors');
+            Route::get('/create', [VendorBillController2::class, 'create'])->name('create');
+            Route::post('/', [VendorBillController2::class, 'store'])->name('store');
+            Route::get('/{vendorBill}', [VendorBillController2::class, 'show'])->name('show');
+            Route::get('/{vendorBill}/edit', [VendorBillController2::class, 'edit'])->name('edit');
+            Route::put('/{vendorBill}', [VendorBillController2::class, 'update'])->name('update');
+            Route::post('/{vendorBill}/approve', [VendorBillController2::class, 'approve'])->name('approve');
+            Route::post('/{vendorBill}/reject', [VendorBillController2::class, 'reject'])->name('reject');
+            Route::get('/attachment/{attachment}', [VendorBillController2::class, 'attachment'])->name('attachment');
         });
     });
     // Documents browser — customer-wise nested folders (Invoices, Builties,
@@ -312,7 +329,7 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
     // applies here.
     Route::middleware(['checkRole:admin,invoice-manager,view-khi,view-lhr,view-all'])->group(function () {
         Route::prefix('admin/documents')->name('documents.')->group(function () {
-            Route::get('/',                              [App\Http\Controllers\DocumentsController::class, 'index'])->name('index');
+            Route::get('/', [App\Http\Controllers\DocumentsController::class, 'index'])->name('index');
             Route::get('/customer/{customerCode}/files', [App\Http\Controllers\DocumentsController::class, 'files'])->name('files');
         });
     });
@@ -322,16 +339,16 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
     // on the invoice view page (which posts to the protected attach route).
     Route::middleware(['checkRole:admin,invoice-manager'])->group(function () {
         Route::prefix('admin/builties')->name('builties.')->group(function () {
-            Route::get('/',                        [App\Http\Controllers\BuiltyController::class, 'index'])->name('index');
-            Route::post('/',                       [App\Http\Controllers\BuiltyController::class, 'store'])->name('store');
-            Route::post('/bulk',                   [App\Http\Controllers\BuiltyController::class, 'bulkStore'])->name('bulkStore');
-            Route::get('/search-orders',           [App\Http\Controllers\BuiltyController::class, 'searchOrders'])->name('searchOrders');
-            Route::get('/search-invoices',         [App\Http\Controllers\BuiltyController::class, 'searchInvoices'])->name('searchInvoices');
-            Route::get('/search-customers',        [App\Http\Controllers\BuiltyController::class, 'searchCustomers'])->name('searchCustomers');
-            Route::get('/next-number-preview',     [App\Http\Controllers\BuiltyController::class, 'nextNumberPreview'])->name('nextNumberPreview');
-            Route::get('/search',                  [App\Http\Controllers\BuiltyController::class, 'searchBuilties'])->name('search');
-            Route::get('/{builty}/file',           [App\Http\Controllers\BuiltyController::class, 'file'])->name('file');
-            Route::delete('/{builty}',             [App\Http\Controllers\BuiltyController::class, 'destroy'])->name('destroy');
+            Route::get('/', [App\Http\Controllers\BuiltyController::class, 'index'])->name('index');
+            Route::post('/', [App\Http\Controllers\BuiltyController::class, 'store'])->name('store');
+            Route::post('/bulk', [App\Http\Controllers\BuiltyController::class, 'bulkStore'])->name('bulkStore');
+            Route::get('/search-orders', [App\Http\Controllers\BuiltyController::class, 'searchOrders'])->name('searchOrders');
+            Route::get('/search-invoices', [App\Http\Controllers\BuiltyController::class, 'searchInvoices'])->name('searchInvoices');
+            Route::get('/search-customers', [App\Http\Controllers\BuiltyController::class, 'searchCustomers'])->name('searchCustomers');
+            Route::get('/next-number-preview', [App\Http\Controllers\BuiltyController::class, 'nextNumberPreview'])->name('nextNumberPreview');
+            Route::get('/search', [App\Http\Controllers\BuiltyController::class, 'searchBuilties'])->name('search');
+            Route::get('/{builty}/file', [App\Http\Controllers\BuiltyController::class, 'file'])->name('file');
+            Route::delete('/{builty}', [App\Http\Controllers\BuiltyController::class, 'destroy'])->name('destroy');
             // Attach an existing builty to an invoice + remerge PDF.
             Route::post('/attach-to-invoice/{invoice}', [App\Http\Controllers\BuiltyController::class, 'attachToInvoice'])->name('attachToInvoice');
         });
@@ -342,10 +359,10 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
     // status / WhatsApp / date filters requested for the view page.
     Route::middleware(['checkRole:admin,invoice-manager,view-khi,view-lhr,view-all'])->group(function () {
         Route::prefix('admin/invoices')->name('invoices.')->group(function () {
-            Route::get('/view',                      [App\Http\Controllers\InvoiceController::class, 'viewIndex'])->name('view');
-            Route::get('/{invoice}',                 [App\Http\Controllers\InvoiceController::class, 'show'])->name('show');
-            Route::get('/download/{invoice}',        [App\Http\Controllers\InvoiceController::class, 'download'])->name('download');
-            Route::get('/customer/{customerCode}',   [App\Http\Controllers\InvoiceController::class, 'showCustomer'])->name('customer');
+            Route::get('/view', [App\Http\Controllers\InvoiceController::class, 'viewIndex'])->name('view');
+            Route::get('/{invoice}', [App\Http\Controllers\InvoiceController::class, 'show'])->name('show');
+            Route::get('/download/{invoice}', [App\Http\Controllers\InvoiceController::class, 'download'])->name('download');
+            Route::get('/customer/{customerCode}', [App\Http\Controllers\InvoiceController::class, 'showCustomer'])->name('customer');
         });
     });
 
@@ -373,7 +390,7 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
         });
     });
 
-        // Inventory Manager - Legacy & WMS Digitization Split Modules
+    // Inventory Manager - Legacy & WMS Digitization Split Modules
     Route::middleware(['checkRole:inventory-manager'])->group(function () {
         Route::get('/inventory-barcode', \App\Livewire\Inventory\BarcodeInventoryManager::class)->name('inventory.barcode');
     });
@@ -387,7 +404,7 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
 
     // Promotional items bulk upload.
     Route::middleware(['checkRole:admin'])->group(function () {
-        Route::get('/admin/promotional-items/bulk-upload',  [\App\Http\Controllers\Admin\PromotionalItemBulkController::class, 'form'])->name('admin.promotional-items.bulk-upload-form');
+        Route::get('/admin/promotional-items/bulk-upload', [\App\Http\Controllers\Admin\PromotionalItemBulkController::class, 'form'])->name('admin.promotional-items.bulk-upload-form');
         Route::post('/admin/promotional-items/bulk-upload', [\App\Http\Controllers\Admin\PromotionalItemBulkController::class, 'upload'])->name('admin.promotional-items.bulk-upload');
     });
 
@@ -397,7 +414,7 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
         Route::get('/admin/salesperson-targets', [\App\Http\Controllers\Admin\SalespersonTargetController::class, 'index'])->name('admin.salesperson-targets.index');
     });
     Route::middleware(['checkRole:admin'])->group(function () {
-        Route::get('/admin/salesperson-targets/upload',  [\App\Http\Controllers\Admin\SalespersonTargetController::class, 'uploadForm'])->name('admin.salesperson-targets.upload-form');
+        Route::get('/admin/salesperson-targets/upload', [\App\Http\Controllers\Admin\SalespersonTargetController::class, 'uploadForm'])->name('admin.salesperson-targets.upload-form');
         Route::post('/admin/salesperson-targets/upload', [\App\Http\Controllers\Admin\SalespersonTargetController::class, 'upload'])->name('admin.salesperson-targets.upload');
     });
 
@@ -430,13 +447,13 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
 
         // 7. LPN Label Printing (TCPDF)
         Route::get('/labels/batch/{grnLine}', [\App\Http\Controllers\WMS\WmsLabelController::class, 'batchByGrnLine'])->name('labels.batch');
-        Route::get('/labels/single/{lpn}',   [\App\Http\Controllers\WMS\WmsLabelController::class, 'single'])->name('labels.single');
+        Route::get('/labels/single/{lpn}', [\App\Http\Controllers\WMS\WmsLabelController::class, 'single'])->name('labels.single');
         Route::get('/labels/grn-qr/{grnLine}', [\App\Http\Controllers\WMS\WmsLabelController::class, 'grnQr'])->name('labels.grn-qr');
 
         // 8. Pick Slip PDF (static routes must come before parameterised)
-        Route::get('/pick-slip/pending',          [\App\Http\Controllers\WMS\WmsPickSlipController::class, 'pending'])->name('pick-slip.pending');
-        Route::get('/pick-slip/item/{itemCode}',  [\App\Http\Controllers\WMS\WmsPickSlipController::class, 'byItem'])->name('pick-slip.item');
-        Route::get('/pick-slip/{lpn}',            [\App\Http\Controllers\WMS\WmsPickSlipController::class, 'single'])->name('pick-slip');
+        Route::get('/pick-slip/pending', [\App\Http\Controllers\WMS\WmsPickSlipController::class, 'pending'])->name('pick-slip.pending');
+        Route::get('/pick-slip/item/{itemCode}', [\App\Http\Controllers\WMS\WmsPickSlipController::class, 'byItem'])->name('pick-slip.item');
+        Route::get('/pick-slip/{lpn}', [\App\Http\Controllers\WMS\WmsPickSlipController::class, 'single'])->name('pick-slip');
     });
 
     // Shared dashboard access for admin, cmd-khi, cmd-lhr, sales-head AND
@@ -556,14 +573,14 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
         ->prefix('admin/reports')
         ->name('admin.reports.')
         ->group(function () {
-            Route::get('/sales-order-percentage',        [\App\Http\Controllers\Reports\SalesOrderPercentageController::class, 'index'])
+            Route::get('/sales-order-percentage', [\App\Http\Controllers\Reports\SalesOrderPercentageController::class, 'index'])
                 ->name('sales-order-percentage');
             Route::get('/sales-order-percentage/export', [\App\Http\Controllers\Reports\SalesOrderPercentageController::class, 'export'])
                 ->name('sales-order-percentage.export');
 
-            Route::get('/receipts-percentage',           [\App\Http\Controllers\Reports\ReceiptsPercentageController::class, 'index'])
+            Route::get('/receipts-percentage', [\App\Http\Controllers\Reports\ReceiptsPercentageController::class, 'index'])
                 ->name('receipts-percentage');
-            Route::get('/receipts-percentage/export',    [\App\Http\Controllers\Reports\ReceiptsPercentageController::class, 'export'])
+            Route::get('/receipts-percentage/export', [\App\Http\Controllers\Reports\ReceiptsPercentageController::class, 'export'])
                 ->name('receipts-percentage.export');
         });
 
@@ -585,7 +602,7 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/run-commands', function () {
-    if (request('token') !== "my-unique-token") {
+    if (request('token') !== 'my-unique-token') {
         abort(403, 'Unauthorized');
     }
     logger('Running');
@@ -697,7 +714,6 @@ Route::get('/testing', function () {
     //     ->where('orig_sys_document_ref', 'like', '%202569%')
     //     ->get();
 
-
     // Return the results as JSON for easy viewing
     return response()->json($results);
 });
@@ -747,4 +763,4 @@ Route::get('oracle/order/{orderNumber}', function ($orderNumber) {
 
 Route::get('/orders/export', [OrderController::class, 'orderExport']);
 
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

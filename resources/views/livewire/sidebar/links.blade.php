@@ -109,6 +109,40 @@
         </li>
     @endif
 
+    {{-- Ledgers — parent group with two children:
+         • Ledgers        → list of every imported customer ledger, multiselect + WhatsApp send
+         • Ledger Import  → upload the bulk Oracle "Customer Ledger" PDF --}}
+    @if (Auth::user()->isAdmin() || Auth::user()->isInvoiceManager())
+        <li class="relative" x-data="{ openLedgersMenu: {{ request()->routeIs('ledgers.*') ? 'true' : 'false' }} }">
+            <x-sidebar-link href="javascript:void(0)" @click="openLedgersMenu = !openLedgersMenu" aria-expanded="openLedgersMenu">
+                <x-link-icon icon="o-document-duplicate" :active="request()->routeIs('ledgers.*')" />
+                <span class="flex-1 me-3">Ledgers</span>
+                <x-heroicon-s-chevron-down x-bind:class="{ 'rotate-180': openLedgersMenu }"
+                    class="h-5 w-5 transform transition-transform" />
+            </x-sidebar-link>
+
+            <ul x-show="openLedgersMenu" x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="opacity-0 transform scale-95"
+                x-transition:enter-end="opacity-100 transform scale-100"
+                x-transition:leave="transition ease-in duration-150"
+                x-transition:leave-start="opacity-100 transform scale-100"
+                x-transition:leave-end="opacity-0 transform scale-95" x-cloak class="mt-2 space-y-1">
+                <li>
+                    <x-sidebar-link :href="route('ledgers.index')" :active="request()->routeIs('ledgers.index')">
+                        <x-link-icon icon="o-document-text" :active="request()->routeIs('ledgers.index')" />
+                        <span>Ledgers</span>
+                    </x-sidebar-link>
+                </li>
+                <li>
+                    <x-sidebar-link :href="route('ledgers.upload')" :active="request()->routeIs('ledgers.upload')">
+                        <x-link-icon icon="o-arrow-up-tray" :active="request()->routeIs('ledgers.upload')" />
+                        <span>Ledger Import</span>
+                    </x-sidebar-link>
+                </li>
+            </ul>
+        </li>
+    @endif
+
     {{-- Vendors AP — bill upload + 2-stage approval (CMD → Director). --}}
     @if (Auth::user()->isAdmin() || Auth::user()->isAccountUser() || Auth::user()->isCmd() || Auth::user()->isDirector())
         <li>
