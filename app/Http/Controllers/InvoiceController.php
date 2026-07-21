@@ -184,6 +184,8 @@ class InvoiceController extends Controller
             // table) so the list only contains customers who actually have
             // invoices uploaded.
             $customerOptions = Invoice::query()
+                    ->selectRaw('customer_code, MAX(customer_name) as customer_name')
+                    ->whereNotNull('customer_code')
                     ->groupBy('customer_code')
                     ->get();
 
