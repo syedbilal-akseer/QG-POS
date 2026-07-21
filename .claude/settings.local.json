@@ -99,7 +99,11 @@
       "PowerShell(php artisan tinker storage\\\\app\\\\tmp-check-20261778.php)",
       "PowerShell(php artisan tinker storage\\\\app\\\\tmp-check-0100-0039.php)",
       "PowerShell(php artisan tinker storage\\\\app\\\\tmp-check-9627.php)",
-      "PowerShell(php -l app\\\\Http\\\\Controllers\\\\Api\\\\ProductController.php)"
+      "PowerShell(php -l app\\\\Http\\\\Controllers\\\\Api\\\\ProductController.php)",
+      "Bash(php -l app/Http/Controllers/AppController.php)",
+      "Bash(php -l app/Services/SalespersonLeaderboardService.php)",
+      "Bash(php -l app/Livewire/Dashboard/SalesLeaderboard.php)",
+      "Bash(php artisan *)"
     ]
   }
 }

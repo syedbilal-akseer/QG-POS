@@ -64,8 +64,17 @@ class InvoiceController extends Controller
 
                 $user = auth()->user();
 
-                // Other users can only see their own uploaded invoices
-                if (!in_array(auth()->user()->email, $admins) && !$user->isAdmin() ) {
+                if (in_array($user->email, $admins) || $user->isAdmin()) {
+                    // no restriction
+                } elseif ($user->isCmd()) {
+                    // CMD-KHI / CMD-LHR see invoices uploaded by their assigned
+                    // salespeople only; null (= "All") means no restriction.
+                    $assignedSalespeopleIds = $user->getAssignedSalespeopleIds();
+                    if (!empty($assignedSalespeopleIds)) {
+                        $q->whereIn('uploaded_by', $assignedSalespeopleIds);
+                    }
+                } else {
+                    // Other users can only see their own uploaded invoices
                     $q->where('uploaded_by', auth()->id());
                 }
 
