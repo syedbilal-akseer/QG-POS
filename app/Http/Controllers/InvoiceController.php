@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Invoice;
 use App\Models\Customer;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -54,28 +55,47 @@ class InvoiceController extends Controller
         if ($request->boolean('unsent_only')) {
             $filterWhatsapp = 'pending';
         }
+        // Resolved once (not per-query) since it's identical across every
+        // tap($baseFilter) call below — avoids re-running the user/customer
+        // lookups 3-4 times per page load.
+        $user = auth()->user();
+        $admins = ['mahmood@quadri-group.com'];
+        $cmdCustomerCodes = null; // null = no CMD restriction needed
+
+        if (!in_array($user->email, $admins) && !$user->isAdmin() && $user->isCmd()) {
+            // CMD-KHI / CMD-LHR see invoices for customers whose Oracle
+            // "salesperson" matches one of their assigned salespeople.
+            // customers.salesperson stores the salesperson's name /
+            // oracle_user_name (a string), not a user id, so resolve the
+            // assigned ids through the users table first. Empty/null
+            // assigned list (= "All") means no restriction.
+            $assignedSalespeopleIds = $user->getAssignedSalespeopleIds();
+            if (!empty($assignedSalespeopleIds)) {
+                $salespersonNames = User::whereIn('id', $assignedSalespeopleIds)
+                    ->get(['name', 'oracle_user_name'])
+                    ->flatMap(fn ($u) => [$u->name, $u->oracle_user_name])
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                $cmdCustomerCodes = !empty($salespersonNames)
+                    ? Customer::whereIn('salesperson', $salespersonNames)->pluck('customer_number')->all()
+                    : [];
+            }
+        }
+
         // Build the base filter once and clone it for each downstream query so
         // search/date filters apply consistently to stats, the date pagination,
         // and the actual invoice load.
-        $baseFilter = function ($q) use ($filterFrom, $filterTo, $filterStatus, $filterWhatsapp, $filterCustomer, $request) {
-              $admins = [
-                    'mahmood@quadri-group.com',
-                ];
-
-                $user = auth()->user();
-
+        $baseFilter = function ($q) use ($filterFrom, $filterTo, $filterStatus, $filterWhatsapp, $filterCustomer, $request, $user, $admins, $cmdCustomerCodes) {
                 if (in_array($user->email, $admins) || $user->isAdmin()) {
                     // no restriction
-                } elseif ($user->isCmd()) {
-                    // CMD-KHI / CMD-LHR see invoices uploaded by their assigned
-                    // salespeople only; null (= "All") means no restriction.
-                    $assignedSalespeopleIds = $user->getAssignedSalespeopleIds();
-                    if (!empty($assignedSalespeopleIds)) {
-                        $q->whereIn('uploaded_by', $assignedSalespeopleIds);
-                    }
-                } else {
+                } elseif ($cmdCustomerCodes !== null) {
+                    $q->whereIn('customer_code', $cmdCustomerCodes);
+                } elseif (!$user->isCmd()) {
                     // Other users can only see their own uploaded invoices
-                    $q->where('uploaded_by', auth()->id());
+                    $q->where('uploaded_by', $user->id);
                 }
 
 
@@ -199,13 +219,20 @@ class InvoiceController extends Controller
 
         // Send page — paginate by upload DATE so an expanded accordion always
         // shows every invoice for that day.
+        //
+        // Small page size on purpose: every invoice row for every visible date
+        // is rendered into the DOM up front (the accordion only toggles CSS
+        // visibility via x-show, it doesn't defer rendering), so a large
+        // window here means rendering hundreds/thousands of invoice rows —
+        // and their per-row action menus — on every page load. At 30 dates
+        // this was pulling in nearly the entire invoices table each time.
         $datesPage = Invoice::query()
             ->tap($baseFilter)
             ->whereNotNull('uploaded_at')
             ->selectRaw('DATE(uploaded_at) as upload_date, COUNT(*) as invoice_count')
             ->groupBy('upload_date')
             ->orderByDesc('upload_date')
-            ->paginate(30)
+            ->paginate(5)
             ->withQueryString();
 
         $visibleDates = $datesPage->pluck('upload_date')->all();
