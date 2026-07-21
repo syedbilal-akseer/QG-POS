@@ -149,23 +149,34 @@ class InvoiceController extends Controller
             // Read-only page = flat paginated table (orders-style). No date
             // grouping; the user filters / sorts the whole list.
             $invoicesPage = Invoice::query()
-                ->tap($baseFilter)
-                ->with('uploader')
-                ->orderByDesc('uploaded_at')
-                ->paginate(50)
-                ->withQueryString();
+            ->select([
+                'id',
+                'customer_name',
+                'customer_code',
+                'customer_phone',
+                'invoice_number',
+                'total_amount',
+                'processing_status',
+                'whatsapp_status',
+                'whatsapp_sent_at',
+                'uploaded_at',
+                'uploaded_by',
+                'pdf_path',
+                'original_filename',
+            ])
+            ->tap($baseFilter)
+            ->with('uploader:id,name')
+            ->latest('uploaded_at')
+            ->paginate(10)
+            ->withQueryString();
 
             // Distinct customers seen across the invoices table — populates the
             // Customer filter dropdown. Pulled here (not from the customers
             // table) so the list only contains customers who actually have
             // invoices uploaded.
             $customerOptions = Invoice::query()
-                ->whereNotNull('customer_code')
-                ->where('customer_code', '!=', '')
-                ->select('customer_code', DB::raw('MAX(customer_name) as customer_name'))
-                ->groupBy('customer_code')
-                ->orderBy('customer_name')
-                ->get();
+                    ->groupBy('customer_code')
+                    ->get();
 
             return view('admin.invoices.view', compact(
                 'invoicesPage', 'stats', 'diskFiles',
