@@ -62,10 +62,13 @@ class InvoiceController extends Controller
                     'mahmood@quadri-group.com',
                 ];
 
+                $user = auth()->user();
+
                 // Other users can only see their own uploaded invoices
-                if (!in_array(auth()->user()->email, $admins)) {
+                if (!in_array(auth()->user()->email, $admins) && !$user->isAdmin() ) {
                     $q->where('uploaded_by', auth()->id());
                 }
+
 
             if ($filterFrom) {
                 $q->whereDate('uploaded_at', '>=', $filterFrom);
@@ -427,7 +430,7 @@ class InvoiceController extends Controller
                 Log::error('PDF text extraction failed - no text extracted from PDF');
                 return [];
             }
-            
+
             Log::info('Raw extracted PDF text', ['pdf_text' => $pdfText]);
 
             // Parse the extracted text to find customers
@@ -488,7 +491,7 @@ class InvoiceController extends Controller
             $pdf = $parser->parseFile($pdfPath);
             $pages = $pdf->getPages();
             $text = '';
-            
+
             foreach ($pages as $page) {
                 // Get text from this specific page and add a form feed on its own line
                 $text .= $page->getText() . "\n\f\n";
@@ -525,17 +528,17 @@ class InvoiceController extends Controller
         $lines = explode("\n", $text);
         $currentCustomerIndex = null;
         $pageNumber = 1;
-        $pageOwners = []; 
-        $pageHasPrimary = []; 
-        $pendingInvoicesByPage = []; 
-        $pendingAmountsByPage = []; 
-        $pendingDatesByPage = []; 
+        $pageOwners = [];
+        $pageHasPrimary = [];
+        $pendingInvoicesByPage = [];
+        $pendingAmountsByPage = [];
+        $pendingDatesByPage = [];
         $state = self::STATE_SEARCHING; // Initialize state machine
         $currentCustomerBlockLines = []; // Collect lines between Salesperson and Bill To/Ship To/Invoice Type
         $currentCustomerBlockPage = null; // Track which page the customer block starts on
         $pageNumberRegex = '/Page\s+\d+\s+of\s+\d+/i'; // Precompile regex for performance
-        
-        ini_set('memory_limit', '512M'); 
+
+        ini_set('memory_limit', '512M');
 
         Log::info('Starting PDF parse with state machine and block collection', [
             'text_length' => strlen($text)
@@ -544,7 +547,7 @@ class InvoiceController extends Controller
         foreach ($lines as $lineNum => $line) {
             $originalLine = $line;
             $line = trim($line);
-            
+
             Log::debug('Processing line', [
                 'line_num' => $lineNum,
                 'original_line' => $originalLine,
@@ -552,14 +555,14 @@ class InvoiceController extends Controller
                 'page_number' => $pageNumber,
                 'current_state' => $state
             ]);
-            
+
             // Check for page break first
             $hasPageBreak = strpos($originalLine, "\f") !== false;
             if ($hasPageBreak) {
                 $pageNumber++;
                 $line = trim(str_replace("\f", "", $line));
             }
-            
+
             if (empty($line)) {
                 continue;
             }
@@ -576,14 +579,14 @@ class InvoiceController extends Controller
 
             // Manage state machine and block collection
             $lineLower = strtolower($line);
-            
+
             // If we just had a page break, reset state
             if ($hasPageBreak) {
                 $state = self::STATE_SEARCHING;
                 $currentCustomerBlockLines = [];
                 $currentCustomerBlockPage = null;
             }
-            
+
             if ($state === self::STATE_SEARCHING) {
                 // Look for start of customer block (salesperson, bill to, or ship to
                 if (
@@ -634,7 +637,7 @@ class InvoiceController extends Controller
                     $currentCustomerBlockLines[] = $line;
                 }
             }
-            
+
             // Assign page to current customer if not already assigned
             if ($currentCustomerIndex !== null && !isset($pageOwners[$pageNumber])) {
                 if (!in_array($pageNumber, $customersData[$currentCustomerIndex]['pages'])) {
@@ -829,7 +832,7 @@ class InvoiceController extends Controller
     private function parseCustomerBlock(&$customersData, $blockLines, $pageNumber, $lineNum, $lines, &$currentCustomerIndex, &$pageOwners, &$pageHasPrimary)
     {
         Log::info('parseCustomerBlock: processing collected lines', ['block_lines' => $blockLines, 'page_number' => $pageNumber]);
-        
+
         $customerName = null;
         $customerCode = null;
         $address = [];
@@ -844,19 +847,19 @@ class InvoiceController extends Controller
         $primaryPatterns = [
             // Pattern 1: Bill To: Customer Name (with special chars) 12345
             '/^Bill\s+To:\s*([a-zA-Z0-9\s&\-.\'()]+?)\s+(\d{4,6})(?:\s+.+)?$/i',
-            
+
             // Pattern 2: Customer: Customer Name (with special chars) 12345
             '/^Customer:\s*([a-zA-Z0-9\s&\-.\'()]+?)\s+(\d{4,6})(?:\s+.+)?$/i',
-            
+
             // Pattern 3: Customer Code: 12345 Customer Name (with special chars)
             '/^Customer\s+Code:\s*(\d{4,6})\s+([a-zA-Z0-9\s&\-.\'()]+)(?:\s+.+)?$/i',
-            
+
             // Pattern 4: Billed To: Customer Name (with special chars) 12345
             '/^Billed\s+To:\s*([a-zA-Z0-9\s&\-.\'()]+?)\s+(\d{4,6})(?:\s+.+)?$/i',
-            
+
             // Pattern 5: Sold To: Customer Name (with special chars) 12345
             '/^Sold\s+To:\s*([a-zA-Z0-9\s&\-.\'()]+?)\s+(\d{4,6})(?:\s+.+)?$/i',
-            
+
             // Pattern 6: Just Customer Name (with special chars) 12345 (no label)
             '/^([a-zA-Z0-9\s&\-.\'()]+?)\s+(\d{4,6})(?:\s+.+)?$/i',
         ];
@@ -900,18 +903,18 @@ class InvoiceController extends Controller
                         $blockLineTrimmed = trim($parts[0]);
                     }
                 }
-                
+
                 // Skip any line that contains financial terms to avoid false positives
                 if (preg_match('/(?:Total|Receivable|Amount|Discount|Sub|Grand|Balance|Tax|Price|Rate|Qty|TR#|Ship|Order|Comments)/i', $blockLineTrimmed)) {
                     continue;
                 }
-                
+
                 // Pattern 6: Standalone "Customer Name (with special chars) 12345" (allow extra content after)
                 if (preg_match('/^([a-zA-Z0-9\s&\-.\'()]+?)\s+(\d{4,6})(?:\s+.+)?$/', $blockLineTrimmed, $matches)) {
                     $customerName = trim($matches[1]);
                     $customerCode = trim($matches[2]);
                     break;
-                } 
+                }
                 // Pattern 7: Standalone "12345 Customer Name (with special chars)" (allow extra content after)
                 elseif (preg_match('/^(\d{4,6})\s+([a-zA-Z0-9\s&\-.\'()]+)(?:\s+.+)?$/', $blockLineTrimmed, $matches)) {
                     $customerCode = trim($matches[1]);
@@ -957,13 +960,13 @@ class InvoiceController extends Controller
             'customer_code_found' => $customerCode,
             'customer_name_found' => $customerName
         ]);
-        
+
         if ($customerCode && $customerName && $this->isValidCustomerName($customerName, $customerCode)) {
             Log::info('parseCustomerBlock: found valid customer', [
                 'customer_code' => $customerCode,
                 'customer_name' => $customerName
             ]);
-            
+
             $this->processCustomerMatch(
                 $customersData,
                 $customerCode,
@@ -1189,10 +1192,10 @@ class InvoiceController extends Controller
             $sortedInvoices = collect($customerData['invoices'])->sortBy('page');
             $invoiceNumbers = $sortedInvoices->pluck('invoice_number')->unique()->filter()->values();
             $totalSum = $sortedInvoices->sum('total_amount');
-            
+
             $startDateStr = $sortedInvoices->pluck('invoice_date')->filter()->first();
             $endDateStr = $sortedInvoices->pluck('invoice_date')->filter()->last();
-            
+
             $invoiceDate = null;
             $startDate = null;
             $endDate = null;
@@ -1407,11 +1410,11 @@ class InvoiceController extends Controller
     {
         try {
             $fpdi = new Fpdi();
-            
+
             // Set margins to 0 to prevent shifting content which causes cropping
             $fpdi->SetMargins(0, 0, 0);
             $fpdi->SetAutoPageBreak(false);
-            
+
             $pageCount = $fpdi->setSourceFile($inputPath);
 
             Log::info('FPDI PDF processing', [
@@ -1436,7 +1439,7 @@ class InvoiceController extends Controller
                     // Add page with same orientation and size as original
                     $orientation = $size['orientation'] ?? ($size['w'] > $size['h'] ? 'L' : 'P');
                     $fpdi->AddPage($orientation, [$size['w'], $size['h']]);
-                    
+
                     // Use template with explicit (0,0) position and full size to avoid cropping from right/bottom
                     $fpdi->useTemplate($tplId, 0, 0, $size['w'], $size['h'], true);
 
@@ -1959,7 +1962,7 @@ class InvoiceController extends Controller
     private function isValidCustomerName($customerName, $customerCode)
     {
         Log::debug('isValidCustomerName: checking customer', ['name' => $customerName, 'code' => $customerCode]);
-        
+
         // List of invalid customer names as specified by the user
         $invalidNames = [
             'receivable',
