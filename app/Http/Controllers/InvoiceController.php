@@ -1217,13 +1217,19 @@ class InvoiceController extends Controller
                 }
             }
 
+            $customer = Customer::where(
+                'customer_code',
+                $customerData['customer_code']
+            )->first();
+
+            $phone = $customer?->contact_number ?? null;
             // Create database record
             $invoice = Invoice::create([
                 'original_filename' => $originalFilename,
                 'source_file_hash' => $fileHash,
                 'customer_code' => $customerCode,
                 'customer_name' => $customerName,
-                'customer_phone' => $resolvedPhone,
+                'customer_phone' => $phone,
                 'invoice_number' => $invoiceNumbers->isNotEmpty() ? $invoiceNumbers->implode(', ') : null,
                 'invoice_date' => $invoiceDate,
                 'start_date' => $startDate,
