@@ -151,6 +151,7 @@
                             <thead class="bg-gray-50 dark:bg-gray-700">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Customer</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Salesperson</th>
                                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Invoice Details</th>
                                     <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Amount</th>
                                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Status</th>
@@ -163,13 +164,16 @@
                                 @forelse($invoicesPage as $invoice)
                                     <tr class="hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <div>
-                                                <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ $invoice->customer_name }}</div>
+                                            <div class="cursor-pointer group" onclick="showCustomerInfo('{{ $invoice->customer_code }}')" title="View customer details">
+                                                <div class="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 group-hover:underline">{{ $invoice->customer_name }}</div>
                                                 <div class="text-sm text-gray-500 dark:text-gray-400">Code: {{ $invoice->customer_code }}</div>
                                                 @if($invoice->customer_phone)
                                                     <div class="text-xs text-gray-500 dark:text-gray-400">{{ $invoice->customer_phone }}</div>
                                                 @endif
                                             </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
+                                            {{ $invoice->salesperson ?: '—' }}
                                         </td>
                                         <td class="px-6 py-4 align-top max-w-xs">
                                             @php
@@ -253,41 +257,53 @@
                                             <div class="text-xs text-gray-500 dark:text-gray-400">by {{ $invoice->uploader->name ?? 'Unknown' }}</div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <div class="flex space-x-2">
-                                                <a href="{{ route('invoices.show', $invoice->id) }}"
-                                                   class="inline-flex items-center px-2 py-1 border border-transparent text-xs leading-4 font-medium rounded text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                                                   title="View Invoice Details">
-                                                    <i class="fas fa-eye mr-1"></i>View
-                                                </a>
-                                                @if($invoice->processing_status === 'completed' && $invoice->pdf_path)
-                                                    <a href="{{ route('invoices.download', $invoice->id) }}"
-                                                       class="inline-flex items-center px-2 py-1 border border-transparent text-xs leading-4 font-medium rounded text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                                                       title="Download PDF">
-                                                        <i class="fas fa-download mr-1"></i>PDF
-                                                    </a>
-                                                @endif
-                                                <a href="{{ route('invoices.customer', $invoice->customer_code) }}"
-                                                   class="inline-flex items-center px-2 py-1 border border-transparent text-xs leading-4 font-medium rounded text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                                                   title="View Customer Invoices">
-                                                    <i class="fas fa-user mr-1"></i>Customer
-                                                </a>
-                                                @if($canAttachBuilty)
-                                                    <button type="button"
-                                                            @click="openFor({{ $invoice->id }}, @js($invoice->invoice_number))"
-                                                            style="background-color: #ca8a04; color: #ffffff;"
-                                                            onmouseover="this.style.backgroundColor='#a16207'"
-                                                            onmouseout="this.style.backgroundColor='#ca8a04'"
-                                                            class="inline-flex items-center px-2 py-1 border border-transparent text-xs leading-4 font-medium rounded focus:outline-none focus:ring-2 focus:ring-offset-2"
-                                                            title="Attach an existing bilty to this invoice">
-                                                        <i class="fas fa-truck mr-1" style="color: #ffffff;"></i>Attach Bilty
-                                                    </button>
-                                                @endif
+                                            {{-- Same ellipsis-dropdown pattern as the send page's Actions
+                                                column, so the two invoice tables stay visually consistent. --}}
+                                            <div x-data="{ open: false }" class="relative inline-block text-left">
+                                                <button @click="open = !open"
+                                                        class="inline-flex items-center justify-center w-28 h-9 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                                    <i class="fas fa-ellipsis-v px-2"></i>Actions
+                                                </button>
+
+                                                <div x-show="open" @click.away="open = false" x-transition
+                                                     class="absolute right-0 mt-2 w-52 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50">
+                                                    <div class="py-1">
+                                                        <a href="{{ route('invoices.show', $invoice->id) }}"
+                                                           class="flex items-center px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700">
+                                                            <i class="fas fa-eye w-5 text-blue-600"></i>
+                                                            View Invoice
+                                                        </a>
+
+                                                        @if($invoice->processing_status === 'completed' && $invoice->pdf_path)
+                                                            <a href="{{ route('invoices.download', $invoice->id) }}"
+                                                               class="flex items-center px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700">
+                                                                <i class="fas fa-download w-5 text-indigo-600"></i>
+                                                                Download PDF
+                                                            </a>
+                                                        @endif
+
+                                                        <a href="{{ route('invoices.customer', $invoice->customer_code) }}"
+                                                           class="flex items-center px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700">
+                                                            <i class="fas fa-user w-5 text-purple-600"></i>
+                                                            Customer History
+                                                        </a>
+
+                                                        @if($canAttachBuilty)
+                                                            <button type="button"
+                                                                    @click="open = false; openFor({{ $invoice->id }}, @js($invoice->invoice_number))"
+                                                                    class="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700">
+                                                                <i class="fas fa-truck w-5 text-yellow-600"></i>
+                                                                Attach Bilty
+                                                            </button>
+                                                        @endif
+                                                    </div>
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="px-6 py-10 text-center text-gray-500 dark:text-gray-400">
+                                        <td colspan="8" class="px-6 py-10 text-center text-gray-500 dark:text-gray-400">
                                             <i class="fas fa-file-pdf text-4xl mb-3 text-gray-400 dark:text-gray-500"></i>
                                             <div class="text-base">No invoices match the current filters.</div>
                                         </td>
@@ -339,4 +355,105 @@
             </div>
         </div>
     </div>
+
+    {{-- Customer details popup — same layout as the /app/customers "View Details"
+         modal, but populated live via fetch() against InvoiceController::customerInfo()
+         rather than the invoice's own (possibly stale) customer_name/customer_code. --}}
+    <x-modal name="customer_detail" maxWidth="2xl">
+        <div class="p-6 bg-white dark:bg-neutral-800">
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">Customer Details</h2>
+                <span onclick="window.dispatchEvent(new CustomEvent('close-modal', { detail: 'customer_detail' }))"
+                    class="cursor-pointer text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </span>
+            </div>
+
+            <div id="customer-detail-loading" class="mt-6 text-center text-gray-500 dark:text-gray-400 hidden">
+                <i class="fas fa-spinner fa-spin mr-2"></i>Loading…
+            </div>
+            <div id="customer-detail-error" class="mt-6 text-center text-red-600 hidden">
+                Customer not found.
+            </div>
+
+            <div id="customer-detail-fields" class="mt-4 space-y-4 hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    @foreach ([
+                        'customer_id' => 'Customer ID',
+                        'ou_name' => 'OU Name',
+                        'ou_id' => 'OU ID',
+                        'customer_name' => 'Customer Name',
+                        'customer_number' => 'Account Number',
+                        'customer_site_id' => 'Customer Site ID',
+                        'salesperson' => 'Salesperson',
+                        'city' => 'City',
+                        'area' => 'Area',
+                        'address1' => 'Address',
+                        'contact_number' => 'Contact Number',
+                        'email_address' => 'Email Address',
+                        'nic' => 'NIC',
+                        'ntn' => 'NTN',
+                        'price_list_id' => 'Price List ID',
+                        'price_list_name' => 'Price List Name',
+                        'creation_date' => 'Creation Date',
+                    ] as $field => $label)
+                        <div class="flex flex-col">
+                            <label class="font-medium text-gray-700 dark:text-gray-300">{{ $label }}:</label>
+                            <span id="cd-{{ $field }}" class="text-gray-900 dark:text-gray-100"></span>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        <div class="flex justify-end items-center gap-x-2 py-3 px-4 bg-gray-50 dark:bg-neutral-950 border-t border-gray-200 dark:border-neutral-800">
+            <x-secondary-button type="button"
+                onclick="window.dispatchEvent(new CustomEvent('close-modal', { detail: 'customer_detail' }))"
+                class="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800">
+                {{ __('Cancel') }}
+            </x-secondary-button>
+        </div>
+    </x-modal>
+
+    <script>
+        const CUSTOMER_DETAIL_FIELDS = [
+            'customer_id', 'ou_name', 'ou_id', 'customer_name', 'customer_number',
+            'customer_site_id', 'salesperson', 'city', 'area', 'address1',
+            'contact_number', 'email_address', 'nic', 'ntn',
+            'price_list_id', 'price_list_name', 'creation_date',
+        ];
+
+        function showCustomerInfo(code) {
+            const loading = document.getElementById('customer-detail-loading');
+            const errorBox = document.getElementById('customer-detail-error');
+            const fields = document.getElementById('customer-detail-fields');
+
+            errorBox.classList.add('hidden');
+            fields.classList.add('hidden');
+            loading.classList.remove('hidden');
+
+            window.dispatchEvent(new CustomEvent('open-modal', { detail: 'customer_detail' }));
+
+            fetch(`{{ route('invoices.customer-info') }}?code=${encodeURIComponent(code)}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                })
+                .then(r => {
+                    if (!r.ok) throw new Error('Not found');
+                    return r.json();
+                })
+                .then(data => {
+                    CUSTOMER_DETAIL_FIELDS.forEach(field => {
+                        const el = document.getElementById('cd-' + field);
+                        if (el) el.textContent = data[field] ?? '—';
+                    });
+                    loading.classList.add('hidden');
+                    fields.classList.remove('hidden');
+                })
+                .catch(() => {
+                    loading.classList.add('hidden');
+                    errorBox.classList.remove('hidden');
+                });
+        }
+    </script>
 </x-app-layout>

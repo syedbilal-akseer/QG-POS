@@ -36,6 +36,196 @@ class InvoiceController extends Controller
         return $this->renderListing($request, true);
     }
 
+    /**
+     * CMD-KHI / CMD-LHR restrict to customers whose Oracle "salesperson"
+     * matches one of their assigned salespeople. customers.salesperson stores
+     * the salesperson's name / oracle_user_name (a string), not a user id, so
+     * assigned ids are resolved through the users table first.
+     *
+     * Returns null when no restriction applies (not CMD, or CMD with "All"
+     * access), or an array of allowed customer_number values (possibly empty,
+     * meaning the assigned names matched no customers).
+     */
+    private function resolveCmdCustomerCodes(User $user): ?array
+    {
+        if (!$user->isCmd()) {
+            return null;
+        }
+
+        $assignedSalespeopleIds = $user->getAssignedSalespeopleIds();
+        if (empty($assignedSalespeopleIds)) {
+            return null; // "All" access
+        }
+
+        $salespersonNames = User::whereIn('id', $assignedSalespeopleIds)
+            ->get(['name', 'oracle_user_name'])
+            ->flatMap(fn ($u) => [$u->name, $u->oracle_user_name])
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        return !empty($salespersonNames)
+            ? Customer::whereIn('salesperson', $salespersonNames)->pluck('customer_number')->all()
+            : [];
+    }
+
+    /** Who's allowed to see which invoices — admins see all, CMD roles see their assigned customers, everyone else sees only their own uploads. */
+    private function applyAccessScope($q, User $user, array $admins, ?array $cmdCustomerCodes): void
+    {
+        if (in_array($user->email, $admins) || $user->isAdmin()) {
+            return;
+        }
+        if ($cmdCustomerCodes !== null) {
+            $q->whereIn('invoices.customer_code', $cmdCustomerCodes);
+            return;
+        }
+        if (!$user->isCmd()) {
+            $q->where('invoices.uploaded_by', $user->id);
+        }
+    }
+
+    /** Date/status/whatsapp/customer/search filters shared by the listing queries and the lazy row-loading endpoint. */
+    private function applyRequestFilters($q, Request $request): void
+    {
+        $filterFrom     = $request->input('from')     ?: null;
+        $filterTo       = $request->input('to')       ?: null;
+        $filterStatus   = $request->input('status')   ?: null;
+        $filterWhatsapp = $request->input('whatsapp') ?: null;
+        $filterCustomer = $request->input('customer') ?: null;
+
+        if ($request->boolean('unsent_only')) {
+            $filterWhatsapp = 'pending';
+        }
+
+        if ($filterFrom) {
+            $q->whereDate('invoices.uploaded_at', '>=', $filterFrom);
+        }
+        if ($filterTo) {
+            $q->whereDate('invoices.uploaded_at', '<=', $filterTo);
+        }
+        if ($filterCustomer) {
+            $q->where('invoices.customer_code', $filterCustomer);
+        }
+        if ($filterStatus) {
+            if ($filterStatus === 'pending') {
+                $q->where(function ($inner) {
+                    $inner->whereNull('invoices.processing_status')->orWhere('invoices.processing_status', '');
+                });
+            } else {
+                $q->where('invoices.processing_status', $filterStatus);
+            }
+        }
+        if ($filterWhatsapp) {
+            if ($filterWhatsapp === 'pending') {
+                $q->where(function ($inner) {
+                    $inner->whereNull('invoices.whatsapp_status')->orWhere('invoices.whatsapp_status', '');
+                });
+            } else {
+                $q->where('invoices.whatsapp_status', $filterWhatsapp);
+            }
+        }
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $q->where(function ($inner) use ($search) {
+                $inner->where('invoices.customer_code', 'like', "%{$search}%")
+                      ->orWhere('invoices.customer_name', 'like', "%{$search}%")
+                      ->orWhere('invoices.customer_phone', 'like', "%{$search}%")
+                      ->orWhere('invoices.original_filename', 'like', "%{$search}%")
+                      ->orWhere('invoices.invoice_number', 'like', "%{$search}%");
+            });
+        }
+    }
+
+    /**
+     * Detail rows for one (date, uploaded_by) accordion group on the send
+     * page — fetched lazily via AJAX only when that group is expanded, so the
+     * initial page load doesn't have to render every invoice row up front.
+     */
+    public function rowsForGroup(Request $request)
+    {
+        $request->validate([
+            'date'        => 'required|date',
+            'uploaded_by' => 'required|integer',
+        ]);
+
+        $user = auth()->user();
+        $admins = ['mahmood@quadri-group.com'];
+        $cmdCustomerCodes = $this->resolveCmdCustomerCodes($user);
+
+        $invoices = Invoice::query()
+            ->whereDate('invoices.uploaded_at', $request->date)
+            ->where('invoices.uploaded_by', $request->integer('uploaded_by'))
+            ->tap(fn ($q) => $this->applyAccessScope($q, $user, $admins, $cmdCustomerCodes))
+            ->tap(fn ($q) => $this->applyRequestFilters($q, $request))
+            ->with('uploader:id,name')
+            ->orderBy('invoices.uploaded_at', 'desc')
+            ->get();
+
+        $this->attachLivePhones($invoices);
+
+        return view('admin.invoices.partials.invoice-detail-rows', compact('invoices'));
+    }
+
+    /**
+     * Live customer master info for the "click customer to view details" popup
+     * on the invoices view page — deliberately NOT sourced from the invoice's
+     * own (possibly stale) customer_name/customer_phone columns.
+     */
+    public function customerInfo(Request $request)
+    {
+        $request->validate(['code' => 'required|string']);
+
+        $customer = Customer::where('customer_number', $request->code)
+            ->orWhere('customer_id', $request->code)
+            ->first([
+                'customer_id', 'ou_name', 'ou_id', 'customer_name', 'customer_number',
+                'customer_site_id', 'salesperson', 'city', 'area', 'address1',
+                'contact_number', 'email_address', 'nic', 'ntn',
+                'price_list_id', 'price_list_name', 'creation_date',
+            ]);
+
+        if (!$customer) {
+            return response()->json(['message' => 'Customer not found.'], 404);
+        }
+
+        return response()->json($customer);
+    }
+
+    /**
+     * Batch-resolve each invoice's customer's CURRENT contact_number from the
+     * customers table (one query for the whole collection) and stash it as
+     * ->live_phone. Used to decide whether "Send WhatsApp" should be offered
+     * at all — an invoice's own customer_phone column can be blank or stale,
+     * so gating only on that would hide/allow the action incorrectly.
+     */
+    private function attachLivePhones($invoices): void
+    {
+        $codes = $invoices->pluck('customer_code')->filter()->unique()->values()->all();
+        if (empty($codes)) {
+            return;
+        }
+
+        $phonesByCode = Customer::whereIn('customer_number', $codes)
+            ->orWhereIn('customer_id', $codes)
+            ->get(['customer_number', 'customer_id', 'contact_number'])
+            ->reduce(function (array $carry, Customer $customer) {
+                if ($customer->contact_number) {
+                    if ($customer->customer_number) {
+                        $carry[$customer->customer_number] = $customer->contact_number;
+                    }
+                    if ($customer->customer_id) {
+                        $carry[$customer->customer_id] = $customer->contact_number;
+                    }
+                }
+                return $carry;
+            }, []);
+
+        foreach ($invoices as $invoice) {
+            $invoice->live_phone = $phonesByCode[$invoice->customer_code] ?? null;
+        }
+    }
+
     private function renderListing(Request $request, bool $viewOnly)
     {
         $diskFiles = [];
@@ -49,93 +239,19 @@ class InvoiceController extends Controller
         $filterWhatsapp = $request->input('whatsapp') ?: null;   // sent | failed | pending
         $filterCustomer = $request->input('customer') ?: null;   // exact customer_code
 
-        // Shortcut: when the "Unsent / Pending" quick filter is on, force the
-        // WhatsApp filter to "pending". Lets the link in the header drop the
-        // user into the unsent-only view without them touching the filter UI.
-        if ($request->boolean('unsent_only')) {
-            $filterWhatsapp = 'pending';
-        }
         // Resolved once (not per-query) since it's identical across every
         // tap($baseFilter) call below — avoids re-running the user/customer
         // lookups 3-4 times per page load.
         $user = auth()->user();
         $admins = ['mahmood@quadri-group.com'];
-        $cmdCustomerCodes = null; // null = no CMD restriction needed
-
-        if (!in_array($user->email, $admins) && !$user->isAdmin() && $user->isCmd()) {
-            // CMD-KHI / CMD-LHR see invoices for customers whose Oracle
-            // "salesperson" matches one of their assigned salespeople.
-            // customers.salesperson stores the salesperson's name /
-            // oracle_user_name (a string), not a user id, so resolve the
-            // assigned ids through the users table first. Empty/null
-            // assigned list (= "All") means no restriction.
-            $assignedSalespeopleIds = $user->getAssignedSalespeopleIds();
-            if (!empty($assignedSalespeopleIds)) {
-                $salespersonNames = User::whereIn('id', $assignedSalespeopleIds)
-                    ->get(['name', 'oracle_user_name'])
-                    ->flatMap(fn ($u) => [$u->name, $u->oracle_user_name])
-                    ->filter()
-                    ->unique()
-                    ->values()
-                    ->all();
-
-                $cmdCustomerCodes = !empty($salespersonNames)
-                    ? Customer::whereIn('salesperson', $salespersonNames)->pluck('customer_number')->all()
-                    : [];
-            }
-        }
+        $cmdCustomerCodes = $this->resolveCmdCustomerCodes($user);
 
         // Build the base filter once and clone it for each downstream query so
         // search/date filters apply consistently to stats, the date pagination,
         // and the actual invoice load.
-        $baseFilter = function ($q) use ($filterFrom, $filterTo, $filterStatus, $filterWhatsapp, $filterCustomer, $request, $user, $admins, $cmdCustomerCodes) {
-                if (in_array($user->email, $admins) || $user->isAdmin()) {
-                    // no restriction
-                } elseif ($cmdCustomerCodes !== null) {
-                    $q->whereIn('customer_code', $cmdCustomerCodes);
-                } elseif (!$user->isCmd()) {
-                    // Other users can only see their own uploaded invoices
-                    $q->where('uploaded_by', $user->id);
-                }
-
-
-            if ($filterFrom) {
-                $q->whereDate('uploaded_at', '>=', $filterFrom);
-            }
-            if ($filterTo) {
-                $q->whereDate('uploaded_at', '<=', $filterTo);
-            }
-            if ($filterCustomer) {
-                $q->where('customer_code', $filterCustomer);
-            }
-            if ($filterStatus) {
-                if ($filterStatus === 'pending') {
-                    $q->where(function ($inner) {
-                        $inner->whereNull('processing_status')->orWhere('processing_status', '');
-                    });
-                } else {
-                    $q->where('processing_status', $filterStatus);
-                }
-            }
-            if ($filterWhatsapp) {
-                if ($filterWhatsapp === 'pending') {
-                    $q->where(function ($inner) {
-                        $inner->whereNull('whatsapp_status')->orWhere('whatsapp_status', '');
-                    });
-                } else {
-                    $q->where('whatsapp_status', $filterWhatsapp);
-                }
-            }
-            if ($request->filled('search')) {
-                $search = $request->search;
-                $q->where(function ($inner) use ($search) {
-                    $inner->where('customer_code', 'like', "%{$search}%")
-                          ->orWhere('customer_name', 'like', "%{$search}%")
-                          ->orWhere('customer_phone', 'like', "%{$search}%")
-                          ->orWhere('original_filename', 'like', "%{$search}%")
-                          ->orWhere('invoice_number', 'like', "%{$search}%");
-                });
-            }
+        $baseFilter = function ($q) use ($request, $user, $admins, $cmdCustomerCodes) {
+            $this->applyAccessScope($q, $user, $admins, $cmdCustomerCodes);
+            $this->applyRequestFilters($q, $request);
         };
 
         // Filesystem files matching the search term (kept from the prior behavior).
@@ -177,25 +293,38 @@ class InvoiceController extends Controller
         if ($viewOnly) {
             // Read-only page = flat paginated table (orders-style). No date
             // grouping; the user filters / sorts the whole list.
+            //
+            // Salesperson pulled via a correlated scalar subquery rather than
+            // a join — invoices.customer_code may match either
+            // customers.customer_number OR customers.customer_id (invoices
+            // store either form depending on upload source), and a join on
+            // both columns risks matching two different customer rows and
+            // duplicating the invoice row. A LIMIT 1 scalar subquery can't
+            // fan out no matter how many customers rows match.
             $invoicesPage = Invoice::query()
             ->select([
-                'id',
-                'customer_name',
-                'customer_code',
-                'customer_phone',
-                'invoice_number',
-                'total_amount',
-                'processing_status',
-                'whatsapp_status',
-                'whatsapp_sent_at',
-                'uploaded_at',
-                'uploaded_by',
-                'pdf_path',
-                'original_filename',
+                'invoices.id',
+                'invoices.customer_name',
+                'invoices.customer_code',
+                'invoices.customer_phone',
+                'invoices.invoice_number',
+                'invoices.total_amount',
+                'invoices.processing_status',
+                'invoices.whatsapp_status',
+                'invoices.whatsapp_sent_at',
+                'invoices.uploaded_at',
+                'invoices.uploaded_by',
+                'invoices.pdf_path',
+                'invoices.original_filename',
+            ])
+            ->addSelect(['salesperson' => Customer::select('salesperson')
+                ->whereColumn('customers.customer_number', 'invoices.customer_code')
+                ->orWhereColumn('customers.customer_id', 'invoices.customer_code')
+                ->limit(1),
             ])
             ->tap($baseFilter)
             ->with('uploader:id,name')
-            ->latest('uploaded_at')
+            ->latest('invoices.uploaded_at')
             ->paginate(10)
             ->withQueryString();
 
@@ -219,33 +348,37 @@ class InvoiceController extends Controller
 
         // Send page — paginate by upload DATE so an expanded accordion always
         // shows every invoice for that day.
-        //
-        // Small page size on purpose: every invoice row for every visible date
-        // is rendered into the DOM up front (the accordion only toggles CSS
-        // visibility via x-show, it doesn't defer rendering), so a large
-        // window here means rendering hundreds/thousands of invoice rows —
-        // and their per-row action menus — on every page load. At 30 dates
-        // this was pulling in nearly the entire invoices table each time.
         $datesPage = Invoice::query()
             ->tap($baseFilter)
             ->whereNotNull('uploaded_at')
             ->selectRaw('DATE(uploaded_at) as upload_date, COUNT(*) as invoice_count')
             ->groupBy('upload_date')
             ->orderByDesc('upload_date')
-            ->paginate(5)
+            ->paginate(30)
             ->withQueryString();
 
         $visibleDates = $datesPage->pluck('upload_date')->all();
 
+        // Light columns only — this collection just drives the per-date/
+        // per-uploader accordion HEADERS (counts, unsent ids for the "Send"
+        // button). The actual detail rows (customer info, action menus, …)
+        // are fetched lazily via rowsForGroup() only when a group is expanded,
+        // so a page with hundreds of invoices across its visible dates
+        // doesn't render all of them into the DOM up front.
         $invoices = Invoice::query()
             ->tap($baseFilter)
-            ->with('uploader')
+            ->select(['id', 'uploaded_by', 'uploaded_at', 'processing_status', 'whatsapp_status', 'pdf_path', 'customer_code', 'customer_phone'])
+            ->with('uploader:id,name')
             ->when(!empty($visibleDates),
                 fn ($q) => $q->whereIn(DB::raw('DATE(uploaded_at)'), $visibleDates),
                 fn ($q) => $q->whereRaw('1 = 0')
             )
             ->orderBy('uploaded_at', 'desc')
             ->get();
+
+        // Needed so the per-day "Send N" count/button only counts invoices
+        // whose customer currently HAS a contact number — see attachLivePhones().
+        $this->attachLivePhones($invoices);
 
         $whatsappService = new \App\Services\WhatsAppService();
         $templatesResult = $whatsappService->getAvailableTemplates();

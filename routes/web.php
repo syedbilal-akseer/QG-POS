@@ -237,6 +237,7 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
             Route::get('/export', [App\Http\Controllers\InvoiceController::class, 'export'])->name('export');
             Route::post('/bulk-send-whatsapp', [App\Http\Controllers\InvoiceController::class, 'bulkSendWhatsApp'])->name('bulk-send');
             Route::get('/explorer/preview', [App\Http\Controllers\InvoiceController::class, 'previewDiskFile'])->name('preview-file');
+            Route::get('/rows', [App\Http\Controllers\InvoiceController::class, 'rowsForGroup'])->name('rows');
             Route::post('/{invoice}/update-phone', [App\Http\Controllers\InvoiceController::class, 'updatePhone'])->name('update-phone');
             Route::post('/{invoice}/send-whatsapp', [App\Http\Controllers\InvoiceController::class, 'sendWhatsApp'])->name('send-whatsapp');
             Route::delete('/{invoice}', [App\Http\Controllers\InvoiceController::class, 'destroy'])->name('destroy');
@@ -360,6 +361,8 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
     Route::middleware(['checkRole:admin,invoice-manager,view-khi,view-lhr,view-all'])->group(function () {
         Route::prefix('admin/invoices')->name('invoices.')->group(function () {
             Route::get('/view', [App\Http\Controllers\InvoiceController::class, 'viewIndex'])->name('view');
+            // Static — must stay before the /{invoice} wildcard below or it'll swallow this path.
+            Route::get('/customer-info', [App\Http\Controllers\InvoiceController::class, 'customerInfo'])->name('customer-info');
             Route::get('/{invoice}', [App\Http\Controllers\InvoiceController::class, 'show'])->name('show');
             Route::get('/download/{invoice}', [App\Http\Controllers\InvoiceController::class, 'download'])->name('download');
             Route::get('/customer/{customerCode}', [App\Http\Controllers\InvoiceController::class, 'showCustomer'])->name('customer');
