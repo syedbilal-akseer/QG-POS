@@ -281,6 +281,8 @@ class InvoiceController extends Controller
                 SUM(CASE WHEN processing_status = 'completed'  THEN 1 ELSE 0 END) as completed,
                 SUM(CASE WHEN processing_status = 'processing' THEN 1 ELSE 0 END) as processing,
                 SUM(CASE WHEN processing_status = 'failed'     THEN 1 ELSE 0 END) as failed,
+                SUM(CASE WHEN processing_status IS NULL OR processing_status = '' OR processing_status = 'pending'
+                     THEN 1 ELSE 0 END) as pending,
                 SUM(CASE WHEN processing_status = 'completed'
                           AND pdf_path IS NOT NULL
                           AND (whatsapp_status IS NULL OR whatsapp_status = '' OR whatsapp_status = 'failed')
@@ -602,9 +604,13 @@ class InvoiceController extends Controller
     }
 
     /**
-     * Extract customer information from PDF text
+     * Extract customer information from PDF text.
+     *
+     * Public (not private) so console commands can reuse the exact same
+     * parsing logic to re-verify already-stored invoices against their own
+     * split PDF — e.g. app/Console/Commands/VerifyInvoiceCustomers.php.
      */
-    private function extractCustomersFromPDF($pdfPath)
+    public function extractCustomersFromPDF($pdfPath)
     {
         try {
             // Try different PDF text extraction methods
@@ -682,28 +688,33 @@ class InvoiceController extends Controller
             }
 
             // Method 2: Try using PHP PDF parser library
+            // Must return the same [['page' => n, 'text' => ...], ...] shape
+            // as Method 1 above — parseCustomersFromPages() always expects an
+            // array of per-page entries, never a raw string.
             $parser = new Parser();
             $pdf    = $parser->parseFile($pdfPath);
             $pages  = $pdf->getPages();
-            $text   = '';
 
-            foreach ($pages as $page) {
-                // Get text from this specific page and add a form feed on its own line
-                $text .= $page->getText() . "\n\f\n";
+            $pageData = [];
+            foreach ($pages as $index => $page) {
+                $pageData[] = [
+                    'page' => $index + 1,
+                    'text' => trim($page->getText()),
+                ];
             }
 
-            if (! empty(trim($text))) {
-                Log::info('PDF text extracted successfully using PdfParser with isolated page breaks', [
-                    'pages_found' => count($pages),
+            if (! empty($pageData)) {
+                Log::info('PDF text extracted successfully using PdfParser', [
+                    'pages_found' => count($pageData),
                 ]);
-                return $text;
+                return $pageData;
             }
 
-            return '';
+            return [];
 
         } catch (\Exception $e) {
             Log::error('PDF text extraction failed: ' . $e->getMessage());
-            return '';
+            return [];
         }
     }
 
@@ -932,7 +943,7 @@ class InvoiceController extends Controller
             }
 
             $customer = Customer::where(
-                'customer_code',
+                'customer_number',
                 $customerData['customer_code']
             )->first();
 

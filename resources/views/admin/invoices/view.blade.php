@@ -118,7 +118,7 @@
                     </div>
 
                     {{-- Summary cards --}}
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
                         <div class="bg-primary-50 dark:bg-primary-900/20 p-4 rounded-lg border border-primary-100 dark:border-primary-800">
                             <div class="text-primary-800 dark:text-primary-300">
                                 <h3 class="text-sm font-semibold uppercase tracking-wider">Total Invoices</h3>
@@ -135,6 +135,12 @@
                             <div class="text-yellow-800 dark:text-yellow-300">
                                 <h3 class="text-sm font-semibold uppercase tracking-wider">Processing</h3>
                                 <p class="text-2xl font-bold mt-1">{{ $stats->processing ?? 0 }}</p>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-900/20 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <div class="text-gray-800 dark:text-gray-300">
+                                <h3 class="text-sm font-semibold uppercase tracking-wider">Pending</h3>
+                                <p class="text-2xl font-bold mt-1">{{ $stats->pending ?? 0 }}</p>
                             </div>
                         </div>
                         <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-100 dark:border-red-800">

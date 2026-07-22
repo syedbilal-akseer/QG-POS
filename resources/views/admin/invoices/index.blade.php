@@ -999,11 +999,13 @@ foreach ($groupRowsByUploader as $row) {
                         }
                         tbody.dataset.loaded = '1';
                         // Newly injected rows carry Alpine attributes (the
-                        // per-row Actions dropdown) — initialize them since
-                        // they were added outside Alpine's own DOM tracking.
-                        if (window.Alpine && typeof window.Alpine.initTree === 'function') {
-                            window.Alpine.initTree(tbody);
-                        }
+                        // per-row Actions dropdown). Alpine's own
+                        // MutationObserver already picks up and initializes
+                        // elements inserted anywhere in the document, so an
+                        // extra manual Alpine.initTree() call here would
+                        // double-initialize them (two competing `open`
+                        // scopes — button click toggles one, x-show watches
+                        // the other) and the dropdown would appear stuck.
                     })
                     .catch(() => {
                         if (loadingRow) {
