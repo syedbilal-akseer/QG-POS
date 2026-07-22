@@ -9,6 +9,15 @@
     <style>
         [x-cloak] { display: none !important; }
         .rotate-180 { transform: rotate(180deg); }
+
+        /* This page loads Bootstrap CSS (above) for its cards/buttons/grid,
+           but Bootstrap's reboot sets a global `a { text-decoration: underline }`
+           that leaks onto the Tailwind-styled sidebar nav, which never expects
+           an underline. Scope the reset back to just the sidebar so this page's
+           own Bootstrap-based content is unaffected. */
+        .app-sidebar-nav a {
+            text-decoration: none !important;
+        }
     </style>
 
     <div class="container mt-2" :class="{ 'table-dark': darkMode, 'table-light': !darkMode }">

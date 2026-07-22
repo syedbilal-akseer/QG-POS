@@ -31,7 +31,7 @@
                 <div class="flex h-16 shrink-0 items-center">
                     <x-application-logo />
                 </div>
-                <nav class="flex flex-1 flex-col">
+                <nav class="app-sidebar-nav flex flex-1 flex-col">
                     <ul role="list" class="flex flex-1 flex-col gap-y-7">
                         <li>
                             @livewire('sidebar.links')
