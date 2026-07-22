@@ -658,7 +658,10 @@ class InvoiceController extends Controller
         try {
             // Method 1: Try pdftotext
             $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
-            $checkCmd  = $isWindows ? 'where pdftotext' : 'which pdftotext 2>/dev/null';
+            // 2>NUL / 2>/dev/null — "where"/"which" write their "not found"
+            // message to stderr, which exec() doesn't capture into $output
+            // and so otherwise leaks straight through to the terminal.
+            $checkCmd  = $isWindows ? 'where pdftotext 2>NUL' : 'which pdftotext 2>/dev/null';
             exec($checkCmd, $output, $returnCode);
 
             if ($returnCode === 0) {

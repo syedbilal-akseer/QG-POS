@@ -229,15 +229,27 @@ class VerifyInvoiceCustomers extends Command
             Storage::disk('local')->delete($invoice->pdf_path);
         }
 
+        // $reason (and customer_name) can contain raw PDF text when the
+        // parser mis-extracted a "name" from a garbled page — that can run to
+        // several KB with embedded newlines, which blows past
+        // activity_logs.description's 255-char VARCHAR and crashes the
+        // insert. Collapse whitespace and hard-cap the whole description.
+        $description = $this->oneLine("Auto-deleted invoice #{$invoice->id} for {$invoice->customer_code} ({$invoice->customer_name}) — {$reason}");
+
         ActivityLog::create([
             'user_id'     => null,
             'user_name'   => 'system (invoices:verify-customers)',
             'action'      => 'delete',
             'module'      => 'Invoices',
-            'description' => "Auto-deleted invoice #{$invoice->id} for {$invoice->customer_code} ({$invoice->customer_name}) — {$reason}",
+            'description' => \Illuminate\Support\Str::limit($description, 250, ''),
             'ip_address'  => 'cli',
         ]);
 
         $invoice->delete();
+    }
+
+    private function oneLine(string $text): string
+    {
+        return trim(preg_replace('/\s+/', ' ', $text));
     }
 }
