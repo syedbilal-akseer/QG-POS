@@ -811,15 +811,44 @@ class InvoiceController extends Controller
     }
     private function parseCustomerBlockFromPage(string $text): ?array
     {
-        if (preg_match('/Bill To:.*?\n\s*(.*?)\s+(\d{4,6})\b/si', $text, $matches)) {
+        $billToPos = stripos($text, 'Bill To:');
 
-            return [
-                'customer_name' => trim($matches[1]),
-                'customer_code' => trim($matches[2]),
-            ];
+        if ($billToPos === false) {
+            return null;
         }
 
-        return null;
+        // The customer's "Name CODE" line (e.g. "Rana Sanitary Store HBM
+        // 13163") can appear either before or after the "Bill To:" label
+        // depending on which PDF text-extraction backend produced $text —
+        // PdfParser emits it before the label, pdftotext -table after.
+        // Rather than assume one order, find every same-line "text digits"
+        // match on the page and pick the one whose name starts nearest to
+        // the "Bill To:" marker. This avoids matching unrelated 4-6 digit
+        // numbers elsewhere on the page (Order No., invoice no., etc.)
+        // which sit much further away.
+        if (! preg_match_all('/^([A-Za-z][^\n]*?)[ \t]+(\d{4,6})[ \t]*$/m', $text, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
+            return null;
+        }
+
+        $best         = null;
+        $bestDistance = null;
+
+        foreach ($matches as $match) {
+            [$name, $namePos] = $match[1];
+            [$code, ]         = $match[2];
+
+            $distance = abs($namePos - $billToPos);
+
+            if ($bestDistance === null || $distance < $bestDistance) {
+                $bestDistance = $distance;
+                $best         = [
+                    'customer_name' => trim($name),
+                    'customer_code' => trim($code),
+                ];
+            }
+        }
+
+        return $best;
     }
     /**
      * Parse customer data from extracted PDF text with state machine
