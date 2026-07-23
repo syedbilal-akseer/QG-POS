@@ -787,7 +787,7 @@ class InvoiceController extends Controller
     }
     private function extractInvoiceNumber(string $text): ?string
     {
-        if (preg_match('/Invoice\s+(\d{5,10})/i', $text, $m)) {
+        if (preg_match('/Invoice\s+(\d{4,10})/i', $text, $m)) {
             return trim($m[1]);
         }
 
