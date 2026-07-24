@@ -80,7 +80,7 @@ class ExportReceiptsPercentage extends Command
         fputcsv($fh, array_merge(
             ['Salesperson'],
             $sortedMonths,
-            ['Total Receipts', 'Mobile Receipts', 'Overall Mobile %'],
+            ['Total Receipts', 'Mobile Receipts', 'Oracle Receipts', 'Overall Mobile %'],
         ));
 
         $grandMob = 0;
@@ -93,7 +93,8 @@ class ExportReceiptsPercentage extends Command
             foreach ($sortedMonths as $m) {
                 $c = $cells[$m] ?? null;
                 if ($c) {
-                    $row[] = sprintf('%s (%d/%d)', $c['pct'], $c['mobile'], $c['total']);
+                    // Oracle receipts = total - mobile; percentage stays mobile/total as before.
+                    $row[] = sprintf('%s (%d/%d, oracle:%d)', $c['pct'], $c['mobile'], $c['total'], $c['total'] - $c['mobile']);
                     $spMob += $c['mobile'];
                     $spTot += $c['total'];
                 } else {
@@ -102,6 +103,7 @@ class ExportReceiptsPercentage extends Command
             }
             $row[] = $spTot;
             $row[] = $spMob;
+            $row[] = $spTot - $spMob;
             $row[] = $spTot > 0 ? round(($spMob / $spTot) * 100, 2) . '%' : '0%';
             fputcsv($fh, $row);
 
@@ -114,10 +116,11 @@ class ExportReceiptsPercentage extends Command
             $mob = $colTotals[$m]['mobile'];
             $tot = $colTotals[$m]['total'];
             $pct = $tot > 0 ? round(($mob / $tot) * 100, 2) . '%' : '0%';
-            $totalRow[] = sprintf('%s (%d/%d)', $pct, $mob, $tot);
+            $totalRow[] = sprintf('%s (%d/%d, oracle:%d)', $pct, $mob, $tot, $tot - $mob);
         }
         $totalRow[] = $grandTot;
         $totalRow[] = $grandMob;
+        $totalRow[] = $grandTot - $grandMob;
         $totalRow[] = $grandTot > 0 ? round(($grandMob / $grandTot) * 100, 2) . '%' : '0%';
         fputcsv($fh, $totalRow);
 

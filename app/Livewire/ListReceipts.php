@@ -41,6 +41,7 @@ class ListReceipts extends Component implements HasForms, HasTable
             // Apply similar logic as in ReceiptController
             if (($user->isCmdKhi() || $user->isCmdLhr()) && !$user->hasAllSalespeopleAccess()) {
                 $assignedSalespeopleIds = $user->getAssignedSalespeopleIds();
+                $allowedOuIds = $user->getAllowedReceiptOuIds();
 
                 if (!empty($assignedSalespeopleIds)) {
                     $query->whereIn('created_by', $assignedSalespeopleIds);

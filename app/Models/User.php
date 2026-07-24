@@ -365,21 +365,14 @@ class User extends Authenticatable
             return [102, 103, 104, 105, 106, 108, 109]; // All OU IDs
         }
 
-        if ($this->isCmdKhi()) {
-            return [102, 103, 104, 105, 106]; // KHI organization OU IDs
-        }
-
-        if ($this->isCmdLhr()) {
-            return [108, 109]; // LHR organization OU IDs
-        }
-
         // Email-based overrides for the four sales team leads.
         $ouOverride = $this->salesLeadEmailOuOverride();
         if ($ouOverride !== null) {
             return $ouOverride;
         }
 
-        // Get OU IDs from Oracle organizations for other roles
+        // CMD-KHI / CMD-LHR (and other roles) get OU IDs from their actual
+        // assigned Oracle organizations rather than a hardcoded KHI/LHR list.
         return $this->getOracleOrganizations();
     }
 

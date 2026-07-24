@@ -103,7 +103,12 @@
       "Bash(php -l app/Http/Controllers/AppController.php)",
       "Bash(php -l app/Services/SalespersonLeaderboardService.php)",
       "Bash(php -l app/Livewire/Dashboard/SalesLeaderboard.php)",
-      "Bash(php artisan *)"
+      "Bash(php artisan *)",
+      "Bash(php -l app/Models/User.php)",
+      "Bash(php artisan tinker '--execute= *)",
+      "Bash(php -l app/Console/Commands/ExportSalesOrderPercentage.php)",
+      "Bash(php -l app/Console/Commands/ExportReceiptsPercentage.php)",
+      "Bash(grep -c '\\\\\\\\\\\\$' d:/laragon/www/pos/resources/views/livewire/list-users.blade.php)"
     ]
   }
 }

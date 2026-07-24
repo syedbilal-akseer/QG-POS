@@ -1,3 +1,51 @@
+@push('styles')
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+    <style>
+        .select2-container { width: 100% !important; }
+        .select2-container--default .select2-selection--multiple {
+            min-height: 2.375rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            padding: 0.125rem 0.25rem;
+        }
+        .select2-container--default.select2-container--focus .select2-selection--multiple {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 1px #6366f1;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            border-radius: 0.25rem;
+        }
+        .dark .select2-container--default .select2-selection--multiple {
+            background-color: #111827;
+            border-color: #374151;
+        }
+        .dark .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            background-color: #4b5563;
+            border-color: #6b7280;
+            color: #e5e7eb;
+        }
+        .dark .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+            color: #e5e7eb;
+        }
+        .dark .select2-dropdown {
+            background-color: #1f2937;
+            border-color: #374151;
+            color: #e5e7eb;
+        }
+        .dark .select2-search__field {
+            background-color: #111827;
+            color: #e5e7eb;
+        }
+        .dark .select2-container--default .select2-results__option--highlighted[aria-selected] {
+            background-color: #4f46e5;
+            color: #fff;
+        }
+        .dark .select2-container--default .select2-results__option[aria-selected=true] {
+            background-color: #374151;
+        }
+    </style>
+@endpush
+
 <div>
     <!-- New User and Sync Buttons -->
     <div class="flex justify-end mb-4 gap-3">
@@ -147,50 +195,50 @@
                     <!-- Oracle Organizations Selection -->
                     <div class="mt-4">
                         <x-input-label for="new_selected_organizations" :value="__('Oracle Organizations')" class="text-gray-700 dark:text-gray-300" />
-                        <select id="new_selected_organizations" name="new_selected_organizations"
-                            wire:model="new_selected_organizations" multiple
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                            @foreach($availableOrganizations as $org)
-                                <option value="{{ $org['code'] }}">{{ $org['display'] }}</option>
-                            @endforeach
-                        </select>
+                        <div wire:ignore x-data x-init="
+                            let $sel = $($refs.new_selected_organizations);
+                            $sel.select2({ width: '100%', placeholder: 'Select organizations...', allowClear: true });
+                            $sel.on('change', () => @this.set('new_selected_organizations', $sel.val() || []));
+                            let sync = () => $sel.val(@this.get('new_selected_organizations') || []).trigger('change.select2');
+                            sync();
+                            window.addEventListener('open-modal', (e) => { if (e.detail == 'new_user') sync(); });
+                        " class="mt-1">
+                            <select x-ref="new_selected_organizations" id="new_selected_organizations" name="new_selected_organizations" multiple>
+                                @foreach($availableOrganizations as $org)
+                                    <option value="{{ $org['code'] }}">{{ $org['display'] }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                         <p class="mt-1 text-sm text-green-600 dark:text-green-400">
-                            <strong>Optional:</strong> Select Oracle organizations this user can access. Hold Ctrl/Cmd to select multiple.
+                            <strong>Optional:</strong> Select Oracle organizations this user can access.
                         </p>
                         <x-input-error class="mt-2" :messages="$errors->get('new_selected_organizations')" />
                     </div>
 
                     <!-- Assigned Salespeople for CMD Roles -->
                     @if(in_array($new_role, ['cmd-khi', 'cmd-lhr']))
-                    <div class="mt-4" x-data="{
-                        search: '',
-                        salespeople: {{ json_encode($salespeople->map(fn($s) => ['id' => $s->id, 'name' => $s->name])->values()) }},
-                        get filteredSalespeople() {
-                            if (!this.search) return this.salespeople;
-                            return this.salespeople.filter(s =>
-                                s.name.toLowerCase().includes(this.search.toLowerCase())
-                            );
-                        }
-                    }">
+                    <div class="mt-4">
                         <x-input-label for="new_assigned_salespeople" :value="__('Assigned Salespeople')" class="text-gray-700 dark:text-gray-300" />
 
-                        <!-- Search Input -->
-                        <input type="text"
-                            x-model="search"
-                            placeholder="Search salespeople..."
-                            class="mt-1 mb-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 text-sm">
-
-                        <!-- Multi-select List -->
-                        <select id="new_assigned_salespeople" name="new_assigned_salespeople"
-                            wire:model="new_assigned_salespeople" multiple size="8"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                            <template x-for="salesperson in filteredSalespeople" :key="salesperson.id">
-                                <option :value="salesperson.id" x-text="salesperson.name"></option>
-                            </template>
-                        </select>
+                        <!-- Options rendered server-side so Livewire can mark previously-assigned
+                             salespeople as selected on load; Select2 provides the search box. -->
+                        <div wire:ignore x-data x-init="
+                            let $sel = $($refs.new_assigned_salespeople);
+                            $sel.select2({ width: '100%', placeholder: 'Search salespeople...', allowClear: true });
+                            $sel.on('change', () => @this.set('new_assigned_salespeople', $sel.val() || []));
+                            let sync = () => $sel.val(@this.get('new_assigned_salespeople') || []).trigger('change.select2');
+                            sync();
+                            window.addEventListener('open-modal', (e) => { if (e.detail == 'new_user') sync(); });
+                        " class="mt-1">
+                            <select x-ref="new_assigned_salespeople" id="new_assigned_salespeople" name="new_assigned_salespeople" multiple>
+                                @foreach($salespeople as $s)
+                                    <option value="{{ $s->id }}">{{ $s->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
 
                         <p class="mt-1 text-sm text-purple-600 dark:text-purple-400">
-                            <strong>Optional:</strong> Leave empty to show receipts from ALL salespeople. Select specific salespeople to filter receipts. Hold Ctrl/Cmd to select multiple.
+                            <strong>Optional:</strong> Leave empty to show receipts from ALL salespeople. Select specific salespeople to filter receipts.
                         </p>
                         <x-input-error class="mt-2" :messages="$errors->get('new_assigned_salespeople')" />
                     </div>
@@ -361,50 +409,50 @@
                         <!-- Oracle Organizations Selection -->
                         <div class="mt-4">
                             <x-input-label for="selected_organizations" :value="__('Oracle Organizations')" class="text-gray-700 dark:text-gray-300" />
-                            <select id="selected_organizations" name="selected_organizations"
-                                wire:model="selected_organizations" multiple
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                                @foreach($availableOrganizations as $org)
-                                    <option value="{{ $org['code'] }}">{{ $org['display'] }}</option>
-                                @endforeach
-                            </select>
+                            <div wire:ignore x-data x-init="
+                                let $sel = $($refs.selected_organizations);
+                                $sel.select2({ width: '100%', placeholder: 'Select organizations...', allowClear: true });
+                                $sel.on('change', () => @this.set('selected_organizations', $sel.val() || []));
+                                let sync = () => $sel.val(@this.get('selected_organizations') || []).trigger('change.select2');
+                                sync();
+                                window.addEventListener('open-modal', (e) => { if (e.detail == 'edit_user_modal') sync(); });
+                            " class="mt-1">
+                                <select x-ref="selected_organizations" id="selected_organizations" name="selected_organizations" multiple>
+                                    @foreach($availableOrganizations as $org)
+                                        <option value="{{ $org['code'] }}">{{ $org['display'] }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
                             <p class="mt-1 text-sm text-green-600 dark:text-green-400">
-                                <strong>Optional:</strong> Select Oracle organizations this user can access. Hold Ctrl/Cmd to select multiple.
+                                <strong>Optional:</strong> Select Oracle organizations this user can access.
                             </p>
                             <x-input-error class="mt-2" :messages="$errors->get('selected_organizations')" />
                         </div>
 
                         <!-- Assigned Salespeople for CMD Roles -->
                         @if(in_array($role, ['cmd-khi', 'cmd-lhr']))
-                        <div class="mt-4" x-data="{
-                            search: '',
-                            salespeople: {{ json_encode($salespeople->map(fn($s) => ['id' => $s->id, 'name' => $s->name])->values()) }},
-                            get filteredSalespeople() {
-                                if (!this.search) return this.salespeople;
-                                return this.salespeople.filter(s =>
-                                    s.name.toLowerCase().includes(this.search.toLowerCase())
-                                );
-                            }
-                        }">
+                        <div class="mt-4">
                             <x-input-label for="assigned_salespeople" :value="__('Assigned Salespeople')" class="text-gray-700 dark:text-gray-300" />
 
-                            <!-- Search Input -->
-                            <input type="text"
-                                x-model="search"
-                                placeholder="Search salespeople..."
-                                class="mt-1 mb-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 text-sm">
-
-                            <!-- Multi-select List -->
-                            <select id="assigned_salespeople" name="assigned_salespeople"
-                                wire:model="assigned_salespeople" multiple size="8"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                                <template x-for="salesperson in filteredSalespeople" :key="salesperson.id">
-                                    <option :value="salesperson.id" x-text="salesperson.name"></option>
-                                </template>
-                            </select>
+                            <!-- Options rendered server-side so Livewire can mark previously-assigned
+                                 salespeople as selected on load; Select2 provides the search box. -->
+                            <div wire:ignore x-data x-init="
+                                let $sel = $($refs.assigned_salespeople);
+                                $sel.select2({ width: '100%', placeholder: 'Search salespeople...', allowClear: true });
+                                $sel.on('change', () => @this.set('assigned_salespeople', $sel.val() || []));
+                                let sync = () => $sel.val(@this.get('assigned_salespeople') || []).trigger('change.select2');
+                                sync();
+                                window.addEventListener('open-modal', (e) => { if (e.detail == 'edit_user_modal') sync(); });
+                            " class="mt-1">
+                                <select x-ref="assigned_salespeople" id="assigned_salespeople" name="assigned_salespeople" multiple>
+                                    @foreach($salespeople as $s)
+                                        <option value="{{ $s->id }}">{{ $s->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
 
                             <p class="mt-1 text-sm text-purple-600 dark:text-purple-400">
-                                <strong>Optional:</strong> Leave empty to show receipts from ALL salespeople. Select specific salespeople to filter receipts. Hold Ctrl/Cmd to select multiple.
+                                <strong>Optional:</strong> Leave empty to show receipts from ALL salespeople. Select specific salespeople to filter receipts.
                             </p>
                             <x-input-error class="mt-2" :messages="$errors->get('assigned_salespeople')" />
                         </div>
@@ -448,3 +496,8 @@
         </x-modal>
     @endif
 </div>
+
+@push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+@endpush
