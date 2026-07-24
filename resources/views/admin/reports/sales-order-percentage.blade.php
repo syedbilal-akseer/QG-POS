@@ -13,7 +13,7 @@
                 </div>
                 <a href="{{ route('admin.reports.sales-order-percentage.export') }}"
                    class="inline-flex items-center px-4 py-2 rounded-md border border-transparent shadow-sm text-sm font-semibold text-white bg-green-600 hover:bg-green-700">
-                    <i class="fas fa-file-csv mr-2 text-white"></i>Download CSV
+                    <i class="fas fa-file-excel mr-2 text-white"></i>Download Excel
                 </a>
             </div>
 
@@ -25,7 +25,7 @@
                                 <th rowspan="2" class="sticky left-0 bg-gray-900 z-10">Salesperson</th>
 
                                 @foreach ($months as $month)
-                                    <th colspan="3" class="text-center border-l border-gray-700">{{ $month }}</th>
+                                    <th colspan="4" class="text-center border-l border-gray-700">{{ $month }}</th>
                                 @endforeach
 
                                 <th rowspan="2">Growth</th>
@@ -35,6 +35,7 @@
                                 @foreach ($months as $month)
                                     <th>Total Orders</th>
                                     <th>Mobile Orders</th>
+                                    <th>Oracle Orders</th>
                                     <th>Mobile %</th>
                                 @endforeach
                             </tr>
@@ -49,6 +50,7 @@
                                         @php $c = $cells[$m] ?? null; @endphp
                                         <td class="px-3 py-2 text-center">{{ $c['total'] ?? '-' }}</td>
                                         <td class="px-3 py-2 text-center">{{ $c['mobile'] ?? '-' }}</td>
+                                        <td class="px-3 py-2 text-center">{{ $c ? $c['total'] - $c['mobile'] : '-' }}</td>
                                         <td class="px-3 py-2 text-center font-semibold">{{ $c['pct_label'] ?? '-' }}</td>
                                         @php if ($c) { $spMob += $c['mobile']; $spTot += $c['total']; } @endphp
                                     @endforeach
@@ -64,6 +66,7 @@
                                     @php $mob = $colTotals[$m]['mobile']; $tot = $colTotals[$m]['total']; $pct = $tot > 0 ? round(($mob / $tot) * 100, 2) . '%' : '0%'; @endphp
                                     <td class="text-center">{{ $tot }}</td>
                                     <td class="text-center">{{ $mob }}</td>
+                                    <td class="text-center">{{ $tot - $mob }}</td>
                                     <td class="text-center font-semibold">{{ $pct }}</td>
                                 @endforeach
                                 <td class="text-center">{{ $overallGrowth }}</td>

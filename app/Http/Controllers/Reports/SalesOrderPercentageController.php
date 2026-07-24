@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Reports;
 
+use App\Exports\SalesOrderPercentageExport;
 use App\Http\Controllers\Controller;
 use App\Traits\OracleNlsSession;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Mobile-order adoption report powered by APPS.QG_SALES_ORDER_PERCENTAGE.
@@ -66,7 +68,7 @@ class SalesOrderPercentageController extends Controller
         ]);
     }
 
-    public function export(): \Symfony\Component\HttpFoundation\StreamedResponse
+    public function export(): \Symfony\Component\HttpFoundation\BinaryFileResponse
     {
         $this->setOracleNlsSession();
 
@@ -103,67 +105,15 @@ class SalesOrderPercentageController extends Controller
         }
         ksort($matrix);
 
-        $filename = 'sales-order-percentage-' . now()->format('Y-m-d') . '.csv';
         $growthRows = $this->buildGrowthRows($matrix, $sortedMonths);
         $overallGrowth = $this->buildOverallGrowth($colTotals, $sortedMonths);
 
-        return response()->streamDownload(function () use ($sortedMonths, $matrix, $colTotals, $growthRows, $overallGrowth) {
-            $out = fopen('php://output', 'w');
+        $filename = 'sales-order-percentage-' . now()->format('Y-m-d') . '.xlsx';
 
-            $headers = ['Salesperson'];
-            foreach ($sortedMonths as $m) {
-                $headers[] = $m . ' Total';
-                $headers[] = $m . ' Mobile';
-                $headers[] = $m . ' Mobile %';
-            }
-            $headers[] = 'Growth';
-
-            fputcsv($out, $headers);
-
-            $grandMob = 0;
-            $grandTot = 0;
-
-            foreach ($matrix as $sp => $cells) {
-                $spMob = 0;
-                $spTot = 0;
-                $row   = [$sp];
-                foreach ($sortedMonths as $m) {
-                    $c = $cells[$m] ?? null;
-                    if ($c) {
-                        $row[] = $c['total'];
-                        $row[] = $c['mobile'];
-                        $row[] = $c['pct_label'];
-                        $spMob += $c['mobile'];
-                        $spTot += $c['total'];
-                    } else {
-                        $row[] = '';
-                        $row[] = '';
-                        $row[] = '';
-                    }
-                }
-                $row[] = $growthRows[$sp] ?? '—';
-                fputcsv($out, $row);
-
-                $grandMob += $spMob;
-                $grandTot += $spTot;
-            }
-
-            $totalRow = ['ALL SALESPERSONS'];
-            foreach ($sortedMonths as $m) {
-                $mob = $colTotals[$m]['mobile'];
-                $tot = $colTotals[$m]['total'];
-                $pct = $tot > 0 ? round(($mob / $tot) * 100, 2) . '%' : '0%';
-                $totalRow[] = $tot;
-                $totalRow[] = $mob;
-                $totalRow[] = $pct;
-            }
-            $totalRow[] = $overallGrowth;
-            fputcsv($out, $totalRow);
-
-            fclose($out);
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        return Excel::download(
+            new SalesOrderPercentageExport($sortedMonths, $matrix, $colTotals, $growthRows, $overallGrowth),
+            $filename
+        );
     }
 
     private function buildGrowthRows(array $matrix, array $months): array

@@ -108,7 +108,12 @@
       "Bash(php artisan tinker '--execute= *)",
       "Bash(php -l app/Console/Commands/ExportSalesOrderPercentage.php)",
       "Bash(php -l app/Console/Commands/ExportReceiptsPercentage.php)",
-      "Bash(grep -c '\\\\\\\\\\\\$' d:/laragon/www/pos/resources/views/livewire/list-users.blade.php)"
+      "Bash(grep -c '\\\\\\\\\\\\$' d:/laragon/www/pos/resources/views/livewire/list-users.blade.php)",
+      "Bash(php -l app/Http/Controllers/Reports/SalesOrderPercentageController.php)",
+      "Bash(php -l app/Http/Controllers/Reports/ReceiptsPercentageController.php)",
+      "Bash(php -r ' *)",
+      "Bash(php -l app/Exports/SalesOrderPercentageExport.php)",
+      "Bash(php -l app/Exports/ReceiptsPercentageExport.php)"
     ]
   }
 }

@@ -13,7 +13,7 @@
                 </div>
                 <a href="{{ route('admin.reports.receipts-percentage.export') }}"
                     class="inline-flex items-center px-4 py-2 rounded-md border border-transparent shadow-sm text-sm font-semibold text-white bg-green-600 hover:bg-green-700">
-                    <i class="fas fa-file-csv mr-2 text-white"></i>Download CSV
+                    <i class="fas fa-file-excel mr-2 text-white"></i>Download Excel
                 </a>
             </div>
 
@@ -27,7 +27,7 @@
                                 </th>
 
                                 @foreach ($months as $month)
-                                    <th colspan="3" class="text-center border-l border-gray-700">
+                                    <th colspan="4" class="text-center border-l border-gray-700">
                                         {{ $month }}
                                     </th>
                                 @endforeach
@@ -39,6 +39,7 @@
                                 @foreach ($months as $month)
                                     <th >Total Receipt</th>
                                     <th>Mobile Receipt</th>
+                                    <th>Oracle Receipt</th>
                                     <th>Mobile %</th>
                                 @endforeach
                             </tr>
@@ -69,6 +70,10 @@
 
                                         <td class="px-3 py-2 text-center">
                                             {{ $c['mobile'] ?? '-' }}
+                                        </td>
+
+                                        <td class="px-3 py-2 text-center">
+                                            {{ $c ? $c['total'] - $c['mobile'] : '-' }}
                                         </td>
 
                                         <td class="px-3 py-2 text-center font-semibold">
@@ -108,6 +113,10 @@
 
                                     <td class="text-center">
                                         {{ $mob }}
+                                    </td>
+
+                                    <td class="text-center">
+                                        {{ $tot - $mob }}
                                     </td>
 
                                     <td class="text-center font-semibold">

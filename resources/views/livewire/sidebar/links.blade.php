@@ -47,6 +47,37 @@
         </li>
     @endif
 
+    {{-- Reports — mobile-order / mobile-receipt adoption. Mirrors the
+         checkRole:admin,sales-head,cmd-khi,cmd-lhr gate on admin.reports.* routes. --}}
+    @if ($u->isAdmin() || $u->isSalesHead() || $u->isCmdKhi() || $u->isCmdLhr())
+        <li class="relative" x-data="{ openReportsMenu: {{ request()->routeIs('admin.reports.*') ? 'true' : 'false' }} }">
+            <x-sidebar-link href="javascript:void(0)" @click="openReportsMenu = !openReportsMenu" aria-expanded="openReportsMenu" :active="request()->routeIs('admin.reports.*')">
+                <x-link-icon icon="o-chart-bar" :active="request()->routeIs('admin.reports.*')" />
+                <span class="flex-1 me-3">Reports</span>
+                <x-heroicon-s-chevron-down x-bind:class="{ 'rotate-180': openReportsMenu }"
+                    class="h-5 w-5 transform transition-transform" />
+            </x-sidebar-link>
+
+            <ul x-show="openReportsMenu" x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="opacity-0 transform scale-95"
+                x-transition:enter-end="opacity-100 transform scale-100"
+                x-transition:leave="transition ease-in duration-150"
+                x-transition:leave-start="opacity-100 transform scale-100"
+                x-transition:leave-end="opacity-0 transform scale-95" x-cloak class="mt-2 space-y-1">
+                <li>
+                    <x-sidebar-link :href="route('admin.reports.sales-order-percentage')" :active="request()->routeIs('admin.reports.sales-order-percentage')">
+                        <span>Orders % Adoption</span>
+                    </x-sidebar-link>
+                </li>
+                <li>
+                    <x-sidebar-link :href="route('admin.reports.receipts-percentage')" :active="request()->routeIs('admin.reports.receipts-percentage')">
+                        <span>Receipts % Adoption</span>
+                    </x-sidebar-link>
+                </li>
+            </ul>
+        </li>
+    @endif
+
     {{-- Price Lists --}}
     @if (Auth::user()->isAdmin() || Auth::user()->isPriceUploads())
         <li>
