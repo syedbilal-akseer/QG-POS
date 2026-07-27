@@ -46,14 +46,14 @@ class CustomerController extends Controller
                     }
                 }
             } elseif ($user->role === 'user') {
-                // Salesperson users see customers where salesperson matches their Oracle user name
-                $salespersonName = $user->name ?: $user->name;
-                $query->where('salesperson', $salespersonName);
+                // Salesperson users see customers whose normalized salesperson key
+                // matches their normalized Oracle user name (see normalizeSalespersonKey()).
+                $query->where('salesperson_key', normalizeSalespersonKey($user->name));
             } else {
                 // Other roles get no access by default
                 $query->where('customer_id', null);
             }
-            
+
             return $query->paginate(10);
         });
 
@@ -123,9 +123,9 @@ class CustomerController extends Controller
                     }
                 }
             } elseif ($user->role === 'user') {
-                // Salesperson users see customers where salesperson matches their Oracle user name
-                $salespersonName = $user->name ?: $user->name;
-                $query->where('salesperson', $salespersonName);
+                // Salesperson users see customers whose normalized salesperson key
+                // matches their normalized Oracle user name (see normalizeSalespersonKey()).
+                $query->where('salesperson_key', normalizeSalespersonKey($user->name));
             } else {
                 // Other roles get no access by default
                 $query->where('customer_id', null);
@@ -284,9 +284,9 @@ class CustomerController extends Controller
                     }
                 }
             } elseif ($user->role === 'user') {
-                // Salesperson users see customers where salesperson matches their Oracle user name
-                $salespersonName = $user->name ?: $user->name;
-                $query->where('salesperson', $salespersonName);
+                // Salesperson users see customers whose normalized salesperson key
+                // matches their normalized Oracle user name (see normalizeSalespersonKey()).
+                $query->where('salesperson_key', normalizeSalespersonKey($user->name));
             } else {
                 // Other roles get no access by default (except admin)
                 $query->where('customer_id', null);
@@ -386,15 +386,15 @@ class CustomerController extends Controller
                         }
                     }
                 } elseif ($user->role === 'user') {
-                    // Salesperson users see customers where salesperson matches their Oracle user name
-                    $salespersonName = $user->name ?: $user->name;
-                    $query->where('salesperson', $salespersonName);
+                    // Salesperson users see customers whose normalized salesperson key
+                    // matches their normalized Oracle user name (see normalizeSalespersonKey()).
+                    $query->where('salesperson_key', normalizeSalespersonKey($user->name));
                 } else {
                     // Other roles get no access by default
                     $query->where('customer_id', null);
                 }
             }
-            
+
             // Apply search filters
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('customer_id', 'like', '%'.$searchTerm.'%')
@@ -450,6 +450,7 @@ class CustomerController extends Controller
             'customer_id' => $validated['customer_id'],
             'customer_site_id' => null,
             'salesperson' => $salesperson,
+            'salesperson_key' => normalizeSalespersonKey($salesperson),
             'creation_date' => now(),
             'price_list_id' => "7010",
             'price_list_name' => "Karachi - Corporate",
@@ -534,9 +535,9 @@ class CustomerController extends Controller
                         }
                     }
                 } elseif ($user->role === 'user') {
-                    // Salesperson users see customers where salesperson matches their Oracle user name
-                    $salespersonName = $user->name ?: $user->name;
-                    $query->where('salesperson', $salespersonName);
+                    // Salesperson users see customers whose normalized salesperson key
+                    // matches their normalized Oracle user name (see normalizeSalespersonKey()).
+                    $query->where('salesperson_key', normalizeSalespersonKey($user->name));
                 } else {
                     // Other roles get no access by default
                     $query->where('customer_id', null);

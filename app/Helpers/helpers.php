@@ -51,6 +51,34 @@ if (! function_exists('formatOrderItems')) {
 
 }
 
+if (! function_exists('normalizeSalespersonKey')) {
+    /**
+     * Reduce a salesperson name to a comparable key so that formatting
+     * differences between Oracle's free-text salesperson field (e.g.
+     * "Aqib, Mr. Muhammad") and the portal's auto-generated user name
+     * (e.g. "Muhammad Aqib") don't cause a false non-match. Honorifics and
+     * the extremely common optional first name "Muhammad" (and its common
+     * spellings/abbreviations) are dropped, remaining words are sorted so
+     * word order doesn't matter, e.g. both reduce to "aqib".
+     *
+     * @param  string|null  $name
+     */
+    function normalizeSalespersonKey(?string $name): string
+    {
+        if (!$name) {
+            return '';
+        }
+
+        $dropWords = ['mr', 'mrs', 'ms', 'mstr', 'muhammad', 'mohammad', 'mohammed', 'muhammed', 'md'];
+
+        $words = preg_split('/[\s,\.]+/', mb_strtolower(trim($name)));
+        $words = array_filter($words, fn ($w) => $w !== '' && !in_array($w, $dropWords, true));
+        sort($words);
+
+        return implode(' ', $words);
+    }
+}
+
 if (!function_exists('isManager')) {
     /**
      * Check if the authenticated user is a Line Manager.

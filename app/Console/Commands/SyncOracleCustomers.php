@@ -87,6 +87,7 @@ class SyncOracleCustomers extends Command
                             'customer_number'            => $o['customer_number'] ?? null,
                             'customer_site_id'           => $o['customer_site_id'] ?? null,
                             'salesperson'                => $o['salesperson'] ?? null,
+                            'salesperson_key'            => normalizeSalespersonKey($o['salesperson'] ?? null),
                             'city'                       => $o['city'] ?? null,
                             'area'                       => $o['area'] ?? null,
                             'address1'                   => $o['customer_address'] ?? null,

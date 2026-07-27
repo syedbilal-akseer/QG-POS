@@ -17,6 +17,7 @@ class Customer extends Model
         'customer_id',
         'customer_site_id',
         'salesperson',
+        'salesperson_key',
         'city',
         'area',
         'address1',

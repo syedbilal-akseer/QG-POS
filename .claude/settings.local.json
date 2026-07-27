@@ -113,7 +113,9 @@
       "Bash(php -l app/Http/Controllers/Reports/ReceiptsPercentageController.php)",
       "Bash(php -r ' *)",
       "Bash(php -l app/Exports/SalesOrderPercentageExport.php)",
-      "Bash(php -l app/Exports/ReceiptsPercentageExport.php)"
+      "Bash(php -l app/Exports/ReceiptsPercentageExport.php)",
+      "Bash(composer dump-autoload *)",
+      "Bash(./vendor/bin/pest)"
     ]
   }
 }
