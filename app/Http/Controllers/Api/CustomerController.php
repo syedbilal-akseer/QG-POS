@@ -94,14 +94,28 @@ class CustomerController extends Controller
      */
        public function getCustomer(Request $request): JsonResponse
     {
-        // Validate the request to ensure 'customer_id' is provided
+        // Optional pagination for the `products` array. Both params are
+        // opt-in — the current mobile build ships without them, so if either
+        // is missing we return the full product list exactly as before
+        // (backward compatibility). When BOTH are provided we page at the
+        // SQL layer + add a `products_pagination` block to the response.
         $request->validate([
-            'customer_id' => 'required|exists:customers,customer_id',
+            'customer_id'        => 'required|exists:customers,customer_id',
+            'products_page'      => 'nullable|integer|min:1',
+            'products_per_page'  => 'nullable|integer|min:1|max:1000',
         ]);
 
         // Extract the customer ID from the request
         $customerId = $request->customer_id;
         $user = Auth::user();
+
+        // Resolve pagination intent. Requiring both params (not just one)
+        // keeps ambiguity out — a caller that sends only per_page but no
+        // page falls back to the full list rather than silently paging to
+        // page 1 (which might drop rows the caller didn't know it needed).
+        $productsPage    = $request->filled('products_page') ? (int) $request->input('products_page') : null;
+        $productsPerPage = $request->filled('products_per_page') ? (int) $request->input('products_per_page') : null;
+        $paginate        = $productsPage !== null && $productsPerPage !== null;
 
         // Build query with role-based access control.
         // Note: itemPrices is intentionally NOT eager-loaded here. A single
@@ -150,8 +164,9 @@ class CustomerController extends Controller
         // joined query, instead of hydrating ItemPrice + Item Eloquent models
         // for every row in the price list.
         $products = [];
+        $productsPagination = null;
         if (!empty($customer->price_list_id)) {
-            $priceRows = \Illuminate\Support\Facades\DB::table('item_prices')
+            $priceRowsQuery = \Illuminate\Support\Facades\DB::table('item_prices')
                 ->leftJoin('items', 'items.item_code', '=', 'item_prices.item_code')
                 ->where('item_prices.price_list_id', $customer->price_list_id)
                 ->select(
@@ -163,8 +178,32 @@ class CustomerController extends Controller
                     'items.item_code as i_item_code',
                     'items.item_description as i_item_description',
                     'items.inventory_item_id as i_inventory_item_id'
-                )
-                ->get();
+                );
+
+            if ($paginate) {
+                // COUNT + slice. Ordering by item_prices.id gives a stable
+                // sequence across pages so the mobile can walk pages without
+                // seeing rows shift due to DB row-order changes.
+                $total    = (clone $priceRowsQuery)->count();
+                $lastPage = (int) max(1, ceil($total / $productsPerPage));
+                $offset   = ($productsPage - 1) * $productsPerPage;
+
+                $priceRows = $priceRowsQuery
+                    ->orderBy('item_prices.id')
+                    ->skip($offset)
+                    ->take($productsPerPage)
+                    ->get();
+
+                $productsPagination = [
+                    'current_page' => $productsPage,
+                    'per_page'     => $productsPerPage,
+                    'total'        => $total,
+                    'last_page'    => $lastPage,
+                    'has_more'     => $productsPage < $lastPage,
+                ];
+            } else {
+                $priceRows = $priceRowsQuery->get();
+            }
 
             if ($priceRows->isNotEmpty()) {
                 // Only look up fallback discounts for codes whose own price row
@@ -215,8 +254,14 @@ class CustomerController extends Controller
             }
         }
 
-        // Add products to customer data
+        // Add products to customer data. `products_pagination` is emitted
+        // ONLY when the caller opted into paging — keeps the default
+        // response byte-identical to the pre-pagination shape the shipped
+        // mobile build parses.
         $customerArray['products'] = $products;
+        if ($productsPagination !== null) {
+            $customerArray['ppagination'] = $productsPagination;
+        }
 
         // Return the response
         return response()->json([
