@@ -8,7 +8,8 @@
       "Read(//c/Users/HP/Downloads/**)",
       "Bash(pdftotext -layout 'Customers Ledger HBM \\(1-50\\).pdf' 'C:\\\\Users\\\\HP\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--laragon-www-pos\\\\19d311e8-c99c-4e72-b6d8-e16198b01c65\\\\scratchpad/ledger_sample.txt')",
       "Bash(./vendor/bin/pest)",
-      "Bash(php artisan tinker '--execute= *)"
+      "Bash(php artisan tinker '--execute= *)",
+      "Bash(grep -n 'class OracleUser\\\\|protected $table\\\\|protected $connection' 'D:\\\\laragon\\\\www\\\\pos\\\\app\\\\Models\\\\OracleUser.php')"
     ]
   }
 }

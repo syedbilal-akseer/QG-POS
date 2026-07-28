@@ -11,8 +11,12 @@
 
     {{-- Orders --}}
     @php $u = Auth::user(); @endphp
-    @if ($u->isAdmin() || $u->isSalesHead() || $u->isCmdKhi() || $u->isCmdLhr()
-        || (method_exists($u, 'hasAnyViewRole') && $u->hasAnyViewRole()))
+    @if (
+        $u->isAdmin() ||
+            $u->isSalesHead() ||
+            $u->isCmdKhi() ||
+            $u->isCmdLhr() ||
+            (method_exists($u, 'hasAnyViewRole') && $u->hasAnyViewRole()))
         {{-- Roles routed to /app/orders (orders.all): admin, sales-head, cmd-*,
              view-khi / view-lhr / view-all. Mirrors routes/web.php gate. --}}
         <li>
@@ -51,7 +55,8 @@
          checkRole:admin,sales-head,cmd-khi,cmd-lhr gate on admin.reports.* routes. --}}
     @if ($u->isAdmin() || $u->isSalesHead() || $u->isCmdKhi() || $u->isCmdLhr())
         <li class="relative" x-data="{ openReportsMenu: {{ request()->routeIs('admin.reports.*') ? 'true' : 'false' }} }">
-            <x-sidebar-link href="javascript:void(0)" @click="openReportsMenu = !openReportsMenu" aria-expanded="openReportsMenu" :active="request()->routeIs('admin.reports.*')">
+            <x-sidebar-link href="javascript:void(0)" @click="openReportsMenu = !openReportsMenu"
+                aria-expanded="openReportsMenu" :active="request()->routeIs('admin.reports.*')">
                 <x-link-icon icon="o-chart-bar" :active="request()->routeIs('admin.reports.*')" />
                 <span class="flex-1 me-3">Reports</span>
                 <x-heroicon-s-chevron-down x-bind:class="{ 'rotate-180': openReportsMenu }"
@@ -88,109 +93,128 @@
         </li>
     @endif
 
-    {{-- Invoices — parent group with two children:
-         • Invoices       → read-only flat table (admin / invoice-manager / view-*)
-         • Send Invoices  → accordion send page (admin / invoice-manager) --}}
-    @if (Auth::user()->isAdmin() || Auth::user()->isInvoiceManager() || Auth::user()->hasViewKhi() || Auth::user()->hasViewLhr() || Auth::user()->hasViewAll())
-        <li class="relative" x-data="{ openInvoicesMenu: {{ request()->routeIs('invoices.*', 'builties.*') ? 'true' : 'false' }} }">
-            <x-sidebar-link href="javascript:void(0)" @click="openInvoicesMenu = !openInvoicesMenu" aria-expanded="openInvoicesMenu">
-                <x-link-icon icon="o-document-text" :active="request()->routeIs('invoices.*', 'builties.*')" />
-                <span class="flex-1 me-3">Invoices</span>
-                <x-heroicon-s-chevron-down x-bind:class="{ 'rotate-180': openInvoicesMenu }"
+
+    {{-- Account — parent group combining Invoices, Ledgers, Vendors AP, and Vendors AP 2.
+     Outer visibility is the OR of all four child conditions, since none of them
+     is a strict superset of the others. --}}
+    @if (Auth::user()->isAdmin() ||
+            Auth::user()->isInvoiceManager() ||
+            Auth::user()->hasViewKhi() ||
+            Auth::user()->hasViewLhr() ||
+            Auth::user()->hasViewAll() ||
+            Auth::user()->isAccountUser() ||
+            Auth::user()->isCmd() ||
+            Auth::user()->isDirector())
+        <li class="relative" x-data="{ openAccountMenu: {{ request()->routeIs('invoices.*', 'builties.*', 'ledgers.*', 'vendor-bills.*', 'vendor-bills-2.*') ? 'true' : 'false' }} }">
+            <x-sidebar-link href="javascript:void(0)" @click="openAccountMenu = !openAccountMenu"
+                aria-expanded="openAccountMenu" :active="request()->routeIs(
+                    'invoices.*',
+                    'builties.*',
+                    'ledgers.*',
+                    'vendor-bills.*',
+                    'vendor-bills-2.*',
+                )">
+                <x-link-icon icon="o-banknotes" :active="request()->routeIs(
+                    'invoices.*',
+                    'builties.*',
+                    'ledgers.*',
+                    'vendor-bills.*',
+                    'vendor-bills-2.*',
+                )" />
+                <span class="flex-1 me-3">Accounts</span>
+                <x-heroicon-s-chevron-down x-bind:class="{ 'rotate-180': openAccountMenu }"
                     class="h-5 w-5 transform transition-transform" />
             </x-sidebar-link>
 
-            <ul x-show="openInvoicesMenu" x-transition:enter="transition ease-out duration-200"
+            <ul x-show="openAccountMenu" x-transition:enter="transition ease-out duration-200"
                 x-transition:enter-start="opacity-0 transform scale-95"
                 x-transition:enter-end="opacity-100 transform scale-100"
                 x-transition:leave="transition ease-in duration-150"
                 x-transition:leave-start="opacity-100 transform scale-100"
-                x-transition:leave-end="opacity-0 transform scale-95" x-cloak class="mt-2 space-y-1">
-                <li>
-                    <x-sidebar-link :href="route('invoices.view')" :active="request()->routeIs('invoices.view')">
-                        <x-link-icon icon="o-document-text" :active="request()->routeIs('invoices.view')" />
-                        <span>Invoices</span>
-                    </x-sidebar-link>
-                </li>
-                @if (Auth::user()->isAdmin() || Auth::user()->isInvoiceManager())
+                x-transition:leave-end="opacity-0 transform scale-95" x-cloak class="mt-2 space-y-1 ps-4">
+
+                {{-- Invoices sub-section --}}
+                @if (Auth::user()->isAdmin() ||
+                        Auth::user()->isInvoiceManager() ||
+                        Auth::user()->hasViewKhi() ||
+                        Auth::user()->hasViewLhr() ||
+                        Auth::user()->hasViewAll())
+                    <li class="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Invoices</li>
                     <li>
-                        <x-sidebar-link :href="route('invoices.index')" :active="request()->routeIs('invoices.index')">
-                            <x-link-icon icon="o-paper-airplane" :active="request()->routeIs('invoices.index')" />
-                            <span>Send Invoices</span>
+                        <x-sidebar-link :href="route('invoices.view')" :active="request()->routeIs('invoices.view')">
+                            <x-link-icon icon="o-document-text" :active="request()->routeIs('invoices.view')" />
+                            <span>Invoices</span>
+                        </x-sidebar-link>
+                    </li>
+                    @if (Auth::user()->isAdmin() || Auth::user()->isInvoiceManager())
+                        <li>
+                            <x-sidebar-link :href="route('invoices.index')" :active="request()->routeIs('invoices.index')">
+                                <x-link-icon icon="o-paper-airplane" :active="request()->routeIs('invoices.index')" />
+                                <span>Send Invoices</span>
+                            </x-sidebar-link>
+                        </li>
+                        <li>
+                            <x-sidebar-link :href="route('builties.index')" :active="request()->routeIs('builties.*')">
+                                <x-link-icon icon="o-truck" :active="request()->routeIs('builties.*')" />
+                                <span>Bilty</span>
+                            </x-sidebar-link>
+                        </li>
+                    @endif
+                @endif
+
+                {{-- Ledgers sub-section --}}
+                @if (Auth::user()->isAdmin() || Auth::user()->isInvoiceManager())
+                    <li class="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ledgers</li>
+                    <li>
+                        <x-sidebar-link :href="route('ledgers.index')" :active="request()->routeIs('ledgers.index')">
+                            <x-link-icon icon="o-document-duplicate" :active="request()->routeIs('ledgers.index')" />
+                            <span>Ledgers</span>
                         </x-sidebar-link>
                     </li>
                     <li>
-                        <x-sidebar-link :href="route('builties.index')" :active="request()->routeIs('builties.*')">
-                            <x-link-icon icon="o-truck" :active="request()->routeIs('builties.*')" />
-                            <span>Bilty</span>
+                        <x-sidebar-link :href="route('ledgers.upload')" :active="request()->routeIs('ledgers.upload')">
+                            <x-link-icon icon="o-arrow-up-tray" :active="request()->routeIs('ledgers.upload')" />
+                            <span>Ledger Import</span>
+                        </x-sidebar-link>
+                    </li>
+                @endif
+
+                {{-- Vendors AP sub-section --}}
+                @if (Auth::user()->isAdmin() || Auth::user()->isAccountUser() || Auth::user()->isCmd() || Auth::user()->isDirector())
+                    <li class="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Vendors</li>
+                    <li>
+                        <x-sidebar-link :href="route('vendor-bills.index')" :active="request()->routeIs('vendor-bills.*')">
+                            <x-link-icon icon="o-banknotes" :active="request()->routeIs('vendor-bills.*')" />
+                            <span>Vendors AP</span>
+                        </x-sidebar-link>
+                    </li>
+                @endif
+
+                {{-- Vendors AP 2 --}}
+                @if (Auth::user()->isAdmin())
+                    <li>
+                        <x-sidebar-link :href="route('vendor-bills-2.index')" :active="request()->routeIs('vendor-bills-2.*')">
+                            <x-link-icon icon="o-banknotes" :active="request()->routeIs('vendor-bills-2.*')" />
+                            <span>Vendors AP 2</span>
                         </x-sidebar-link>
                     </li>
                 @endif
             </ul>
         </li>
 
-        {{-- Documents — sits directly below the Invoices group as its own
-             top-level entry so it's reachable without expanding the Invoices
-             submenu. --}}
-        <li>
-            <x-sidebar-link :href="route('documents.index')" :active="request()->routeIs('documents.*')">
-                <x-link-icon icon="o-folder" :active="request()->routeIs('documents.*')" />
-                <span>Documents</span>
-            </x-sidebar-link>
-        </li>
-    @endif
-
-    {{-- Ledgers — parent group with two children:
-         • Ledgers        → list of every imported customer ledger, multiselect + WhatsApp send
-         • Ledger Import  → upload the bulk Oracle "Customer Ledger" PDF --}}
-    @if (Auth::user()->isAdmin() || Auth::user()->isInvoiceManager())
-        <li class="relative" x-data="{ openLedgersMenu: {{ request()->routeIs('ledgers.*') ? 'true' : 'false' }} }">
-            <x-sidebar-link href="javascript:void(0)" @click="openLedgersMenu = !openLedgersMenu" aria-expanded="openLedgersMenu">
-                <x-link-icon icon="o-document-duplicate" :active="request()->routeIs('ledgers.*')" />
-                <span class="flex-1 me-3">Ledgers</span>
-                <x-heroicon-s-chevron-down x-bind:class="{ 'rotate-180': openLedgersMenu }"
-                    class="h-5 w-5 transform transition-transform" />
-            </x-sidebar-link>
-
-            <ul x-show="openLedgersMenu" x-transition:enter="transition ease-out duration-200"
-                x-transition:enter-start="opacity-0 transform scale-95"
-                x-transition:enter-end="opacity-100 transform scale-100"
-                x-transition:leave="transition ease-in duration-150"
-                x-transition:leave-start="opacity-100 transform scale-100"
-                x-transition:leave-end="opacity-0 transform scale-95" x-cloak class="mt-2 space-y-1">
-                <li>
-                    <x-sidebar-link :href="route('ledgers.index')" :active="request()->routeIs('ledgers.index')">
-                        <x-link-icon icon="o-document-text" :active="request()->routeIs('ledgers.index')" />
-                        <span>Ledgers</span>
-                    </x-sidebar-link>
-                </li>
-                <li>
-                    <x-sidebar-link :href="route('ledgers.upload')" :active="request()->routeIs('ledgers.upload')">
-                        <x-link-icon icon="o-arrow-up-tray" :active="request()->routeIs('ledgers.upload')" />
-                        <span>Ledger Import</span>
-                    </x-sidebar-link>
-                </li>
-            </ul>
-        </li>
-    @endif
-
-    {{-- Vendors AP — bill upload + 2-stage approval (CMD → Director). --}}
-    @if (Auth::user()->isAdmin() || Auth::user()->isAccountUser() || Auth::user()->isCmd() || Auth::user()->isDirector())
-        <li>
-            <x-sidebar-link :href="route('vendor-bills.index')" :active="request()->routeIs('vendor-bills.*')">
-                <x-link-icon icon="o-banknotes" :active="request()->routeIs('vendor-bills.*')" />
-                <span>Vendors AP</span>
-            </x-sidebar-link>
-        </li>
-    @endif
-     {{-- Vendors AP 2 — bill upload + 2-stage approval (CMD → Director). --}}
-    @if (Auth::user()->isAdmin())
-        <li>
-            <x-sidebar-link :href="route('vendor-bills-2.index')" :active="request()->routeIs('vendor-bills.*')">
-                <x-link-icon icon="o-banknotes" :active="request()->routeIs('vendor-bills-2.*')" />
-                <span>Vendors AP 2</span>
-            </x-sidebar-link>
-        </li>
+        {{-- Documents — unchanged, still its own top-level entry --}}
+        @if (Auth::user()->isAdmin() ||
+                Auth::user()->isInvoiceManager() ||
+                Auth::user()->hasViewKhi() ||
+                Auth::user()->hasViewLhr() ||
+                Auth::user()->hasViewAll())
+            <li>
+                <x-sidebar-link :href="route('documents.index')" :active="request()->routeIs('documents.*')">
+                    <x-link-icon icon="o-folder" :active="request()->routeIs('documents.*')" />
+                    <span>Documents</span>
+                </x-sidebar-link>
+            </li>
+        @endif
     @endif
     {{-- App Version — admin manages the mobile minimum supported version
          the /api/* middleware checks against. --}}
@@ -250,7 +274,13 @@
     @endif
 
     {{-- CRM --}}
-    @if (Auth::user()->isAdmin() || Auth::user()->isSalesHead() || Auth::user()->isScmLhr() || (!Auth::user()->isSupplyChain() && !Auth::user()->isPriceUploads() && !Auth::user()->isInvoiceManager() && !Auth::user()->isInventoryManager()))
+    @if (Auth::user()->isAdmin() ||
+            Auth::user()->isSalesHead() ||
+            Auth::user()->isScmLhr() ||
+            (!Auth::user()->isSupplyChain() &&
+                !Auth::user()->isPriceUploads() &&
+                !Auth::user()->isInvoiceManager() &&
+                !Auth::user()->isInventoryManager()))
         <li class="relative" x-data="{ openCrmMenu: {{ request()->routeIs('monthlyTourPlans.all', 'visits.all', 'manage.tourplans') ? 'true' : 'false' }} }">
             <x-sidebar-link href="javascript:void(0)" @click="openCrmMenu = !openCrmMenu" aria-expanded="openCrmMenu">
                 <x-link-icon icon="o-chart-pie" />
@@ -325,10 +355,12 @@
 
         {{-- HCM Module --}}
         <li class="relative" x-data="{ openHcmMenu: {{ request()->routeIs('admin.hcm.*') ? 'true' : 'false' }} }">
-            <x-sidebar-link href="javascript:void(0)" @click="openHcmMenu = !openHcmMenu" aria-expanded="openHcmMenu" :active="request()->routeIs('admin.hcm.*')">
+            <x-sidebar-link href="javascript:void(0)" @click="openHcmMenu = !openHcmMenu" aria-expanded="openHcmMenu"
+                :active="request()->routeIs('admin.hcm.*')">
                 <x-link-icon icon="o-users" :active="request()->routeIs('admin.hcm.*')" />
                 <span class="flex-1 me-3">HCM</span>
-                <x-heroicon-s-chevron-down x-bind:class="{ 'rotate-180': openHcmMenu }" class="h-5 w-5 transform transition-transform" />
+                <x-heroicon-s-chevron-down x-bind:class="{ 'rotate-180': openHcmMenu }"
+                    class="h-5 w-5 transform transition-transform" />
             </x-sidebar-link>
 
             <ul x-show="openHcmMenu" x-transition:enter="transition ease-out duration-200"
@@ -390,50 +422,52 @@
             </ul>
         </li>
 
-            {{-- WMS Digitization Module - Admin and Inventory Manager only --}}
-    @if (Auth::user()->isAdmin() || Auth::user()->isInventoryManager())
-        <li class="relative" x-data="{ openWmsMenu: {{ request()->routeIs('wms.*') ? 'true' : 'false' }} }">
-            <x-sidebar-link href="javascript:void(0)" @click="openWmsMenu = !openWmsMenu" aria-expanded="openWmsMenu" :active="request()->routeIs('wms.*')">
-                <x-link-icon icon="o-archive-box" :active="request()->routeIs('wms.*')" />
-                <span class="flex-1 me-3">Warehouse (WMS)</span>
-                <x-heroicon-s-chevron-down x-bind:class="{ 'rotate-180': openWmsMenu }" class="h-5 w-5 transform transition-transform" />
-            </x-sidebar-link>
+        {{-- WMS Digitization Module - Admin and Inventory Manager only --}}
+        @if (Auth::user()->isAdmin() || Auth::user()->isInventoryManager())
+            <li class="relative" x-data="{ openWmsMenu: {{ request()->routeIs('wms.*') ? 'true' : 'false' }} }">
+                <x-sidebar-link href="javascript:void(0)" @click="openWmsMenu = !openWmsMenu"
+                    aria-expanded="openWmsMenu" :active="request()->routeIs('wms.*')">
+                    <x-link-icon icon="o-archive-box" :active="request()->routeIs('wms.*')" />
+                    <span class="flex-1 me-3">Warehouse (WMS)</span>
+                    <x-heroicon-s-chevron-down x-bind:class="{ 'rotate-180': openWmsMenu }"
+                        class="h-5 w-5 transform transition-transform" />
+                </x-sidebar-link>
 
-            <ul x-show="openWmsMenu" x-transition:enter="transition ease-out duration-200"
-                x-transition:enter-start="opacity-0 transform scale-95"
-                x-transition:enter-end="opacity-100 transform scale-100"
-                x-transition:leave="transition ease-in duration-150"
-                x-transition:leave-start="opacity-100 transform scale-100"
-                x-transition:leave-end="opacity-0 transform scale-95" x-cloak class="mt-2 space-y-1 ps-4">
+                <ul x-show="openWmsMenu" x-transition:enter="transition ease-out duration-200"
+                    x-transition:enter-start="opacity-0 transform scale-95"
+                    x-transition:enter-end="opacity-100 transform scale-100"
+                    x-transition:leave="transition ease-in duration-150"
+                    x-transition:leave-start="opacity-100 transform scale-100"
+                    x-transition:leave-end="opacity-0 transform scale-95" x-cloak class="mt-2 space-y-1 ps-4">
 
-                <li>
-                    <x-sidebar-link :href="route('wms.locations')" :active="request()->routeIs('wms.locations')">
-                        <span>Locations & Racking</span>
-                    </x-sidebar-link>
-                </li>
-                <li>
-                    <x-sidebar-link :href="route('wms.grn')" :active="request()->routeIs('wms.grn')">
-                        <span>GRN Generation</span>
-                    </x-sidebar-link>
-                </li>
-                <li>
-                    <x-sidebar-link :href="route('wms.lpn')" :active="request()->routeIs('wms.lpn')">
-                        <span>LPN / Stock Handling</span>
-                    </x-sidebar-link>
-                </li>
-                <li>
-                    <x-sidebar-link :href="route('wms.picking')" :active="request()->routeIs('wms.picking')">
-                        <span>Picking Workflow</span>
-                    </x-sidebar-link>
-                </li>
-                <li>
-                    <x-sidebar-link :href="route('wms.traceability')" :active="request()->routeIs('wms.traceability')">
-                        <span>Traceability Reports</span>
-                    </x-sidebar-link>
-                </li>
-            </ul>
-        </li>
-    @endif
+                    <li>
+                        <x-sidebar-link :href="route('wms.locations')" :active="request()->routeIs('wms.locations')">
+                            <span>Locations & Racking</span>
+                        </x-sidebar-link>
+                    </li>
+                    <li>
+                        <x-sidebar-link :href="route('wms.grn')" :active="request()->routeIs('wms.grn')">
+                            <span>GRN Generation</span>
+                        </x-sidebar-link>
+                    </li>
+                    <li>
+                        <x-sidebar-link :href="route('wms.lpn')" :active="request()->routeIs('wms.lpn')">
+                            <span>LPN / Stock Handling</span>
+                        </x-sidebar-link>
+                    </li>
+                    <li>
+                        <x-sidebar-link :href="route('wms.picking')" :active="request()->routeIs('wms.picking')">
+                            <span>Picking Workflow</span>
+                        </x-sidebar-link>
+                    </li>
+                    <li>
+                        <x-sidebar-link :href="route('wms.traceability')" :active="request()->routeIs('wms.traceability')">
+                            <span>Traceability Reports</span>
+                        </x-sidebar-link>
+                    </li>
+                </ul>
+            </li>
+        @endif
 
         {{-- Activity Logs --}}
         <li>
