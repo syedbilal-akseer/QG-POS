@@ -163,8 +163,12 @@ class SyncOracleItemPrice extends Command
     {
         $activeQuery = ItemPrice::query()
             ->where(function ($q) use ($syncStartedAt) {
+            $q->whereNull('start_date_active')
+                ->orWhere('start_date_active', '<=', $syncStartedAt);
+            })
+            ->where(function ($q) use ($syncStartedAt) {
                 $q->whereNull('end_date_active')
-                  ->orWhere('end_date_active', '>', $syncStartedAt);
+                ->orWhere('end_date_active', '>', $syncStartedAt);
             });
 
         $totalActive = (clone $activeQuery)->count();
