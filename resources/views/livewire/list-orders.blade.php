@@ -8,7 +8,7 @@
          range, status, etc.). Re-renders automatically whenever Livewire
          updates the page after a filter change. --}}
     @php $stats = $this->getStatsData(); @endphp
-    <div class="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="mb-6 grid grid-cols-2 md:grid-cols-5 gap-4">
         <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
             <div class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Orders</div>
             <div class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{{ number_format($stats['total']) }}</div>
@@ -25,6 +25,13 @@
             <div class="text-xs font-semibold uppercase tracking-wider text-green-700 dark:text-green-300">Pushed to Oracle</div>
             <div class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{{ number_format($stats['pushed']) }}</div>
             <div class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">order_status = entered</div>
+        </div>
+
+        {{-- Cancelled --}}
+        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
+            <div class="text-xs font-semibold uppercase tracking-wider text-red-700 dark:text-red-300">Cancelled</div>
+            <div class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{{ number_format($stats['cancelled']) }}</div>
+            <div class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">order_status = cancelled</div>
         </div>
 
         <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">

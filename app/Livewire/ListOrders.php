@@ -159,6 +159,7 @@ class ListOrders extends Component implements HasForms, HasTable
 
         $total       = (clone $base)->count();
         $pending     = (clone $base)->where('order_status', \App\Enums\OrderStatusEnum::PENDING->value)->count();
+        $cancelled   = (clone $base)->where('order_status', \App\Enums\OrderStatusEnum::CANCELED->value)->count();
         $pushed      = (clone $base)->whereNotNull('oracle_at')->count();
 
         // TAT = pushed within 24h of creation, as a % of all pushed orders
@@ -171,7 +172,7 @@ class ListOrders extends Component implements HasForms, HasTable
         $delayed = max(0, $pushed - $pushedOnTime); // pushed but past 24h
         $tatPct  = $pushed > 0 ? round(($pushedOnTime / $pushed) * 100, 1) : 0.0;
 
-        return compact('total', 'pending', 'pushed', 'pushedOnTime', 'delayed', 'tatPct');
+        return compact('total', 'pending', 'pushed', 'pushedOnTime', 'delayed', 'tatPct', 'cancelled');
     }
 
     /**
@@ -245,7 +246,7 @@ class ListOrders extends Component implements HasForms, HasTable
 
                 return $query;
             })
-            
+
             ->columns([
                 TextColumn::make('order_number')
                     ->label('Order Number')
@@ -620,10 +621,10 @@ class ListOrders extends Component implements HasForms, HasTable
         if ($warehouses->isEmpty()) {
             $warehouses = Warehouse::all();
         }
-        
+
         // Add default "Select Warehouse" option
         $warehouseOptions = collect([['value' => '', 'label' => 'Select Warehouse']]);
-        
+
         // Transform the warehouse data into the format expected by the select component (value and label)
         $warehouseData = $warehouses->map(function ($warehouse) {
             return [
@@ -631,7 +632,7 @@ class ListOrders extends Component implements HasForms, HasTable
                 'label' => $warehouse->organization_code . ' (' . $warehouse->organization_id . ')',
             ];
         });
-        
+
         $this->warehouses = $warehouseOptions->merge($warehouseData)->values()->toArray();
 
         // Initialize the orderItemWarehouses array with existing warehouse IDs or null
