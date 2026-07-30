@@ -56,7 +56,7 @@ class LoginRequest extends FormRequest
         $allowedRoles = Cache::remember('allowed_login_roles', 3600, function () {
             return Role::pluck('name')->toArray();
         });
-
+        dd($allowedRoles);
         // Check if the authenticated user has an allowed role
         $user = Auth::user();
         $userRole = $user->role_name;

@@ -277,7 +277,7 @@
             (!Auth::user()->isSupplyChain() &&
                 !Auth::user()->isPriceUploads() &&
                 !Auth::user()->isInvoiceManager() &&
-                !Auth::user()->isInventoryManager() && !Auth::user()->isCmdKhi()))
+                !Auth::user()->isInventoryManager() && !Auth::user()->isCmd()))
         <li class="relative" x-data="{ openCrmMenu: {{ request()->routeIs('monthlyTourPlans.all', 'visits.all', 'manage.tourplans') ? 'true' : 'false' }} }">
             <x-sidebar-link href="javascript:void(0)" @click="openCrmMenu = !openCrmMenu" aria-expanded="openCrmMenu">
                 <x-link-icon icon="o-chart-pie" />
