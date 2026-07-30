@@ -14,8 +14,6 @@
     @if (
         $u->isAdmin() ||
             $u->isSalesHead() ||
-            $u->isCmdKhi() ||
-            $u->isCmdLhr() ||
             (method_exists($u, 'hasAnyViewRole') && $u->hasAnyViewRole()))
         {{-- Roles routed to /app/orders (orders.all): admin, sales-head, cmd-*,
              view-khi / view-lhr / view-all. Mirrors routes/web.php gate. --}}
@@ -53,7 +51,7 @@
 
     {{-- Reports — mobile-order / mobile-receipt adoption. Mirrors the
          checkRole:admin,sales-head,cmd-khi,cmd-lhr gate on admin.reports.* routes. --}}
-    @if ($u->isAdmin() || $u->isSalesHead() || $u->isCmdKhi() || $u->isCmdLhr())
+    @if ($u->isAdmin() || $u->isSalesHead())
         <li class="relative" x-data="{ openReportsMenu: {{ request()->routeIs('admin.reports.*') ? 'true' : 'false' }} }">
             <x-sidebar-link href="javascript:void(0)" @click="openReportsMenu = !openReportsMenu"
                 aria-expanded="openReportsMenu" :active="request()->routeIs('admin.reports.*')">
@@ -103,7 +101,6 @@
             Auth::user()->hasViewLhr() ||
             Auth::user()->hasViewAll() ||
             Auth::user()->isAccountUser() ||
-            Auth::user()->isCmd() ||
             Auth::user()->isDirector())
         <li class="relative" x-data="{ openAccountMenu: {{ request()->routeIs('invoices.*', 'builties.*', 'ledgers.*', 'vendor-bills.*', 'vendor-bills-2.*') ? 'true' : 'false' }} }">
             <x-sidebar-link href="javascript:void(0)" @click="openAccountMenu = !openAccountMenu"
@@ -180,7 +177,7 @@
                 @endif
 
                 {{-- Vendors AP sub-section --}}
-                @if (Auth::user()->isAdmin() || Auth::user()->isAccountUser() || Auth::user()->isCmd() || Auth::user()->isDirector())
+                @if (Auth::user()->isAdmin() || Auth::user()->isAccountUser() || Auth::user()->isDirector())
                     <li class="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Vendors</li>
                     <li>
                         <x-sidebar-link :href="route('vendor-bills.index')" :active="request()->routeIs('vendor-bills.*')">
