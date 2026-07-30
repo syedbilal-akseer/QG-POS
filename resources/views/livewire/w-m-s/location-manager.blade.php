@@ -51,7 +51,7 @@
 
                 <div>
                     <label class="block text-xs font-black text-gray-700 dark:text-gray-300 uppercase mb-1">Location Code</label>
-                    <x-text-input type="text" wire:model="location_code" placeholder="e.g. Z01-A12-R03-B04" class="w-full" />
+                    <x-text-input name="location_code" type="text" wire:model="location_code" placeholder="e.g. Z01-A12-R03-B04" class="w-full" />
                     @error('location_code') <span class="text-xs text-red-500 mt-1 font-bold block">{{ $message }}</span> @enderror
                 </div>
 
