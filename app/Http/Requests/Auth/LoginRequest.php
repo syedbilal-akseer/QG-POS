@@ -52,17 +52,16 @@ class LoginRequest extends FormRequest
             ]);
         }
 
-        // dd($allowedRoles);
         // Fetch allowed roles dynamically from the roles table
         $allowedRoles = Cache::remember('allowed_login_roles', 3600, function () {
             return Role::pluck('name')->toArray();
         });
-        // dd($allowedRoles);
+
         // Check if the authenticated user has an allowed role
         $user = Auth::user();
         $userRole = $user->role_name;
 
-        if (!$userRole || !in_array($userRole, $allowedRoles) || !$userRole == 'inventory-manager') {
+        if (!$userRole || !in_array($userRole, $allowedRoles)) {
             Auth::logout();
 
             throw ValidationException::withMessages([
