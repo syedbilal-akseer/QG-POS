@@ -11,10 +11,7 @@
 
     {{-- Orders --}}
     @php $u = Auth::user(); @endphp
-    @if (
-        $u->isAdmin() ||
-            $u->isSalesHead() ||
-            (method_exists($u, 'hasAnyViewRole') && $u->hasAnyViewRole()))
+    @if ($u->isAdmin() || $u->isSalesHead() || (method_exists($u, 'hasAnyViewRole') && $u->hasAnyViewRole()))
         {{-- Roles routed to /app/orders (orders.all): admin, sales-head, cmd-*,
              view-khi / view-lhr / view-all. Mirrors routes/web.php gate. --}}
         <li>
@@ -277,7 +274,8 @@
             (!Auth::user()->isSupplyChain() &&
                 !Auth::user()->isPriceUploads() &&
                 !Auth::user()->isInvoiceManager() &&
-                !Auth::user()->isInventoryManager() && !Auth::user()->isCmd()))
+                !Auth::user()->isInventoryManager() &&
+                !Auth::user()->isCmd()))
         <li class="relative" x-data="{ openCrmMenu: {{ request()->routeIs('monthlyTourPlans.all', 'visits.all', 'manage.tourplans') ? 'true' : 'false' }} }">
             <x-sidebar-link href="javascript:void(0)" @click="openCrmMenu = !openCrmMenu" aria-expanded="openCrmMenu">
                 <x-link-icon icon="o-chart-pie" />
@@ -419,59 +417,59 @@
             </ul>
         </li>
 
-        {{-- WMS Digitization Module - Admin and Inventory Manager only --}}
-        @if (Auth::user()->isAdmin() || Auth::user()->isInventoryManager())
-            <li class="relative" x-data="{ openWmsMenu: {{ request()->routeIs('wms.*') ? 'true' : 'false' }} }">
-                <x-sidebar-link href="javascript:void(0)" @click="openWmsMenu = !openWmsMenu"
-                    aria-expanded="openWmsMenu" :active="request()->routeIs('wms.*')">
-                    <x-link-icon icon="o-archive-box" :active="request()->routeIs('wms.*')" />
-                    <span class="flex-1 me-3">Warehouse (WMS)</span>
-                    <x-heroicon-s-chevron-down x-bind:class="{ 'rotate-180': openWmsMenu }"
-                        class="h-5 w-5 transform transition-transform" />
-                </x-sidebar-link>
-
-                <ul x-show="openWmsMenu" x-transition:enter="transition ease-out duration-200"
-                    x-transition:enter-start="opacity-0 transform scale-95"
-                    x-transition:enter-end="opacity-100 transform scale-100"
-                    x-transition:leave="transition ease-in duration-150"
-                    x-transition:leave-start="opacity-100 transform scale-100"
-                    x-transition:leave-end="opacity-0 transform scale-95" x-cloak class="mt-2 space-y-1 ps-4">
-
-                    <li>
-                        <x-sidebar-link :href="route('wms.locations')" :active="request()->routeIs('wms.locations')">
-                            <span>Locations & Racking</span>
-                        </x-sidebar-link>
-                    </li>
-                    <li>
-                        <x-sidebar-link :href="route('wms.grn')" :active="request()->routeIs('wms.grn')">
-                            <span>GRN Generation</span>
-                        </x-sidebar-link>
-                    </li>
-                    <li>
-                        <x-sidebar-link :href="route('wms.lpn')" :active="request()->routeIs('wms.lpn')">
-                            <span>LPN / Stock Handling</span>
-                        </x-sidebar-link>
-                    </li>
-                    <li>
-                        <x-sidebar-link :href="route('wms.picking')" :active="request()->routeIs('wms.picking')">
-                            <span>Picking Workflow</span>
-                        </x-sidebar-link>
-                    </li>
-                    <li>
-                        <x-sidebar-link :href="route('wms.traceability')" :active="request()->routeIs('wms.traceability')">
-                            <span>Traceability Reports</span>
-                        </x-sidebar-link>
-                    </li>
-                </ul>
-            </li>
-        @endif
-
         {{-- Activity Logs --}}
         <li>
             <x-sidebar-link :href="route('activity-logs')" :active="request()->routeIs('activity-logs')">
                 <x-link-icon icon="o-list-bullet" :active="request()->routeIs('activity-logs')" />
                 <span>Activity Logs</span>
             </x-sidebar-link>
+        </li>
+    @endif
+
+    {{-- WMS Digitization Module - Admin and Inventory Manager only --}}
+    @if (Auth::user()->isAdmin() || Auth::user()->isInventoryManager())
+        <li class="relative" x-data="{ openWmsMenu: {{ request()->routeIs('wms.*') ? 'true' : 'false' }} }">
+            <x-sidebar-link href="javascript:void(0)" @click="openWmsMenu = !openWmsMenu" aria-expanded="openWmsMenu"
+                :active="request()->routeIs('wms.*')">
+                <x-link-icon icon="o-archive-box" :active="request()->routeIs('wms.*')" />
+                <span class="flex-1 me-3">Warehouse (WMS)</span>
+                <x-heroicon-s-chevron-down x-bind:class="{ 'rotate-180': openWmsMenu }"
+                    class="h-5 w-5 transform transition-transform" />
+            </x-sidebar-link>
+
+            <ul x-show="openWmsMenu" x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="opacity-0 transform scale-95"
+                x-transition:enter-end="opacity-100 transform scale-100"
+                x-transition:leave="transition ease-in duration-150"
+                x-transition:leave-start="opacity-100 transform scale-100"
+                x-transition:leave-end="opacity-0 transform scale-95" x-cloak class="mt-2 space-y-1 ps-4">
+
+                <li>
+                    <x-sidebar-link :href="route('wms.locations')" :active="request()->routeIs('wms.locations')">
+                        <span>Locations & Racking</span>
+                    </x-sidebar-link>
+                </li>
+                <li>
+                    <x-sidebar-link :href="route('wms.grn')" :active="request()->routeIs('wms.grn')">
+                        <span>GRN Generation</span>
+                    </x-sidebar-link>
+                </li>
+                <li>
+                    <x-sidebar-link :href="route('wms.lpn')" :active="request()->routeIs('wms.lpn')">
+                        <span>LPN / Stock Handling</span>
+                    </x-sidebar-link>
+                </li>
+                <li>
+                    <x-sidebar-link :href="route('wms.picking')" :active="request()->routeIs('wms.picking')">
+                        <span>Picking Workflow</span>
+                    </x-sidebar-link>
+                </li>
+                <li>
+                    <x-sidebar-link :href="route('wms.traceability')" :active="request()->routeIs('wms.traceability')">
+                        <span>Traceability Reports</span>
+                    </x-sidebar-link>
+                </li>
+            </ul>
         </li>
     @endif
 </ul>
