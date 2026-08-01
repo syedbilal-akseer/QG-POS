@@ -53,7 +53,7 @@
             <!-- Static sidebar for desktop -->
             <x-sidebar />
 
-            <div class="lg:pl-72">
+            <div class="lg:pl-20">
                 <!-- Toast -->
                 <x-toast />
 

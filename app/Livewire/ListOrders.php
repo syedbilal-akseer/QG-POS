@@ -79,10 +79,13 @@ class ListOrders extends Component implements HasForms, HasTable
     {
         $map = [];
 
-        // 1) supply-chain users — keyed by each user_organization.oracle_ou_id
+        // 1) supply-chain users — keyed by each user_organization.oracle_ou_id.
+        // Only currently-active assignments count, so a user whose org
+        // assignment was later changed/deactivated stops showing up here.
         $rows = \Illuminate\Support\Facades\DB::table('users')
             ->join('user_organizations', 'user_organizations.user_id', '=', 'users.id')
             ->where('users.role', 'supply-chain')
+            ->where('user_organizations.is_active', true)
             ->whereNotNull('user_organizations.oracle_ou_id')
             ->select('users.name', 'user_organizations.oracle_ou_id')
             ->get();

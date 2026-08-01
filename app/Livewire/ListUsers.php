@@ -9,6 +9,7 @@ use App\Enums\RoleEnum;
 use Livewire\Component;
 use App\Models\Department;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Filament\Tables\Table;
 use App\Rules\StrongPassword;
 use App\Traits\NotifiesUsers;
@@ -19,6 +20,8 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Columns\ImageColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Tables\Concerns\InteractsWithTable;
 
@@ -41,10 +44,12 @@ class ListUsers extends Component implements HasForms, HasTable
     public $additional_roles = [];
     public $new_additional_roles = [];
 
+    private ?array $salespeopleNameMap = null;
+
     public function table(Table $table): Table
     {
         return $table
-            ->query(User::query()->with(['role', 'department']))
+            ->query(User::query()->with(['role', 'department', 'userOrganizations']))
             ->columns([
                 ImageColumn::make('profile_photo')
                     ->label('Image')
@@ -67,6 +72,31 @@ class ListUsers extends Component implements HasForms, HasTable
                     ->formatStateUsing(fn($state) => $state ? ucwords($state) : 'None')
                     ->visibleFrom('md')
                     ->sortable(),
+                TextColumn::make('organizations')
+                    ->label('Organization')
+                    ->getStateUsing(fn (User $record) => $record->userOrganizations
+                        ->where('is_active', true)
+                        ->pluck('oracle_organization_name')
+                        ->filter()
+                        ->implode(', '))
+                    ->wrap()
+                    ->visibleFrom('lg'),
+                TextColumn::make('assigned_salespeople')
+                    ->label('Assigned Salesperson')
+                    ->getStateUsing(function (User $record) {
+                        if (empty($record->assigned_salespeople)) {
+                            return '';
+                        }
+
+                        $map = $this->salespeopleNameMap();
+
+                        return collect($record->assigned_salespeople)
+                            ->map(fn ($id) => $map[$id] ?? null)
+                            ->filter()
+                            ->implode(', ');
+                    })
+                    ->wrap()
+                    ->visibleFrom('lg'),
                 TextColumn::make('oracle_user_name')
                     ->label('Oracle User')
                     ->formatStateUsing(fn($state) => $state ?: 'Not Mapped')
@@ -74,8 +104,44 @@ class ListUsers extends Component implements HasForms, HasTable
                     ->sortable(),
             ])
             ->filters([
-                // Add any specific filters if needed
-            ])
+                SelectFilter::make('role')
+                    ->label('Role')
+                    ->placeholder('All roles')
+                    ->options(fn () => $this->getAvailableRoles())
+                    ->query(function (Builder $query, array $data) {
+                        return $query->when($data['value'], fn ($query, $value) => $query->where('role', $value));
+                    }),
+
+                SelectFilter::make('organization')
+                    ->label('Organization')
+                    ->placeholder('All organizations')
+                    ->options(fn () => Cache::remember(
+                        'list_users_organization_filter_options',
+                        now()->addMinutes(30),
+                        fn () => UserOrganization::query()
+                            ->where('is_active', true)
+                            ->whereNotNull('oracle_organization_code')
+                            ->distinct()
+                            ->orderBy('oracle_organization_name')
+                            ->pluck('oracle_organization_name', 'oracle_organization_code')
+                            ->toArray()
+                    ))
+                    ->searchable()
+                    ->preload()
+                    ->query(function (Builder $query, array $data) {
+                        return $query->when($data['value'], function ($query, $value) {
+                            $query->whereHas('userOrganizations', function ($q) use ($value) {
+                                $q->where('oracle_organization_code', $value)->where('is_active', true);
+                            });
+                        });
+                    }),
+            ], layout: \Filament\Tables\Enums\FiltersLayout::AboveContentCollapsible)
+            ->filtersFormColumns(2)
+            ->filtersTriggerAction(
+                fn (Action $action) => $action
+                    ->button()
+                    ->label('Filter'),
+            )
             ->actions([
                 Action::make('edit')
                     ->label('Edit')
@@ -278,6 +344,15 @@ class ListUsers extends Component implements HasForms, HasTable
         return User::where('role', 'user')
             ->orderBy('name')
             ->get();
+    }
+
+    /**
+     * Cache of user id => name for the current request, used to resolve
+     * assigned_salespeople id arrays into display names without N+1 queries.
+     */
+    private function salespeopleNameMap(): array
+    {
+        return $this->salespeopleNameMap ??= User::pluck('name', 'id')->toArray();
     }
 
     public function render(): View

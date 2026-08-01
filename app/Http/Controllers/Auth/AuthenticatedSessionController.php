@@ -41,7 +41,6 @@ class AuthenticatedSessionController extends Controller
         $landing  = match ($userRole) {
             'supply-chain'      => route('orders.supply-chain.all'),
             'scm-lhr'           => route('orders.scm-lhr.all'),
-            'cmd-lhr'           => route('admin.receipts'),
             'inventory-manager' => route('wms.locations'),
             'invoice-manager'   => route('invoices.view'),
             default             => null,

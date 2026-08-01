@@ -1,5 +1,5 @@
 <header
-    class="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 dark:bg-neutral-900 dark:text-gray-300 dark:border-neutral-700 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+    class="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white dark:bg-neutral-900 dark:text-gray-300 dark:border-neutral-700 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
 
     <!-- Sidebar Toggle Button -->
     <button type="button" @click="isSidebarOpen = !isSidebarOpen"
@@ -123,7 +123,7 @@
                     x-transition:leave="transition ease-in duration-75"
                     x-transition:leave-start="transform opacity-100 scale-100"
                     x-transition:leave-end="transform opacity-0 scale-95"
-                    class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md  dark:bg-neutral-800 py-2 px-3 shadow-lg ring-1 ring-gray-900/5 focus:outline-none"
+                    class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white dark:bg-neutral-800 py-2 px-3 shadow-lg ring-1 ring-gray-900/5 focus:outline-none"
                     role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1">
                     <!-- Dropdown Items -->
                     <a class="flex items-center gap-x-3.5 py-2 px-3 rounded-lg text-sm text-gray-800 dark:text-gray-200 hover:bg-primary-600 hover:text-white dark:hover:bg-primary-600 dark:hover:text-white focus:outline-none"
