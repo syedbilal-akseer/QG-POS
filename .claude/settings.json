@@ -9,7 +9,11 @@
       "Bash(pdftotext -layout 'Customers Ledger HBM \\(1-50\\).pdf' 'C:\\\\Users\\\\HP\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--laragon-www-pos\\\\19d311e8-c99c-4e72-b6d8-e16198b01c65\\\\scratchpad/ledger_sample.txt')",
       "Bash(./vendor/bin/pest)",
       "Bash(php artisan tinker '--execute= *)",
-      "Bash(grep -n 'class OracleUser\\\\|protected $table\\\\|protected $connection' 'D:\\\\laragon\\\\www\\\\pos\\\\app\\\\Models\\\\OracleUser.php')"
+      "Bash(grep -n 'class OracleUser\\\\|protected $table\\\\|protected $connection' 'D:\\\\laragon\\\\www\\\\pos\\\\app\\\\Models\\\\OracleUser.php')",
+      "Read(//tmp/**)",
+      "Bash(php -r \"var_dump\\(ini_get\\('opcache.enable_cli'\\), ini_get\\('opcache.enable'\\), ini_get\\('opcache.validate_timestamps'\\), ini_get\\('opcache.revalidate_freq'\\)\\);\")",
+      "Bash(grep -n 'protected $fillable\\\\|protected $casts\\\\|salesperson\\\\|ou_id\\\\|ou_name' /d/laragon/www/pos/app/Models/Customer.php)",
+      "Bash(php -l app/Livewire/ListCustomers.php)"
     ]
   }
 }

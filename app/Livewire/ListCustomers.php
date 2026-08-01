@@ -10,7 +10,9 @@ use Filament\Tables\Actions\Action;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Tables\Concerns\InteractsWithTable;
 
@@ -37,14 +39,56 @@ class ListCustomers extends Component implements HasForms, HasTable
                     ->label('Account Number')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('salesperson')
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('contact_number')
                     ->searchable()
                     ->visibleFrom('md')
                     ->sortable(),
             ])
             ->filters([
-                // Add any specific filters if needed
-            ])
+                SelectFilter::make('location')
+                    ->label('Location')
+                    ->placeholder('All locations')
+                    ->options([
+                        'karachi' => 'Karachi',
+                        'lahore' => 'Lahore',
+                    ])
+                    ->query(function (Builder $query, array $data) {
+                        return $query->when($data['value'], function ($query, $value) {
+                            if ($value === 'karachi') {
+                                return $query->whereIn('ou_id', [102, 103, 104, 105, 106]);
+                            } elseif ($value === 'lahore') {
+                                return $query->whereIn('ou_id', [108, 109]);
+                            }
+                        });
+                    }),
+
+                SelectFilter::make('salesperson')
+                    ->label('Salesperson')
+                    ->placeholder('All salespeople')
+                    ->attribute('salesperson')
+                    ->options(fn () => Cache::remember(
+                        'list_customers_salesperson_filter_options',
+                        now()->addMinutes(30),
+                        fn () => Customer::query()
+                            ->whereNotNull('salesperson')
+                            ->where('salesperson', '!=', '')
+                            ->distinct()
+                            ->orderBy('salesperson')
+                            ->pluck('salesperson', 'salesperson')
+                            ->toArray()
+                    ))
+                    ->searchable()
+                    ->preload(),
+            ], layout: \Filament\Tables\Enums\FiltersLayout::AboveContentCollapsible)
+            ->filtersFormColumns(2)
+            ->filtersTriggerAction(
+                fn (Action $action) => $action
+                    ->button()
+                    ->label('Filter'),
+            )
             ->actions([
                 Action::make('view')
                     ->icon('heroicon-m-eye')
