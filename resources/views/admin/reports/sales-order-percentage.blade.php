@@ -22,7 +22,8 @@
                     <table class="min-w-full text-sm">
                         <thead class="bg-gray-900 text-white">
                             <tr>
-                                <th rowspan="2" class="sticky left-0 bg-gray-900 z-10">Salesperson</th>
+                                <th rowspan="2" class="sticky left-0 bg-gray-900 z-10">Segment</th>
+                                <th rowspan="2">Salesperson</th>
 
                                 @foreach ($months as $month)
                                     <th colspan="4" class="text-center border-l border-gray-700">{{ $month }}</th>
@@ -45,7 +46,8 @@
                             @foreach ($matrix as $sp => $cells)
                                 @php $spMob = 0; $spTot = 0; @endphp
                                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                                    <td class="px-4 py-2 font-semibold text-gray-800 dark:text-gray-100 sticky left-0 bg-white dark:bg-gray-800">{{ $sp }}</td>
+                                    <td class="px-4 py-2 text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800">{{ \App\Services\SalespersonSegmentResolver::forSalesperson($sp) }}</td>
+                                    <td class="px-4 py-2 font-semibold text-gray-800 dark:text-gray-100">{{ $sp }}</td>
                                     @foreach ($months as $m)
                                         @php $c = $cells[$m] ?? null; @endphp
                                         <td class="px-3 py-2 text-center">{{ $c['total'] ?? '-' }}</td>
@@ -61,7 +63,8 @@
                         </tbody>
                         <tfoot class="bg-gray-100 dark:bg-gray-900 font-semibold">
                             <tr>
-                                <td class="px-4 py-2 sticky left-0 bg-gray-100 dark:bg-gray-900">ALL SALESPERSONS</td>
+                                <td class="px-4 py-2 sticky left-0 bg-gray-100 dark:bg-gray-900"></td>
+                                <td class="px-4 py-2">ALL SALESPERSONS</td>
                                 @foreach ($months as $m)
                                     @php $mob = $colTotals[$m]['mobile']; $tot = $colTotals[$m]['total']; $pct = $tot > 0 ? round(($mob / $tot) * 100, 2) . '%' : '0%'; @endphp
                                     <td class="text-center">{{ $tot }}</td>

@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Services\SalespersonSegmentResolver;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
@@ -28,8 +29,8 @@ class ReceiptsPercentageExport implements FromArray, WithEvents
     {
         $rows = [];
 
-        $headerRow1 = ['Salesperson'];
-        $headerRow2 = [''];
+        $headerRow1 = ['Segment', 'Salesperson'];
+        $headerRow2 = ['', ''];
         foreach ($this->sortedMonths as $m) {
             $headerRow1[] = $m;
             $headerRow1[] = '';
@@ -46,7 +47,7 @@ class ReceiptsPercentageExport implements FromArray, WithEvents
         $rows[] = $headerRow2;
 
         foreach ($this->matrix as $sp => $cells) {
-            $row = [$sp];
+            $row = [SalespersonSegmentResolver::forSalesperson($sp), $sp];
             foreach ($this->sortedMonths as $m) {
                 $c = $cells[$m] ?? null;
                 if ($c) {
@@ -65,7 +66,7 @@ class ReceiptsPercentageExport implements FromArray, WithEvents
             $rows[] = $row;
         }
 
-        $totalRow = ['ALL SALESPERSONS'];
+        $totalRow = ['', 'ALL SALESPERSONS'];
         foreach ($this->sortedMonths as $m) {
             $mob = $this->colTotals[$m]['mobile'];
             $tot = $this->colTotals[$m]['total'];
@@ -87,13 +88,14 @@ class ReceiptsPercentageExport implements FromArray, WithEvents
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
                 $monthCount = count($this->sortedMonths);
-                $lastCol = 2 + $monthCount * 4;
+                $lastCol = 3 + $monthCount * 4;
                 $lastColLetter = Coordinate::stringFromColumnIndex($lastCol);
 
                 $sheet->mergeCells("A1:A2");
+                $sheet->mergeCells("B1:B2");
                 $sheet->mergeCells("{$lastColLetter}1:{$lastColLetter}2");
 
-                $col = 2;
+                $col = 3;
                 foreach ($this->sortedMonths as $m) {
                     $startLetter = Coordinate::stringFromColumnIndex($col);
                     $endLetter = Coordinate::stringFromColumnIndex($col + 3);

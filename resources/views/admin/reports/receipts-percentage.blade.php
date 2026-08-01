@@ -23,6 +23,9 @@
                         <thead class="bg-gray-900 text-white">
                             <tr>
                                 <th rowspan="2" class="sticky left-0 bg-gray-900 z-10">
+                                    Segment
+                                </th>
+                                <th rowspan="2">
                                     Salesperson
                                 </th>
 
@@ -56,7 +59,11 @@
                                 @endphp
                                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/40">
                                     <td
-                                        class="px-4 py-2 font-semibold text-gray-800 dark:text-gray-100 sticky left-0 bg-white dark:bg-gray-800">
+                                        class="px-4 py-2 text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800">
+                                        {{ \App\Services\SalespersonSegmentResolver::forSalesperson($sp) }}
+                                    </td>
+                                    <td
+                                        class="px-4 py-2 font-semibold text-gray-800 dark:text-gray-100">
                                         {{ $sp }}
                                     </td>
                                     @foreach ($months as $m)
@@ -99,7 +106,8 @@
                         </tbody>
                         <tfoot class="bg-gray-100 dark:bg-gray-900 font-semibold">
                             <tr>
-                                <td class="px-4 py-2 sticky left-0 bg-gray-100 dark:bg-gray-900">ALL SALESPERSONS</td>
+                                <td class="px-4 py-2 sticky left-0 bg-gray-100 dark:bg-gray-900"></td>
+                                <td class="px-4 py-2">ALL SALESPERSONS</td>
                                 @foreach ($months as $m)
                                     @php
                                         $mob = $colTotals[$m]['mobile'];
