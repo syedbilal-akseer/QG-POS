@@ -28,6 +28,41 @@ class SyncOracleCustomers extends Command
     protected $description = 'Sync customers from Oracle database to MySQL database';
 
     /**
+     * Hard-coded overrides for Oracle salesperson strings that don't reduce to
+     * the same word-set as the matching portal user's name via
+     * normalizeSalespersonKey() (e.g. Oracle only has "Zeeshan, Mr. Muhammad"
+     * for the user whose full name is "Zeeshan Rasheed"), so the automatic
+     * word-matching misses them and their customers don't show in the app.
+     * Keyed by the raw Oracle salesperson text (case-insensitive, trimmed);
+     * value is the portal user's full name to normalize instead.
+     *
+     * @var array<string, string>
+     */
+    protected const SALESPERSON_KEY_OVERRIDES = [
+        'anjum, tahir'           => 'Tahir Anjum',
+        'arif,'                  => 'Arif Iqbal',
+        'haider ali,'            => 'Haider Ali',
+        'zeeshan, mr. muhammad'  => 'Zeeshan Rasheed',
+        'sheeraz,'               => 'Sheraz Zia',
+    ];
+
+    /**
+     * Resolve the salesperson_key for a raw Oracle salesperson string,
+     * applying SALESPERSON_KEY_OVERRIDES before falling back to the
+     * default word-matching normalization.
+     */
+    protected function resolveSalespersonKey(?string $oracleSalesperson): string
+    {
+        $lookup = mb_strtolower(trim((string) $oracleSalesperson));
+
+        if (isset(self::SALESPERSON_KEY_OVERRIDES[$lookup])) {
+            return normalizeSalespersonKey(self::SALESPERSON_KEY_OVERRIDES[$lookup]);
+        }
+
+        return normalizeSalespersonKey($oracleSalesperson);
+    }
+
+    /**
      * Execute the console command.
      */
     public function handle()
@@ -87,7 +122,7 @@ class SyncOracleCustomers extends Command
                             'customer_number'            => $o['customer_number'] ?? null,
                             'customer_site_id'           => $o['customer_site_id'] ?? null,
                             'salesperson'                => $o['salesperson'] ?? null,
-                            'salesperson_key'            => normalizeSalespersonKey($o['salesperson'] ?? null),
+                            'salesperson_key'            => $this->resolveSalespersonKey($o['salesperson'] ?? null),
                             'city'                       => $o['city'] ?? null,
                             'area'                       => $o['area'] ?? null,
                             'address1'                   => $o['customer_address'] ?? null,
