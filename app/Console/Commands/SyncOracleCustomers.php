@@ -53,13 +53,18 @@ class SyncOracleCustomers extends Command
      */
     protected function resolveSalespersonKey(?string $oracleSalesperson): string
     {
-        $lookup = mb_strtolower(trim((string) $oracleSalesperson));
+        // Oracle's free-text salesperson field sometimes contains a non-breaking
+        // space (U+00A0) instead of a regular space (e.g. "Haider Ali,"),
+        // which is invisible on screen but breaks both this lookup and the
+        // \s-based word split in normalizeSalespersonKey(). Normalize it away
+        // before comparing against the override map.
+        $lookup = mb_strtolower(trim(str_replace("\xc2\xa0", ' ', (string) $oracleSalesperson)));
 
         if (isset(self::SALESPERSON_KEY_OVERRIDES[$lookup])) {
             return normalizeSalespersonKey(self::SALESPERSON_KEY_OVERRIDES[$lookup]);
         }
 
-        return normalizeSalespersonKey($oracleSalesperson);
+        return normalizeSalespersonKey($lookup);
     }
 
     /**
