@@ -95,6 +95,23 @@ class ListCustomers extends Component implements HasForms, HasTable
                     ->button()
                     ->label('View Details')
                     ->action(fn(Customer $record) => $this->openDetailModal($record)),
+                // Jumps straight into that customer's document explorer
+                // (Invoices/Builties tree) — only shown to roles that can
+                // actually reach documents.* (see routes/web.php), so
+                // cmd-khi/cmd-lhr users who can see this list don't get a
+                // link into a route they're blocked from.
+                Action::make('documents')
+                    ->icon('heroicon-m-folder-open')
+                    ->button()
+                    ->color('gray')
+                    ->label('Documents')
+                    ->visible(fn (Customer $record) => filled($record->customer_id)
+                        && (auth()->user()->isAdmin()
+                            || auth()->user()->isInvoiceManager()
+                            || auth()->user()->hasViewKhi()
+                            || auth()->user()->hasViewLhr()
+                            || auth()->user()->hasViewAll()))
+                    ->url(fn (Customer $record) => route('documents.customer', $record->customer_id)),
             ])
             ->bulkActions([
                 // Add any bulk actions if needed

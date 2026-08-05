@@ -100,9 +100,11 @@ class AppController extends Controller
                 : [],
         ];
 
+        $sectionLinks = $this->dashboardSectionLinks();
+
         return view('admin.index', compact(
             'pageTitle', 'stats', 'user', 'permissions',
-            'dashAccess', 'leaderboardFilters'
+            'dashAccess', 'leaderboardFilters', 'sectionLinks'
         ));
     }
 
@@ -330,8 +332,8 @@ class AppController extends Controller
             return true;
         }
 
-        // CMD-KHI and CMD-LHR see receipts (their main responsibility)
-        if ($user->isCmdKhi() || $user->isCmdLhr()) {
+        // CMD-KHI, CMD-LHR, and Head of CMD see receipts (their main responsibility)
+        if ($user->isCmdKhi() || $user->isCmdLhr() || $user->isCmdHead()) {
             return true;
         }
 
@@ -375,6 +377,29 @@ class AppController extends Controller
     }
 
     /**
+     * Destination URL for each dashboard stat-card section, so cards are
+     * clickable straight into the relevant list instead of being static
+     * numbers. The dashboard route itself is gated to
+     * admin/cmd-khi/cmd-lhr/sales-head/view-* (see routes/web.php), and of
+     * those, only admin actually sees the Orders/Products/Price
+     * Lists/Visits/Customers sections (cmd-khi/cmd-lhr only see Receipts) —
+     * so one static route per section is enough; no per-role branching
+     * needed, every role that can see a section already has access to the
+     * route it links to.
+     */
+    protected function dashboardSectionLinks(): array
+    {
+        return [
+            'orders'      => route('orders.all'),
+            'customers'   => route('customers.all'),
+            'products'    => route('products.all'),
+            'price_lists' => route('price-lists.index'),
+            'receipts'    => route('admin.receipts.index'),
+            'visits'      => route('customer-visits.all'),
+        ];
+    }
+
+    /**
      * Get OU IDs based on user role and location
      */
     protected function getUserOuIds($user): ?array
@@ -382,6 +407,11 @@ class AppController extends Controller
         // Admin sees all data - no OU filtering
         if ($user->isAdmin()) {
             return null;
+        }
+
+        // Head of CMD sees both Karachi and Lahore data — no city restriction
+        if ($user->isCmdHead()) {
+            return [102, 103, 104, 105, 106, 108, 109];
         }
 
         // CMD-KHI sees only Karachi data

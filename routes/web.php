@@ -119,7 +119,7 @@ Route::get('/', function () {
             return redirect()->route('monthlyTourPlans.all');
         }
 
-        if (in_array($roleName, ['cmd-khi', 'cmd-lhr']) && ! request()->is('dashboard*')) {
+        if (in_array($roleName, ['cmd-khi', 'cmd-lhr', 'cmd-head']) && ! request()->is('dashboard*')) {
             return redirect()->route('dashboard');
         }
 
@@ -137,7 +137,7 @@ Route::get('/', function () {
 
         // If the user is an admin or any other role NOT covered above, send to dashboard.
         // invoice-manager is excluded — dashboard is gated to admin/cmd-* and would redirect-loop.
-        if (! in_array($roleName, ['supply-chain', 'user', 'cmd-khi', 'cmd-lhr', 'scm-lhr', 'inventory-manager', 'invoice-manager'])) {
+        if (! in_array($roleName, ['supply-chain', 'user', 'cmd-khi', 'cmd-lhr', 'cmd-head', 'scm-lhr', 'inventory-manager', 'invoice-manager'])) {
             return redirect()->route('dashboard');
         }
     }
@@ -296,7 +296,7 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
     // edit/approve permission checks per bill state. account-user is the
     // intended day-to-day submitter alongside admins; cmd-* and director
     // need access for their queues.
-    Route::middleware(['checkRole:admin,account-user,cmd-khi,cmd-lhr,director'])->group(function () {
+    Route::middleware(['checkRole:admin,account-user,cmd-khi,cmd-lhr,cmd-head,director'])->group(function () {
         Route::prefix('admin/vendor-bills')->name('vendor-bills.')->group(function () {
             Route::get('/', [App\Http\Controllers\VendorBillController::class, 'index'])->name('index');
             Route::get('/search-vendors', [App\Http\Controllers\VendorBillController::class, 'searchVendors'])->name('searchVendors');
@@ -310,7 +310,7 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
             Route::get('/attachment/{attachment}', [App\Http\Controllers\VendorBillController::class, 'attachment'])->name('attachment');
         });
     });
-    Route::middleware(['checkRole:admin,account-user,cmd-khi,cmd-lhr,director'])->group(function () {
+    Route::middleware(['checkRole:admin,account-user,cmd-khi,cmd-lhr,cmd-head,director'])->group(function () {
         Route::prefix('admin/vendor-bills-2')->name('vendor-bills-2.')->group(function () {
             Route::get('/', [VendorBillController2::class, 'index'])->name('index');
             Route::get('/search-vendors', [VendorBillController2::class, 'searchVendors'])->name('searchVendors');
@@ -331,14 +331,20 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
     Route::middleware(['checkRole:admin,invoice-manager,view-khi,view-lhr,view-all'])->group(function () {
         Route::prefix('admin/documents')->name('documents.')->group(function () {
             Route::get('/', [App\Http\Controllers\DocumentsController::class, 'index'])->name('index');
-            Route::get('/customer/{customerCode}/files', [App\Http\Controllers\DocumentsController::class, 'files'])->name('files');
+            // Split-pane explorer for one customer: left = folder tree
+            // (Invoices → per-invoice → files, Builties), right = iframe
+            // preview. Tree data loads via the JSON endpoint below.
+            Route::get('/{customerCode}/tree', [App\Http\Controllers\DocumentsController::class, 'tree'])->name('tree');
+            Route::get('/{customerCode}', [App\Http\Controllers\DocumentsController::class, 'customer'])->name('customer');
         });
     });
 
-    // Builty management — same roles as the invoice send page; view-* roles
-    // are NOT allowed to mutate, only the attach-existing modal is offered
-    // on the invoice view page (which posts to the protected attach route).
-    Route::middleware(['checkRole:admin,invoice-manager'])->group(function () {
+    // Builty management — accounts-facing (full CRUD + review queue).
+    // view-* roles are NOT allowed to mutate, only the attach-existing modal
+    // is offered on the invoice view page (which posts to the protected
+    // attach route). account-user reviews/completes what supply-chain sends
+    // in via the separate quick-upload flow below.
+    Route::middleware(['checkRole:admin,invoice-manager,account-user'])->group(function () {
         Route::prefix('admin/builties')->name('builties.')->group(function () {
             Route::get('/', [App\Http\Controllers\BuiltyController::class, 'index'])->name('index');
             Route::post('/', [App\Http\Controllers\BuiltyController::class, 'store'])->name('store');
@@ -352,6 +358,19 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
             Route::delete('/{builty}', [App\Http\Controllers\BuiltyController::class, 'destroy'])->name('destroy');
             // Attach an existing builty to an invoice + remerge PDF.
             Route::post('/attach-to-invoice/{invoice}', [App\Http\Controllers\BuiltyController::class, 'attachToInvoice'])->name('attachToInvoice');
+            // Accounts completes a supply-chain-uploaded builty (order/customer/invoice + status flip).
+            Route::post('/{builty}/mark-submitted', [App\Http\Controllers\BuiltyController::class, 'markSubmitted'])->name('markSubmitted');
+        });
+    });
+
+    // Builty quick-upload — supply-chain's minimal entry point: pick file(s)
+    // and send to accounts, no order/customer picking. Deliberately its own
+    // role gate (supply-chain has no access to the accounts group above, so
+    // they can't see/edit/delete other people's builties).
+    Route::middleware(['checkRole:supply-chain,admin'])->group(function () {
+        Route::prefix('admin/builties')->name('builties.')->group(function () {
+            Route::get('/quick-upload', [App\Http\Controllers\BuiltyController::class, 'quickUploadForm'])->name('quickUpload');
+            Route::post('/quick-upload', [App\Http\Controllers\BuiltyController::class, 'quickStore'])->name('quickStore');
         });
     });
 
@@ -461,19 +480,19 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
 
     // Shared dashboard access for admin, cmd-khi, cmd-lhr, sales-head AND
     // any user with a view-* additional role (view-khi / view-lhr / view-all).
-    Route::middleware(['checkRole:admin,cmd-khi,cmd-lhr,sales-head,view-khi,view-lhr,view-all'])->group(function () {
+    Route::middleware(['checkRole:admin,cmd-khi,cmd-lhr,cmd-head,sales-head,view-khi,view-lhr,view-all'])->group(function () {
         Route::get('/dashboard', [AppController::class, 'index'])->name('dashboard');
     });
 
-    // CMD-KHI / CMD-LHR / Admin / Sales-head — Customer Receipts access.
+    // CMD-KHI / CMD-LHR / CMD-Head / Admin / Sales-head — Customer Receipts access.
     // Sales-head and view-* roles are view-only (enforced inside the controller).
-    Route::middleware(['checkRole:cmd-khi,cmd-lhr,admin,sales-head,view-khi,view-lhr,view-all'])->group(function () {
+    Route::middleware(['checkRole:cmd-khi,cmd-lhr,cmd-head,admin,sales-head,view-khi,view-lhr,view-all'])->group(function () {
         Route::get('receipts/download-excel', [\App\Http\Controllers\Admin\ReceiptController::class, 'export'])->name('admin.receipts.download_excel');
         Route::resource('receipts', \App\Http\Controllers\Admin\ReceiptController::class)->names('admin.receipts');
     });
 
     // BI Dashboard — Admin, Sales Head, CMD-*, sales users, and any view-* role.
-    Route::middleware(['checkRole:admin,sales-head,cmd-khi,cmd-lhr,user,hod,line-manager,view-khi,view-lhr,view-all'])->group(function () {
+    Route::middleware(['checkRole:admin,sales-head,cmd-khi,cmd-lhr,cmd-head,user,hod,line-manager,view-khi,view-lhr,view-all'])->group(function () {
         Route::get('/admin/bi-dashboard', [App\Http\Controllers\Admin\BIDashboardController::class, 'index'])->name('admin.bi-dashboard');
         Route::get('/admin/bi-dashboard/diagnostic', [App\Http\Controllers\Admin\BIDashboardController::class, 'diagnostic'])->name('admin.bi-dashboard.diagnostic');
         Route::get('/admin/bi-dashboard/clear-cache', [App\Http\Controllers\Admin\BIDashboardController::class, 'clearCache'])->name('admin.bi-dashboard.clear-cache');
@@ -485,7 +504,7 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
     // Admin / CMD-KHI / CMD-LHR + any view-* role — read-only list views.
     // Inner edit/delete groups still gate by admin/cmd only; Livewire components
     // apply OU filtering + write-blocks via the ViewRoleGuard trait.
-    Route::middleware(['checkRole:admin,cmd-khi,cmd-lhr,view-khi,view-lhr,view-all'])->group(function () {
+    Route::middleware(['checkRole:admin,cmd-khi,cmd-lhr,cmd-head,view-khi,view-lhr,view-all'])->group(function () {
         Route::get('/products', ListProducts::class)->name('products.all');
         Route::get('/promotional-items', App\Livewire\ListPromotionalItems::class)->name('promotional-items.all');
         Route::get('/customers', ListCustomers::class)->name('customers.all');
@@ -497,7 +516,7 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
         Route::get('/reciepts', [OrderRecieptsController::class, 'index'])->name('reciepts');
         Route::get('/reciepts/{id}', [OrderRecieptsController::class, 'show'])->name('reciepts.show');
         // Sales-head is view-only — blocked from edit/update/delete/enterToOracle by the route group below.
-        Route::middleware(['checkRole:admin,cmd-khi,cmd-lhr'])->group(function () {
+        Route::middleware(['checkRole:admin,cmd-khi,cmd-lhr,cmd-head'])->group(function () {
             Route::get('/reciepts/{id}/edit', [OrderRecieptsController::class, 'edit'])->name('reciepts.edit');
             Route::put('/reciepts/{id}', [OrderRecieptsController::class, 'update'])->name('reciepts.update');
             Route::delete('/reciepts/{id}', [OrderRecieptsController::class, 'destroy'])->name('reciepts.destroy');
@@ -572,7 +591,7 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
     // Reports — Mobile-order adoption pivoted from APPS.QG_SALES_ORDER_PERCENTAGE.
     // Gated to management roles (admin / sales-head / cmd-*), matching who
     // sees the aggregate dashboard block.
-    Route::middleware(['checkRole:admin,sales-head,cmd-khi,cmd-lhr'])
+    Route::middleware(['checkRole:admin,sales-head,cmd-khi,cmd-lhr,cmd-head'])
         ->prefix('admin/reports')
         ->name('admin.reports.')
         ->group(function () {

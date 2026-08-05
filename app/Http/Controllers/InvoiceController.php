@@ -758,9 +758,17 @@ class InvoiceController extends Controller
             $invoiceDate   = $this->extractBillingDate($text);
             $totalAmount   = $this->extractCurrentReceivable($text);
 
-            if (! isset($customers[$customerCode])) {
+            // Group by customer + invoice number so distinct invoices for the
+            // same customer are stored as separate records instead of being
+            // merged into one — only pages sharing the same invoice number
+            // (a genuinely multi-page invoice) get combined. When no invoice
+            // number could be parsed off a page, key it on its own so it
+            // never accidentally merges into an unrelated invoice.
+            $groupKey = $customerCode . '|' . ($invoiceNumber !== null ? $invoiceNumber : 'page-' . $pageNo);
 
-                $customers[$customerCode] = [
+            if (! isset($customers[$groupKey])) {
+
+                $customers[$groupKey] = [
                     'customer_code'  => $customerCode,
                     'customer_name'  => $customerName,
                     'customer_phone' => null,
@@ -770,12 +778,12 @@ class InvoiceController extends Controller
             }
 
             // Add page only once
-            if (! in_array($pageNo, $customers[$customerCode]['pages'])) {
-                $customers[$customerCode]['pages'][] = $pageNo;
+            if (! in_array($pageNo, $customers[$groupKey]['pages'])) {
+                $customers[$groupKey]['pages'][] = $pageNo;
             }
 
             // Add invoice
-            $customers[$customerCode]['invoices'][] = [
+            $customers[$groupKey]['invoices'][] = [
                 'invoice_number' => $invoiceNumber,
                 'invoice_date'   => $invoiceDate,
                 'total_amount'   => $totalAmount,

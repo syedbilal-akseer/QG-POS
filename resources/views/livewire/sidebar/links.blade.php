@@ -27,6 +27,12 @@
                 <span>Orders</span>
             </x-sidebar-link>
         </li>
+        <li>
+            <x-sidebar-link :href="route('builties.quickUpload')" :active="request()->routeIs('builties.quickUpload')">
+                <x-link-icon icon="o-truck" :active="request()->routeIs('builties.quickUpload')" />
+                <span>Upload Bilty</span>
+            </x-sidebar-link>
+        </li>
     @elseif ($u->isScmLhr())
         <li>
             <x-sidebar-link :href="route('orders.scm-lhr.all')" :active="request()->routeIs('orders.scm-lhr.all')">
@@ -147,13 +153,20 @@
                                 <span>Send Invoices</span>
                             </x-sidebar-link>
                         </li>
-                        <li>
-                            <x-sidebar-link :href="route('builties.index')" :active="request()->routeIs('builties.*')">
-                                <x-link-icon icon="o-truck" :active="request()->routeIs('builties.*')" />
-                                <span>Bilty</span>
-                            </x-sidebar-link>
-                        </li>
                     @endif
+                @endif
+
+                {{-- Bilty — own condition (not nested under the Invoices
+                     sub-section above) so account-user, who can't send
+                     invoices, still gets to review/complete the
+                     supply-chain bilty queue. --}}
+                @if (Auth::user()->isAdmin() || Auth::user()->isInvoiceManager() || Auth::user()->isAccountUser())
+                    <li>
+                        <x-sidebar-link :href="route('builties.index')" :active="request()->routeIs('builties.*')">
+                            <x-link-icon icon="o-truck" :active="request()->routeIs('builties.*')" />
+                            <span>Bilty</span>
+                        </x-sidebar-link>
+                    </li>
                 @endif
 
                 {{-- Ledgers sub-section --}}

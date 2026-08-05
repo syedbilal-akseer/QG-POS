@@ -115,7 +115,27 @@
       "Bash(php -l app/Exports/SalesOrderPercentageExport.php)",
       "Bash(php -l app/Exports/ReceiptsPercentageExport.php)",
       "Bash(composer dump-autoload *)",
-      "Bash(./vendor/bin/pest)"
+      "Bash(./vendor/bin/pest)",
+      "Bash(awk ' *)",
+      "Bash(awk -F'depth=' '{split\\($2,a,\" \"\\); d=a[1]+0; if \\(d==0 || d<prevmin\\) print; if \\(d<prevmin || NR==1\\) prevmin=d} ')",
+      "Bash(awk -F': ' '$2==0')",
+      "Bash(cd \"d:\\\\laragon\\\\www\\\\pos\" && stat -c \"%Y %n\" resources/views/admin/invoices/view.blade.php resources/views/admin/invoices/partials/attach-builty-modal.blade.php storage/framework/views/7e7c0f3cc9c54848944367221a66d264.php storage/framework/views/985e7d1aa0d32b41f888f7b1f09e4d44.php 2>&1)",
+      "Read(//d/laragon/www/pos/**)",
+      "Bash(curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt -o /tmp/invoices_view.html -w \"http: %{http_code}\\\\n\" \"http://127.0.0.1:8000/app/admin/invoices/view\")",
+      "Read(//tmp/**)",
+      "Bash(grep -n \"attachBuiltyModal\\\\|Attach Bilty\\\\|openFor\\\\|x-data\" /tmp/invoices_view.html | head -40)",
+      "Read(//c/Users/HP/AppData/Local/Temp/**)",
+      "Bash(curl -s -o /dev/null -w \"vite client: %{http_code}\\\\n\" http://127.0.0.1:5173/@vite/client)",
+      "Bash(curl -s -o /dev/null -w \"app.js: %{http_code}\\\\n\" http://127.0.0.1:5173/resources/js/app.js)",
+      "Bash(cd /tmp)",
+      "Bash(awk -F'depth=' '$2==0 {print; exit}')",
+      "Bash(awk -F'depth=' '$2<=1 {print}')",
+      "Bash(curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt \"http://127.0.0.1:8000/app/admin/invoices/view\")",
+      "Bash(nvm list *)",
+      "Read(//c/nvm4w/nodejs/**)",
+      "Bash(nvm use *)",
+      "Bash(where node *)",
+      "Bash(/c/nvm4w/nodejs/node.exe -v)"
     ]
   }
 }

@@ -60,6 +60,13 @@ class Builty extends Model
         'original_filename',
         'original_ext',
         'uploaded_by',
+        'status',
+        'submitted_by',
+        'submitted_at',
+    ];
+
+    protected $casts = [
+        'submitted_at' => 'datetime',
     ];
 
     public function customer()
@@ -80,5 +87,10 @@ class Builty extends Model
     public function uploader()
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function submitter()
+    {
+        return $this->belongsTo(User::class, 'submitted_by');
     }
 }

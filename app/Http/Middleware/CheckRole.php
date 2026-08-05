@@ -54,7 +54,7 @@ class CheckRole
         }
 
         // 3. Always allow these privileged roles access
-        $privilegedRoles = ['admin', 'hod', 'line-manager', 'sales-head', 'cmd-khi', 'price-uploads', 'scm-lhr', 'cmd-lhr', 'supply-chain'];
+        $privilegedRoles = ['admin', 'hod', 'line-manager', 'sales-head', 'cmd-khi', 'price-uploads', 'scm-lhr', 'cmd-lhr', 'cmd-head', 'supply-chain'];
         if ($userRole && in_array($userRole, $privilegedRoles)) {
             return $next($request);
         }

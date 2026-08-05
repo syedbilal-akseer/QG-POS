@@ -116,6 +116,7 @@ class ListUserLocations extends Component implements HasForms, HasTable
                         'price-uploads' => 'Price Uploads',
                         'cmd-khi' => 'CMD-KHI',
                         'cmd-lhr' => 'CMD-LHR',
+                        'cmd-head' => 'Head of CMD',
                         'scm-lhr' => 'SCM-LHR',
                         'hod' => 'HOD',
                         'line-manager' => 'Line Manager',

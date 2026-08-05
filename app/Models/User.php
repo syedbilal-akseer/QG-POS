@@ -163,11 +163,11 @@ class User extends Authenticatable
         return $this->getRoleName() === 'director';
     }
 
-    /** Either of the two CMD roles — used by Vendors AP approval middleware. */
+    /** Any of the CMD roles — used by Vendors AP approval middleware. */
     public function isCmd(): bool
     {
         $r = $this->getRoleName();
-        return $r === 'cmd-khi' || $r === 'cmd-lhr';
+        return $r === 'cmd-khi' || $r === 'cmd-lhr' || $r === 'cmd-head';
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -334,6 +334,13 @@ class User extends Authenticatable
         return $roleName === 'cmd-lhr';
     }
 
+    /** Head of CMD — combined KHI + LHR access, no city restriction. */
+    public function isCmdHead(): bool
+    {
+        $roleName = $this->getRoleName();
+        return $roleName === 'cmd-head';
+    }
+
     public function isScmLhr(): bool
     {
         $roleName = $this->getRoleName();
@@ -353,7 +360,7 @@ class User extends Authenticatable
         }
 
         // Sales-head gets view-only access to receipts (handled by route + UI gates).
-        return $this->isAdmin() || $this->isCmdKhi() || $this->isCmdLhr() || $this->isSalesHead();
+        return $this->isAdmin() || $this->isCmdKhi() || $this->isCmdLhr() || $this->isCmdHead() || $this->isSalesHead();
     }
 
     /**
@@ -363,6 +370,11 @@ class User extends Authenticatable
     {
         if ($this->isAdmin()) {
             return [102, 103, 104, 105, 106, 108, 109]; // All OU IDs
+        }
+
+        // Head of CMD — combined KHI + LHR, no city restriction.
+        if ($this->isCmdHead()) {
+            return [102, 103, 104, 105, 106, 108, 109];
         }
 
         // Email-based overrides for the four sales team leads.
@@ -401,6 +413,11 @@ class User extends Authenticatable
     {
         if ($this->isAdmin()) {
             return [102, 103, 104, 105, 106, 108, 109]; // All OU IDs
+        }
+
+        // Head of CMD — combined KHI + LHR, no city restriction.
+        if ($this->isCmdHead()) {
+            return [102, 103, 104, 105, 106, 108, 109];
         }
 
         // SCM-LHR role gets Lahore organization access
@@ -556,6 +573,11 @@ class User extends Authenticatable
      */
     public function getAssignedSalespeopleIds(): ?array
     {
+        // Head of CMD always sees every salesperson across both cities.
+        if ($this->isCmdHead()) {
+            return null;
+        }
+
         if (!$this->isCmdKhi() && !$this->isCmdLhr()) {
             return null;
         }
@@ -573,6 +595,10 @@ class User extends Authenticatable
      */
     public function hasAllSalespeopleAccess(): bool
     {
+        if ($this->isCmdHead()) {
+            return true;
+        }
+
         if (!$this->isCmdKhi() && !$this->isCmdLhr()) {
             return false;
         }

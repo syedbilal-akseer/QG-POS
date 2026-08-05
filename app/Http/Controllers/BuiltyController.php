@@ -32,9 +32,14 @@ class BuiltyController extends Controller
             });
         }
 
+        $statusFilter = $request->input('status');
+        if (in_array($statusFilter, ['sent_to_accounts', 'submitted'], true)) {
+            $q->where('status', $statusFilter);
+        }
+
         $builties = $q->orderByDesc('id')->paginate(50)->withQueryString();
 
-        return view('admin.builties.index', compact('builties'));
+        return view('admin.builties.index', compact('builties', 'statusFilter'));
     }
 
     /**
@@ -52,18 +57,19 @@ class BuiltyController extends Controller
             // builty_number is now auto-generated server-side
             // (Builty::booted) so the modal no longer collects it.
             'builty_number' => 'nullable|string|max:64',
-            'order_id'      => 'required|integer|exists:orders,id',
-            'invoice_id'    => 'nullable|integer|exists:invoices,id',
-            'customer_id'   => 'nullable|string|exists:customers,customer_id',
+            // Order/Customer dropped — Add Bilty now only associates a
+            // bilty with an invoice; customer_code is derived from that
+            // invoice in processSingleBuilty().
+            'invoice_id'    => 'required|integer|exists:invoices,id',
             'file'          => 'required|file|mimes:pdf,png,jpg,jpeg|max:25600',
         ]);
 
         $result = $this->processSingleBuilty(
             $request->file('file'),
             trim((string) $request->input('builty_number', '')),
-            (int) $request->input('order_id'),
-            $request->filled('invoice_id') ? (int) $request->input('invoice_id') : null,
-            $request->input('customer_id') ?: null
+            null,
+            (int) $request->input('invoice_id'),
+            null
         );
 
         notify($result['merged']
@@ -76,10 +82,9 @@ class BuiltyController extends Controller
     /**
      * Bulk upload up to 200 builty files in a single request. Per-row
      * metadata is sent as a `metadata[]` array where each entry has
-     * builty_number / customer_id / order_id / invoice_id, aligned positionally
-     * with `files[]`. Each file is processed independently — a single failure
-     * doesn't abort the batch; per-row outcomes are reported back in the
-     * response payload.
+     * builty_number / invoice_id, aligned positionally with `files[]`. Each
+     * file is processed independently — a single failure doesn't abort the
+     * batch; per-row outcomes are reported back in the response payload.
      */
     public function bulkStore(Request $request)
     {
@@ -90,9 +95,10 @@ class BuiltyController extends Controller
             // builty_number is now auto-generated server-side
             // (Builty::booted) so the modal no longer collects it.
             'metadata.*.builty_number' => 'nullable|string|max:64',
-            'metadata.*.order_id'      => 'required|integer|exists:orders,id',
-            'metadata.*.invoice_id'    => 'nullable|integer|exists:invoices,id',
-            'metadata.*.customer_id'   => 'nullable|string|exists:customers,customer_id',
+            // Order/Customer dropped — Add Bilty now only associates a
+            // bilty with an invoice; customer_code is derived from that
+            // invoice in processSingleBuilty().
+            'metadata.*.invoice_id'    => 'required|integer|exists:invoices,id',
         ]);
 
         $files    = $request->file('files');
@@ -115,11 +121,9 @@ class BuiltyController extends Controller
                 $r = $this->processSingleBuilty(
                     $file,
                     trim((string) ($meta['builty_number'] ?? '')),
-                    (int) ($meta['order_id'] ?? 0),
-                    isset($meta['invoice_id']) && $meta['invoice_id'] !== ''
-                        ? (int) $meta['invoice_id']
-                        : null,
-                    !empty($meta['customer_id']) ? (string) $meta['customer_id'] : null
+                    null,
+                    (int) $meta['invoice_id'],
+                    null
                 );
                 $created++;
                 if ($r['merged']) $merged++;
@@ -157,6 +161,102 @@ class BuiltyController extends Controller
     }
 
     /**
+     * Supply-chain's minimal upload form — file(s) only, no order/customer/
+     * invoice picking (they usually don't have that context on hand; accounts
+     * fills it in later via markSubmitted()). Deliberately a separate, much
+     * simpler page from the accounts-facing Add Bilty modal.
+     */
+    public function quickUploadForm()
+    {
+        return view('admin.builties.quick-upload');
+    }
+
+    /**
+     * Handles the quick-upload form. Every file becomes its own Builty row
+     * with order_id/invoice_id/customer_code left null and
+     * status=sent_to_accounts — it just sits in the accounts review queue
+     * until someone completes it via markSubmitted().
+     */
+    public function quickStore(Request $request)
+    {
+        $request->validate([
+            'files'   => 'required|array|min:1|max:50',
+            'files.*' => 'file|mimes:pdf,png,jpg,jpeg|max:25600',
+        ]);
+
+        $created = 0;
+        $errors  = [];
+
+        foreach ($request->file('files') as $idx => $file) {
+            try {
+                $this->processSingleBuilty($file, '', null, null, null, 'sent_to_accounts');
+                $created++;
+            } catch (\Throwable $e) {
+                $errors[] = $file->getClientOriginalName() . ': ' . $e->getMessage();
+                Log::error('Quick builty upload row failed', [
+                    'index'    => $idx,
+                    'filename' => $file->getClientOriginalName(),
+                    'error'    => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $msg = "Sent {$created} bilty(s) to accounts"
+            . (count($errors) > 0 ? ', ' . count($errors) . ' failed' : '')
+            . '.';
+        notify($msg, count($errors) > 0 ? 'warning' : 'success');
+
+        return redirect()->route('builties.quickUpload');
+    }
+
+    /**
+     * Accounts completes a supply-chain-uploaded builty: fills in the
+     * order/customer/invoice it belongs to, flips status to submitted, and
+     * (when an invoice was picked) triggers the same merge-into-invoice-PDF
+     * flow as attachToInvoice(). This is the "accounts confirms receipt" step
+     * the user asked for — the audit trail is submitted_by/submitted_at.
+     */
+    public function markSubmitted(Request $request, Builty $builty)
+    {
+        $request->validate([
+            'invoice_id' => 'required|integer|exists:invoices,id',
+        ]);
+
+        $invoice = Invoice::findOrFail($request->input('invoice_id'));
+
+        // customer_code is derived from the invoice, not picked separately —
+        // the whole point of this step is "attach to an invoice"; the
+        // customer just comes along for free from that invoice.
+        $builty->update([
+            'invoice_id'    => $invoice->id,
+            'customer_code' => $invoice->customer_code ?: $builty->customer_code,
+            'status'        => 'submitted',
+            'submitted_by'  => auth()->id(),
+            'submitted_at'  => now(),
+        ]);
+
+        // Re-merge from ALL builties already linked to this invoice, not just
+        // the one just submitted — mergeBuiltiesIntoInvoice always rebuilds
+        // from the pristine original_pdf_path, so passing only the new file
+        // would silently drop any builty(s) a previous attach already merged in.
+        $allPaths = Builty::where('invoice_id', $invoice->id)
+            ->orderBy('id')
+            ->pluck('file_path')
+            ->filter()
+            ->values()
+            ->all();
+        $mergeResult = $this->mergeBuiltiesIntoInvoice($invoice, $allPaths);
+
+        if ($mergeResult === 'no_invoice_pdf') {
+            notify('Bilty submitted, but the invoice has no PDF on file to merge with.', 'warning');
+        } else {
+            notify('Bilty submitted and attached to the invoice.', 'success');
+        }
+
+        return back();
+    }
+
+    /**
      * Shared per-builty processing used by store() AND bulkStore(). Wraps the
      * image→PDF conversion, customer-folder resolution, Builty row creation,
      * and optional invoice-merge in one path.
@@ -166,9 +266,10 @@ class BuiltyController extends Controller
     protected function processSingleBuilty(
         \Illuminate\Http\UploadedFile $file,
         string $builtyNum,
-        int $orderId,
+        ?int $orderId,
         ?int $invoiceId,
-        ?string $customerCode
+        ?string $customerCode,
+        string $status = 'submitted'
     ): array {
         $ext   = strtolower($file->getClientOriginalExtension());
         $isPdf = $ext === 'pdf';
@@ -221,6 +322,9 @@ class BuiltyController extends Controller
             'original_filename' => $file->getClientOriginalName(),
             'original_ext'      => $ext,
             'uploaded_by'       => auth()->id(),
+            'status'            => $status,
+            'submitted_by'      => $status === 'submitted' ? auth()->id() : null,
+            'submitted_at'      => $status === 'submitted' ? now() : null,
         ]);
 
         $merged = false;

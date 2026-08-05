@@ -39,7 +39,7 @@
                 @endif
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <a href="{{ $sectionLinks['orders'] }}" class="block bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-150">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500 dark:text-gray-400 text-sm">Total Orders</p>
@@ -51,8 +51,8 @@
                             </svg>
                         </div>
                     </div>
-                </div>
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                </a>
+                <a href="{{ $sectionLinks['orders'] }}" class="block bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-150">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500 dark:text-gray-400 text-sm">Pending Orders</p>
@@ -64,8 +64,8 @@
                             </svg>
                         </div>
                     </div>
-                </div>
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                </a>
+                <a href="{{ $sectionLinks['orders'] }}" class="block bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-150">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500 dark:text-gray-400 text-sm">Synced to Oracle</p>
@@ -77,7 +77,7 @@
                             </svg>
                         </div>
                     </div>
-                </div>
+                </a>
             </div>
         </div>
         @endif
@@ -96,7 +96,7 @@
                 @endif
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <a href="{{ $sectionLinks['customers'] }}" class="block bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-150">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500 dark:text-gray-400 text-sm">Total Customers</p>
@@ -108,8 +108,8 @@
                             </svg>
                         </div>
                     </div>
-                </div>
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                </a>
+                <a href="{{ $sectionLinks['customers'] }}" class="block bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-150">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500 dark:text-gray-400 text-sm">With Recent Orders</p>
@@ -124,7 +124,7 @@
                     <div class="mt-2">
                         <p class="text-xs text-gray-500 dark:text-gray-400">Orders in last 6 months</p>
                     </div>
-                </div>
+                </a>
             </div>
         </div>
         @endif
@@ -139,7 +139,7 @@
                 Products
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <a href="{{ $sectionLinks['products'] }}" class="block bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-150">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500 dark:text-gray-400 text-sm">Total Products</p>
@@ -151,8 +151,8 @@
                             </svg>
                         </div>
                     </div>
-                </div>
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                </a>
+                <a href="{{ $sectionLinks['products'] }}" class="block bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-150">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500 dark:text-gray-400 text-sm">Active Products</p>
@@ -164,7 +164,7 @@
                             </svg>
                         </div>
                     </div>
-                </div>
+                </a>
             </div>
         </div>
         @endif
@@ -179,26 +179,26 @@
                 Price Lists
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <a href="{{ $sectionLinks['price_lists'] }}" class="block bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-150">
                     <p class="text-gray-500 dark:text-gray-400 text-sm mb-2">Total Items</p>
                     <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ number_format($stats['price_lists']['total']) }}</p>
-                </div>
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                </a>
+                <a href="{{ $sectionLinks['price_lists'] }}" class="block bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-150">
                     <p class="text-gray-500 dark:text-gray-400 text-sm mb-2">Corporate</p>
                     <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ number_format($stats['price_lists']['corporate']) }}</p>
-                </div>
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                </a>
+                <a href="{{ $sectionLinks['price_lists'] }}" class="block bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-150">
                     <p class="text-gray-500 dark:text-gray-400 text-sm mb-2">Trade</p>
                     <p class="text-2xl font-bold text-purple-600 dark:text-purple-400">{{ number_format($stats['price_lists']['trade']) }}</p>
-                </div>
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                </a>
+                <a href="{{ $sectionLinks['price_lists'] }}" class="block bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-150">
                     <p class="text-gray-500 dark:text-gray-400 text-sm mb-2">Wholesaler</p>
                     <p class="text-2xl font-bold text-green-600 dark:text-green-400">{{ number_format($stats['price_lists']['wholesaler']) }}</p>
-                </div>
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                </a>
+                <a href="{{ $sectionLinks['price_lists'] }}" class="block bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-150">
                     <p class="text-gray-500 dark:text-gray-400 text-sm mb-2">Changed</p>
                     <p class="text-2xl font-bold text-red-600 dark:text-red-400">{{ number_format($stats['price_lists']['changed']) }}</p>
-                </div>
+                </a>
             </div>
         </div>
         @endif
@@ -218,7 +218,7 @@
                 @endif
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <a href="{{ $sectionLinks['receipts'] }}" class="block bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-150">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500 dark:text-gray-400 text-sm">Total Receipts</p>
@@ -236,8 +236,8 @@
                             <span class="text-sm font-semibold text-yellow-600 dark:text-yellow-400">{{ number_format($stats['receipts']['pending']) }}</span>
                         </div>
                     </div>
-                </div>
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                </a>
+                <a href="{{ $sectionLinks['receipts'] }}" class="block bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-150">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500 dark:text-gray-400 text-sm">Pushed to Oracle</p>
@@ -257,7 +257,7 @@
                         </div>
                     </div>
                     @endif
-                </div>
+                </a>
             </div>
         </div>
         @endif
@@ -277,18 +277,18 @@
                 @endif
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <a href="{{ $sectionLinks['visits'] }}" class="block bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-150">
                     <p class="text-gray-500 dark:text-gray-400 text-sm mb-2">Total Visits</p>
                     <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ number_format($stats['visits']['total']) }}</p>
-                </div>
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                </a>
+                <a href="{{ $sectionLinks['visits'] }}" class="block bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-150">
                     <p class="text-gray-500 dark:text-gray-400 text-sm mb-2">Today's Visits</p>
                     <p class="text-2xl font-bold text-green-600 dark:text-green-400">{{ number_format($stats['visits']['today']) }}</p>
-                </div>
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                </a>
+                <a href="{{ $sectionLinks['visits'] }}" class="block bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-150">
                     <p class="text-gray-500 dark:text-gray-400 text-sm mb-2">Completed</p>
                     <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ number_format($stats['visits']['completed']) }}</p>
-                </div>
+                </a>
             </div>
         </div>
         @endif

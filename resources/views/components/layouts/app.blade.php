@@ -19,6 +19,14 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
         <link href="{{ asset('css/filament/style.css')}}" rel="stylesheet" />
+
+        {{-- FontAwesome — this app has no bundled copy; individual pages
+             (e.g. admin/price-lists/index.blade.php) have historically
+             pulled it in themselves via this same CDN link, which meant
+             every fas/far fa-* icon on any page that DIDN'T self-include it
+             silently rendered nothing. Loading it once here fixes that
+             app-wide instead of duplicating the <link> per page. --}}
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
       
 
         <style>

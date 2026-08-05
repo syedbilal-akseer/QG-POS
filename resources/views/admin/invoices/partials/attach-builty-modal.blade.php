@@ -1,9 +1,9 @@
 {{-- Attach Builty modal — opened from any invoice row via Alpine's
      attachBuiltyModal() x-data. Posts to builties.attachToInvoice
      which re-merges the invoice PDF with the picked builty's PDF. --}}
-<div x-show="open" x-cloak class="fixed inset-0 z-40 overflow-y-auto" @keydown.escape.window="open = false">
+<div x-show="modalOpen" x-cloak class="fixed inset-0 z-40 overflow-y-auto" @keydown.escape.window="modalOpen = false">
     <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="open = false"></div>
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="modalOpen = false"></div>
         <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
         <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-xl sm:w-full">
             <form method="POST" :action="formAction">
@@ -43,7 +43,7 @@
                             class="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed sm:text-sm">
                         Attach &amp; Merge
                     </button>
-                    <button type="button" @click="open = false"
+                    <button type="button" @click="modalOpen = false"
                             class="inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 sm:text-sm">
                         Cancel
                     </button>
@@ -56,7 +56,14 @@
 <script>
     function attachBuiltyModal() {
         return {
-            open: false,
+            // NOTE: intentionally NOT named "open" — the per-row Actions
+            // dropdown on the invoices table also has its own x-data="{ open:
+            // false }" (see resources/views/admin/invoices/view.blade.php),
+            // and openFor() is invoked from inside that nested scope. `this`
+            // inside a method call resolves to Alpine's merged scope, so
+            // `this.open = true` would set the DROPDOWN's shadowing `open`
+            // instead of this modal's — the modal would then never appear.
+            modalOpen: false,
             invoiceId: null,
             invoiceLabel: '',
             formAction: '',
@@ -65,11 +72,15 @@
             openFor(invoiceId, invoiceNumber) {
                 this.invoiceId = invoiceId;
                 this.invoiceLabel = invoiceNumber || ('#' + invoiceId);
-                this.formAction = '{{ url('admin/builties/attach-to-invoice') }}/' + invoiceId;
+                // Named route with a placeholder so we pick up the correct
+                // /app prefix from routes/web.php (manual url('admin/...')
+                // silently 404s — see resources/views/admin/documents/index.blade.php).
+                const template = "{{ route('builties.attachToInvoice', ['invoice' => '__INVOICE_ID__']) }}";
+                this.formAction = template.replace('__INVOICE_ID__', invoiceId);
                 this.selectedBuilty = null;
                 this.query = '';
                 this.results = [];
-                this.open = true;
+                this.modalOpen = true;
             },
 
             async searchBuilties() {

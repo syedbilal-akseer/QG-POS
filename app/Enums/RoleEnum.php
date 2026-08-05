@@ -14,6 +14,7 @@ enum RoleEnum: string
     case PRICE_UPLOADS = 'price-uploads';
     case CMD_KHI = 'cmd-khi';
     case CMD_LHR = 'cmd-lhr';
+    case CMD_HEAD = 'cmd-head';
     case SCM_LHR = 'scm-lhr';
     case INVOICE_MANAGER = 'invoice-manager';
     case DIRECTOR = 'director';
@@ -34,6 +35,7 @@ enum RoleEnum: string
             self::PRICE_UPLOADS => 'The user manages price lists and uploads.',
             self::CMD_KHI => 'The user has access to CMD-KHI receipts and dashboard.',
             self::CMD_LHR => 'The user has access to CMD-LHR receipts and dashboard.',
+            self::CMD_HEAD => 'The user has combined CMD-KHI and CMD-LHR access, with no city restriction.',
             self::SCM_LHR => 'The user has access to Lahore warehouse orders.',
             self::INVOICE_MANAGER => 'The user manages invoices.',
             self::DIRECTOR => 'Director — second-stage approver for Vendors AP bills.',
@@ -87,6 +89,7 @@ enum RoleEnum: string
             self::PRICE_UPLOADS => ['read', 'update', 'manage-price-lists'],
             self::CMD_KHI => ['read', 'manage-receipts', 'dashboard'],
             self::CMD_LHR => ['read', 'manage-receipts', 'dashboard'],
+            self::CMD_HEAD => ['read', 'manage-receipts', 'dashboard'],
             self::SCM_LHR => ['read', 'update', 'manage-inventory', 'manage-orders'],
             self::INVOICE_MANAGER => ['read', 'update', 'manage-invoices'],
             self::DIRECTOR => ['read', 'approve-vendor-bills'],
@@ -110,6 +113,7 @@ enum RoleEnum: string
             self::PRICE_UPLOADS => 'Price Uploads',
             self::CMD_KHI => 'CMD-KHI',
             self::CMD_LHR => 'CMD-LHR',
+            self::CMD_HEAD => 'Head of CMD',
             self::SCM_LHR => 'SCM-LHR',
             self::INVOICE_MANAGER => 'Invoice Manager',
             self::DIRECTOR => 'Director',
@@ -133,6 +137,7 @@ enum RoleEnum: string
             (object)['id' => self::PRICE_UPLOADS->value, 'name' => self::PRICE_UPLOADS->name()],
             (object)['id' => self::CMD_KHI->value, 'name' => self::CMD_KHI->name()],
             (object)['id' => self::CMD_LHR->value, 'name' => self::CMD_LHR->name()],
+            (object)['id' => self::CMD_HEAD->value, 'name' => self::CMD_HEAD->name()],
             (object)['id' => self::SCM_LHR->value, 'name' => self::SCM_LHR->name()],
             (object)['id' => self::INVOICE_MANAGER->value, 'name' => self::INVOICE_MANAGER->name()],
             (object)['id' => self::DIRECTOR->value, 'name' => self::DIRECTOR->name()],
@@ -155,6 +160,7 @@ enum RoleEnum: string
             self::PRICE_UPLOADS->value => self::PRICE_UPLOADS->name(),
             self::CMD_KHI->value => self::CMD_KHI->name(),
             self::CMD_LHR->value => self::CMD_LHR->name(),
+            self::CMD_HEAD->value => self::CMD_HEAD->name(),
             self::SCM_LHR->value => self::SCM_LHR->name(),
             self::INVOICE_MANAGER->value => self::INVOICE_MANAGER->name(),
             self::DIRECTOR->value => self::DIRECTOR->name(),

@@ -8,24 +8,36 @@ use App\Models\Invoice;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Customer-wise document browser.
+ * Customer-wise document browser: a split-pane file explorer.
  *
- * The page renders a nested accordion (customer → document type → files),
- * modelled on Odoo / Power BI document explorers. Today it surfaces:
- *   - Invoices (rows in `invoices`, files under invoices/customers/<code>/)
- *   - Builties (rows in `builties`, files under invoices/builties/customers/<code>/)
- *
- * The shape is intentionally generic so a future document type can be added
- * with a single entry in $this->documentTypes() + a fetch closure — the view
- * iterates whatever it's given.
+ *   /documents               → customer folders (index)
+ *   /documents/{customerCode} → explorer shell for one customer — left pane is
+ *                               a directory tree (Invoices, latest first, each
+ *                               holding its own PDF + attached bilty(s); plus
+ *                               a Builties bucket for anything unattached),
+ *                               right pane is an iframe that previews
+ *                               whatever file leaf was clicked.
+ *   /documents/{customerCode}/tree → JSON the left pane fetches to build itself.
  */
 class DocumentsController extends Controller
 {
+    /** Customer name/number for a code — customers table wins, falls back to whatever an invoice/builty row carries. */
+    private function resolveCustomer(string $customerCode): object
+    {
+        $cust = Customer::where('customer_id', $customerCode)->first(['customer_id', 'customer_name', 'customer_number']);
+        if ($cust) {
+            return (object) ['code' => $customerCode, 'name' => $cust->customer_name, 'number' => $cust->customer_number];
+        }
+
+        $invoiceName = Invoice::where('customer_code', $customerCode)->value('customer_name');
+
+        return (object) ['code' => $customerCode, 'name' => $invoiceName ?: $customerCode, 'number' => null];
+    }
+
     /**
      * Top-level page. Lists customers that own at least one document of any
      * type, with per-type counts + most-recent upload date. Files themselves
@@ -153,107 +165,95 @@ class DocumentsController extends Controller
         ]);
     }
 
-    /**
-     * AJAX endpoint: returns EVERY file (invoices + builties) for a customer,
-     * unified into one chronologically-sorted list. Each row carries a
-     * `type` field ('invoice' or 'builty') so the UI can render a single
-     * flat table instead of two stacked sub-accordions. Invoice rows also
-     * carry `has_builty` so the UI can surface a "Has Builty" column without
-     * a second query.
-     */
-    public function files(Request $request, string $customerCode): JsonResponse
+    /** Explorer shell — the tree itself loads via tree() over AJAX. */
+    public function customer(string $customerCode)
     {
-        // Builty → invoice attachment lookup (single query). The Builty row
-        // is the canonical truth: any builty whose invoice_id matches is a
-        // signal that the invoice has at least one attached cheque/lr image.
-        $invoiceIdsWithBuilty = Builty::query()
-            ->where('customer_code', $customerCode)
-            ->whereNotNull('invoice_id')
-            ->pluck('invoice_id')
-            ->unique()
-            ->all();
+        return view('admin.documents.customer', [
+            'customer' => $this->resolveCustomer($customerCode),
+        ]);
+    }
 
-        // ── Invoices ──
-        $invoiceRows = Invoice::query()
+    /**
+     * JSON tree data for one customer: Invoices (latest first, each carrying
+     * its own attached bilty(s) nested inside — invoice number IS the folder
+     * name) + a flat Builties bucket for anything not yet linked to an
+     * invoice. The left-hand tree in customer.blade.php renders this
+     * directly; clicking a file leaf just points the iframe at its open_url.
+     */
+    public function tree(string $customerCode): JsonResponse
+    {
+        $builtiesByInvoice = Builty::where('customer_code', $customerCode)
+            ->whereNotNull('invoice_id')
             ->with('uploader:id,name')
-            ->where('customer_code', $customerCode)
+            ->orderBy('id')
+            ->get()
+            ->groupBy('invoice_id');
+
+        $invoices = Invoice::where('customer_code', $customerCode)
+            ->with('uploader:id,name')
             ->orderByDesc('uploaded_at')
             ->limit(500)
-            ->get();
+            ->get()
+            ->map(function ($inv) use ($builtiesByInvoice) {
+                $pdf = $inv->pdf_path ? [
+                    'kind'        => 'invoice',
+                    'name'        => basename($inv->pdf_path),
+                    'open_url'    => url($inv->pdf_path),
+                    'size'        => $this->formatSize($inv->pdf_path),
+                    'uploaded_at' => optional($inv->uploaded_at)->format('Y-m-d H:i'),
+                    'uploaded_by' => $inv->uploader?->name,
+                ] : null;
 
-        $invoices = $invoiceRows->map(function ($r) use ($invoiceIdsWithBuilty) {
-            $path = $r->pdf_path;
-            return [
-                'type'       => 'invoice',
-                'id'         => $r->id,
-                'name'       => basename($path ?: ($r->original_filename ?? 'invoice.pdf')),
-                'label'      => $r->invoice_number ?: ('Invoice #' . $r->id),
-                'sublabel'   => $r->original_filename,
-                'path'       => $path,
-                'open_url'   => $path ? url($path) : null,
-                'detail_url' => route('invoices.show', $r->id),
-                'size_bytes' => $path && Storage::disk('local')->exists($path)
-                    ? Storage::disk('local')->size($path)
-                    : null,
-                'uploaded_by' => $r->uploader?->name,
-                'uploaded_at' => optional($r->uploaded_at)->format('Y-m-d H:i'),
-                'uploaded_ts' => optional($r->uploaded_at)->timestamp ?? 0,
-                'badge'       => $r->processing_status,
-                'has_builty'  => in_array($r->id, $invoiceIdsWithBuilty, true),
-                // The Documents grid only surfaces the invoice amount in its
-                // own column now (page_range was dropped at the user's
-                // request) — value is null when the extractor couldn't
-                // resolve a total so the UI can render an em-dash.
-                'amount' => $r->total_amount !== null
-                    ? ('Rs ' . number_format((float) $r->total_amount, 0))
-                    : null,
-            ];
-        });
+                $builties = $builtiesByInvoice->get($inv->id, collect())->map(fn ($b) => $this->builtyLeaf($b))->values();
 
-        // ── Builties ──
-        $builtyRows = Builty::query()
-            ->with('uploader:id,name', 'order:id,order_number', 'invoice:id,invoice_number')
-            ->where('customer_code', $customerCode)
+                return [
+                    'id'                => $inv->id,
+                    'label'             => $inv->invoice_number ?: ('Invoice #' . $inv->id),
+                    'processing_status' => $inv->processing_status,
+                    'amount'            => $inv->total_amount !== null ? ('Rs ' . number_format((float) $inv->total_amount, 0)) : null,
+                    'pdf'               => $pdf,
+                    'builties'          => $builties,
+                ];
+            })
+            ->values();
+
+        $unattachedBuilties = Builty::where('customer_code', $customerCode)
+            ->whereNull('invoice_id')
+            ->with('uploader:id,name')
             ->orderByDesc('id')
             ->limit(500)
-            ->get();
-
-        $builties = $builtyRows->map(function ($r) {
-            $path = $r->file_path;
-            return [
-                'type'       => 'builty',
-                'id'         => $r->id,
-                'name'       => basename($path ?: ($r->original_filename ?? 'builty.pdf')),
-                'label'      => $r->builty_number,
-                'sublabel'   => $r->original_filename,
-                'path'       => $path,
-                'open_url'   => route('builties.file', $r->id),
-                'detail_url' => null,
-                'size_bytes' => $path && Storage::disk('local')->exists($path)
-                    ? Storage::disk('local')->size($path)
-                    : null,
-                'uploaded_by' => $r->uploader?->name,
-                'uploaded_at' => optional($r->created_at)->format('Y-m-d H:i'),
-                'uploaded_ts' => optional($r->created_at)->timestamp ?? 0,
-                'badge'       => $r->invoice_id ? 'merged' : 'unattached',
-                'has_builty'  => null, // not applicable for builty rows
-                // Builties don't carry a monetary amount — the Documents grid
-                // shows an em-dash in the Amount column for these rows.
-                'amount'      => null,
-            ];
-        });
-
-        // Merge + sort by upload time, newest first.
-        $files = $invoices->concat($builties)
-            ->sortByDesc('uploaded_ts')
+            ->get()
+            ->map(fn ($b) => $this->builtyLeaf($b))
             ->values();
 
         return response()->json([
-            'customer_code' => $customerCode,
-            'count'         => $files->count(),
-            'invoice_count' => $invoices->count(),
-            'builty_count'  => $builties->count(),
-            'files'         => $files,
+            'invoices'             => $invoices,
+            'unattached_builties'  => $unattachedBuilties,
         ]);
+    }
+
+    private function builtyLeaf(Builty $b): array
+    {
+        return [
+            'kind'          => 'builty',
+            'id'            => $b->id,
+            'label'         => $b->builty_number,
+            'status'        => $b->status,
+            'open_url'      => route('builties.file', $b->id),
+            'size'          => $this->formatSize($b->file_path),
+            'uploaded_at'   => optional($b->created_at)->format('Y-m-d H:i'),
+            'uploaded_by'   => $b->uploader?->name,
+        ];
+    }
+
+    private function formatSize(?string $path): ?string
+    {
+        if (!$path || !Storage::disk('local')->exists($path)) {
+            return null;
+        }
+        $bytes = Storage::disk('local')->size($path);
+        if ($bytes < 1024) return $bytes . ' B';
+        if ($bytes < 1024 * 1024) return round($bytes / 1024, 1) . ' KB';
+        return round($bytes / (1024 * 1024), 1) . ' MB';
     }
 }

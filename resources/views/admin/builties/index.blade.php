@@ -7,14 +7,31 @@
                     {{ __('Bilty Management') }}
                 </h2>
 
-                <div class="flex-1 max-w-sm mx-4">
-                    <form action="{{ route('builties.index') }}" method="GET" class="relative group">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                            <i class="fas fa-search text-sm"></i>
+                <div class="flex-1 flex flex-wrap items-end gap-3 mx-4">
+                    <form action="{{ route('builties.index') }}" method="GET" class="flex flex-wrap items-end gap-3 flex-1">
+                        <div class="relative group flex-1 min-w-[12rem]">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                <i class="fas fa-search text-sm"></i>
+                            </div>
+                            <input type="text" name="search" value="{{ request('search') }}"
+                                   class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl leading-5 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm shadow-sm hover:border-gray-400 dark:hover:border-gray-600"
+                                   placeholder="Search bilty / order / invoice…">
                         </div>
-                        <input type="text" name="search" value="{{ request('search') }}"
-                               class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl leading-5 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm shadow-sm hover:border-gray-400 dark:hover:border-gray-600"
-                               placeholder="Search bilty / order / invoice…">
+                        <div class="flex flex-col">
+                            <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Status</label>
+                            <select name="status" onchange="this.form.submit()"
+                                    class="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+                                <option value="">All statuses</option>
+                                <option value="sent_to_accounts" @selected($statusFilter === 'sent_to_accounts')>Sent to Accounts</option>
+                                <option value="submitted" @selected($statusFilter === 'submitted')>Submitted</option>
+                            </select>
+                        </div>
+                        @if(request('search') || $statusFilter)
+                            <a href="{{ route('builties.index') }}"
+                               class="py-2 px-3 inline-flex justify-center items-center text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                Reset
+                            </a>
+                        @endif
                     </form>
                 </div>
 
@@ -30,6 +47,7 @@
                         <thead class="bg-gray-50 dark:bg-gray-700">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Bilty #</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Status</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Order</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Invoice</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">File</th>
@@ -42,6 +60,20 @@
                                 <tr class="hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">
                                         {{ $b->builty_number }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        @if($b->status === 'submitted')
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800">
+                                                <i class="fas fa-check mr-1"></i>Submitted
+                                            </span>
+                                            @if($b->submitter)
+                                                <div class="text-[10px] text-gray-500 dark:text-gray-400 mt-1">by {{ $b->submitter->name }}</div>
+                                            @endif
+                                        @else
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800">
+                                                <i class="fas fa-clock mr-1"></i>Sent to Accounts
+                                            </span>
+                                        @endif
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
                                         {{ $b->order?->order_number ?? '—' }}
@@ -65,7 +97,14 @@
                                         <div>{{ $b->created_at->format('M d, Y H:i') }}</div>
                                         <div class="text-gray-500 dark:text-gray-400">by {{ $b->uploader->name ?? 'Unknown' }}</div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right space-x-1">
+                                        @if($b->status !== 'submitted')
+                                            <button type="button"
+                                                    @click="openSubmit({{ $b->id }}, @js($b->builty_number))"
+                                                    class="inline-flex items-center px-2 py-1 rounded text-xs font-medium text-white bg-primary-600 hover:bg-primary-700">
+                                                <i class="fas fa-check mr-1"></i>Complete &amp; Submit
+                                            </button>
+                                        @endif
                                         <form method="POST" action="{{ route('builties.destroy', $b->id) }}" class="inline"
                                               onsubmit="return confirm('Delete this builty?')">
                                             @csrf @method('DELETE')
@@ -77,7 +116,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="px-6 py-10 text-center text-gray-500 dark:text-gray-400">
+                                    <td colspan="7" class="px-6 py-10 text-center text-gray-500 dark:text-gray-400">
                                         <i class="fas fa-truck text-3xl mb-2 text-gray-400 dark:text-gray-500"></i>
                                         <div>No builties uploaded yet.</div>
                                     </td>
@@ -136,7 +175,7 @@
                                        @change="onFilesPicked($event)"
                                        class="block w-full text-sm text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md p-1 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-600 file:text-white hover:file:bg-primary-700">
                                 <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                    When a Customer is set, the file lands in <span class="font-mono">invoices/customers/&lt;code&gt;/</span> next to that customer's invoice PDFs. When an Invoice is set, the bilty is merged into the invoice PDF.
+                                    Pick the invoice each bilty belongs to — the customer folder is derived from that invoice automatically, and the bilty is merged into the invoice PDF.
                                 </p>
                             </div>
 
@@ -159,17 +198,17 @@
                             </div>
 
                             {{-- Per-row table — each row carries its own
-                                 builty number text + inline searchable pickers
-                                 for Customer / Order / Invoice. Search state
-                                 is per-row (row.customerResults etc.) so
-                                 multiple rows can be edited without their
+                                 builty number text + an inline searchable
+                                 Invoice picker (the only association now).
+                                 Search state is per-row (row.invoiceResults)
+                                 so multiple rows can be edited without their
                                  dropdowns clashing. --}}
                             {{-- Outer wrappers MUST stay overflow: visible so the
-                                 absolutely-positioned per-row dropdowns (Customer
-                                 / Order / Invoice search results) can float over
-                                 sibling rows instead of being clipped at the table
-                                 boundary. Scroll for long file lists is handled
-                                 by the modal body, not by a nested container. --}}
+                                 absolutely-positioned per-row Invoice dropdown
+                                 can float over sibling rows instead of being
+                                 clipped at the table boundary. Scroll for long
+                                 file lists is handled by the modal body, not by
+                                 a nested container. --}}
                             <div x-show="rows.length > 0" x-cloak
                                  class="rounded-md border border-gray-200 dark:border-gray-700"
                                  style="overflow: visible;">
@@ -180,9 +219,7 @@
                                                 <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-300 uppercase">#</th>
                                                 <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-300 uppercase">Filename</th>
                                                 <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-300 uppercase">Bilty&nbsp;#</th>
-                                                <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-300 uppercase">Customer</th>
-                                                <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-300 uppercase">Order <span class="text-red-500">*</span></th>
-                                                <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-300 uppercase">Invoice</th>
+                                                <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-300 uppercase">Invoice <span class="text-red-500">*</span></th>
                                                 <th class="px-3 py-2 text-right text-[10px] font-semibold text-gray-600 dark:text-gray-300 uppercase"></th>
                                             </tr>
                                         </thead>
@@ -214,68 +251,15 @@
                                                         </div>
                                                     </td>
 
-                                                    {{-- Customer (inline) — simple absolute-positioned dropdown
-                                                         inside a relative wrapper. Because the modal body and
-                                                         table wrappers are all overflow: visible now, nothing
-                                                         clips the suggestion list. --}}
-                                                    <td class="px-3 py-2 align-top">
-                                                        <div class="relative" style="overflow: visible;">
-                                                            <input type="text" x-model="row.customerQuery"
-                                                                   @input.debounce.300ms="searchCustomersForRow(row)"
-                                                                   @focus="searchCustomersForRow(row)"
-                                                                   placeholder="Customer…"
-                                                                   :class="row.customer ? 'border-green-400 dark:border-green-700' : 'border-gray-300 dark:border-gray-600'"
-                                                                   class="w-44 rounded dark:bg-gray-700 dark:text-white text-xs">
-                                                            <ul x-show="row.customerResults.length > 0 && !row.customer" x-cloak
-                                                                style="position: absolute; z-index: 999; left: 0; top: 100%; min-width: 16rem;"
-                                                                class="mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-xl max-h-60 overflow-auto">
-                                                                <template x-for="c in row.customerResults" :key="c.id">
-                                                                    <li @click="pickCustomerForRow(row, c)" class="px-3 py-2 text-xs cursor-pointer hover:bg-primary-50 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100">
-                                                                        <div class="font-semibold whitespace-normal" x-text="c.customer_name"></div>
-                                                                        <div class="text-[10px] text-gray-500 dark:text-gray-400" x-text="'Code: ' + c.customer_id"></div>
-                                                                    </li>
-                                                                </template>
-                                                            </ul>
-                                                            <button x-show="row.customer" x-cloak type="button"
-                                                                    @click="row.customer = null; row.customerQuery=''; row.customerResults=[]"
-                                                                    class="mt-1 text-[10px] text-red-500 hover:underline">×&nbsp;clear</button>
-                                                        </div>
-                                                    </td>
-
-                                                    {{-- Order (inline, required) --}}
-                                                    <td class="px-3 py-2 align-top">
-                                                        <div class="relative" style="overflow: visible;">
-                                                            <input type="text" x-model="row.orderQuery"
-                                                                   @input.debounce.300ms="searchOrdersForRow(row)"
-                                                                   @focus="searchOrdersForRow(row)"
-                                                                   placeholder="Order #…"
-                                                                   :class="row.order ? 'border-green-400 dark:border-green-700' : 'border-red-300 dark:border-red-700'"
-                                                                   class="w-36 rounded dark:bg-gray-700 dark:text-white text-xs">
-                                                            <ul x-show="row.orderResults.length > 0 && !row.order" x-cloak
-                                                                style="position: absolute; z-index: 999; left: 0; top: 100%; min-width: 14rem;"
-                                                                class="mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-xl max-h-60 overflow-auto">
-                                                                <template x-for="o in row.orderResults" :key="o.id">
-                                                                    <li @click="pickOrderForRow(row, o)" class="px-3 py-2 text-xs cursor-pointer hover:bg-primary-50 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100">
-                                                                        <div class="font-semibold" x-text="o.order_number"></div>
-                                                                        <div class="text-[10px] text-gray-500 dark:text-gray-400 whitespace-normal" x-text="o.customer || ''"></div>
-                                                                    </li>
-                                                                </template>
-                                                            </ul>
-                                                            <button x-show="row.order" x-cloak type="button"
-                                                                    @click="row.order = null; row.orderQuery=''; row.orderResults=[]"
-                                                                    class="mt-1 text-[10px] text-red-500 hover:underline">×&nbsp;clear</button>
-                                                        </div>
-                                                    </td>
-
-                                                    {{-- Invoice (inline, optional) --}}
+                                                    {{-- Invoice (inline, required) — the only association now. --}}
                                                     <td class="px-3 py-2 align-top">
                                                         <div class="relative" style="overflow: visible;">
                                                             <input type="text" x-model="row.invoiceQuery"
                                                                    @input.debounce.300ms="searchInvoicesForRow(row)"
                                                                    @focus="searchInvoicesForRow(row)"
                                                                    placeholder="Invoice #…"
-                                                                   :class="row.invoice ? 'border-green-400 dark:border-green-700' : 'border-gray-300 dark:border-gray-600'"
-                                                                   class="w-36 rounded dark:bg-gray-700 dark:text-white text-xs">
+                                                                   :class="row.invoice ? 'border-green-400 dark:border-green-700' : 'border-red-300 dark:border-red-700'"
+                                                                   class="w-44 rounded dark:bg-gray-700 dark:text-white text-xs">
                                                             <ul x-show="row.invoiceResults.length > 0 && !row.invoice" x-cloak
                                                                 style="position: absolute; z-index: 999; left: 0; top: 100%; min-width: 16rem;"
                                                                 class="mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-xl max-h-60 overflow-auto">
@@ -343,6 +327,63 @@
                 </div>{{-- end centered flex --}}
             </div>{{-- end outer scroll container --}}
         </div>{{-- end fixed inset overlay --}}
+
+        {{-- Complete & Submit modal — for a supply-chain-uploaded bilty
+             (status=sent_to_accounts) accounts only needs to pick the
+             invoice it belongs to; the customer is shown read-only, derived
+             from that invoice, not searched separately. --}}
+        <div x-show="subOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto" @keydown.escape.window="subOpen = false">
+            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 bg-gray-900/60" @click="subOpen = false"></div>
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+                <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                    <form method="POST" :action="subFormAction">
+                        @csrf
+                        <input type="hidden" name="invoice_id" :value="subInvoice?.id || ''">
+
+                        <div class="px-6 pt-5 pb-4">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">Complete &amp; Submit Bilty</h3>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                                Bilty: <span class="font-semibold text-gray-700 dark:text-gray-200" x-text="subBuiltyLabel"></span>
+                            </p>
+
+                            <div class="relative">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Invoice</label>
+                                <input type="text" x-model="subInvoiceQuery" @input.debounce.300ms="searchSubInvoices()" @focus="searchSubInvoices()"
+                                       placeholder="Type invoice number…"
+                                       :class="subInvoice ? 'border-green-400 dark:border-green-700' : 'border-gray-300 dark:border-gray-600'"
+                                       class="block w-full rounded-md dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                                <ul x-show="subInvoiceResults.length > 0 && !subInvoice" x-cloak
+                                    class="absolute z-50 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                                    <template x-for="i in subInvoiceResults" :key="i.id">
+                                        <li @click="pickSubInvoice(i)" class="px-3 py-2 text-sm cursor-pointer hover:bg-primary-50 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100">
+                                            <div class="font-semibold" x-text="i.invoice_number || ('#' + i.id)"></div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400" x-text="i.customer || ''"></div>
+                                        </li>
+                                    </template>
+                                </ul>
+                                <div x-show="subInvoice" x-cloak class="mt-2 text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md px-3 py-2">
+                                    <div>Invoice: <span class="font-semibold" x-text="subInvoice?.invoice_number"></span></div>
+                                    <div>Customer: <span class="font-semibold" x-text="subInvoice?.customer || '—'"></span></div>
+                                    <button type="button" class="mt-1 text-red-500 hover:underline" @click="subInvoice = null; subInvoiceQuery=''">change</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-50 dark:bg-gray-900 px-6 py-3 sm:flex sm:flex-row-reverse gap-2">
+                            <button type="submit" :disabled="!subInvoice"
+                                    class="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed sm:text-sm">
+                                Submit &amp; Attach
+                            </button>
+                            <button type="button" @click="subOpen = false"
+                                    class="inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 sm:text-sm">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -360,11 +401,45 @@
                 numberPreview: { prefix: 'BLT-' + (new Date()).getFullYear() + '-', nextSeq: 1 },
 
                 // The per-row file list. Each row holds: file (File object),
-                // builty_number (text), customer / order / invoice (the same
-                // shape the bulk pickers return). All three pickers default to
-                // the Bulk Apply selection at applyToAll() time.
+                // builty_number (text), and invoice (the search result shape
+                // from searchInvoicesForRow) — the only association a bilty
+                // needs now.
                 rows: [],
                 uidCounter: 0,
+
+                // ── "Complete & Submit" modal state (deliberately its own
+                // "sub"-prefixed names, not shared with the Add-Bilty modal's
+                // `open` — see resources/views/admin/invoices/partials/
+                // attach-builty-modal.blade.php for why colliding names on
+                // the same Alpine component silently break the wrong one). ──
+                subOpen: false,
+                subBuiltyId: null,
+                subBuiltyLabel: '',
+                subFormAction: '',
+                subInvoiceQuery: '', subInvoiceResults: [], subInvoice: null,
+
+                openSubmit(builtyId, label) {
+                    this.subBuiltyId = builtyId;
+                    this.subBuiltyLabel = label || ('#' + builtyId);
+                    const template = "{{ route('builties.markSubmitted', ['builty' => '__BUILTY_ID__']) }}";
+                    this.subFormAction = template.replace('__BUILTY_ID__', builtyId);
+                    this.subInvoice = null;
+                    this.subInvoiceQuery = '';
+                    this.subInvoiceResults = [];
+                    this.subOpen = true;
+                },
+
+                async searchSubInvoices() {
+                    const url = "{{ route('builties.searchInvoices') }}?q=" + encodeURIComponent(this.subInvoiceQuery);
+                    const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                    const j = await r.json();
+                    this.subInvoiceResults = j.data || [];
+                },
+                pickSubInvoice(i) {
+                    this.subInvoice = i;
+                    this.subInvoiceQuery = i.invoice_number || ('#' + i.id);
+                    this.subInvoiceResults = [];
+                },
 
                 init() {
                     if (new URLSearchParams(window.location.search).get('add') === '1') {
@@ -412,9 +487,9 @@
 
                 get canSubmit() {
                     if (this.rows.length === 0) return false;
-                    // Order is the only client-required field; Builty
+                    // Invoice is the only client-required field; Builty
                     // numbers are generated server-side.
-                    return this.rows.every(r => !!r.order);
+                    return this.rows.every(r => !!r.invoice);
                 },
 
                 onFilesPicked(e) {
@@ -437,9 +512,7 @@
                             // Each row owns its own search state so multiple
                             // dropdowns can be open without clobbering each
                             // other's results.
-                            customerQuery: '', customerResults: [], customer: null,
-                            orderQuery: '',    orderResults: [],    order: null,
-                            invoiceQuery: '',  invoiceResults: [],  invoice: null,
+                            invoiceQuery: '', invoiceResults: [], invoice: null,
                         });
                     });
                     // Reset input so picking the same file again works.
@@ -453,20 +526,10 @@
                 copyRowOneToAll() {
                     if (this.rows.length < 2) return;
                     const src = this.rows[0];
+                    if (!src.invoice) return;
                     for (let i = 1; i < this.rows.length; i++) {
-                        const r = this.rows[i];
-                        if (src.customer) {
-                            r.customer = src.customer;
-                            r.customerQuery = src.customerQuery;
-                        }
-                        if (src.order) {
-                            r.order = src.order;
-                            r.orderQuery = src.orderQuery;
-                        }
-                        if (src.invoice) {
-                            r.invoice = src.invoice;
-                            r.invoiceQuery = src.invoiceQuery;
-                        }
+                        this.rows[i].invoice = src.invoice;
+                        this.rows[i].invoiceQuery = src.invoiceQuery;
                     }
                 },
 
@@ -476,31 +539,7 @@
                     return (b / (1024 * 1024)).toFixed(1) + ' MB';
                 },
 
-                // ── Per-row search endpoints ──
-                async searchCustomersForRow(row) {
-                    const url = "{{ route('builties.searchCustomers') }}?q=" + encodeURIComponent(row.customerQuery || '');
-                    const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
-                    const j = await r.json();
-                    row.customerResults = j.data || [];
-                },
-                pickCustomerForRow(row, c) {
-                    row.customer = c;
-                    row.customerQuery = c.customer_name + ' (' + c.customer_id + ')';
-                    row.customerResults = [];
-                },
-
-                async searchOrdersForRow(row) {
-                    const url = "{{ route('builties.searchOrders') }}?q=" + encodeURIComponent(row.orderQuery || '');
-                    const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
-                    const j = await r.json();
-                    row.orderResults = j.data || [];
-                },
-                pickOrderForRow(row, o) {
-                    row.order = o;
-                    row.orderQuery = o.order_number;
-                    row.orderResults = [];
-                },
-
+                // ── Per-row search endpoint ──
                 async searchInvoicesForRow(row) {
                     const url = "{{ route('builties.searchInvoices') }}?q=" + encodeURIComponent(row.invoiceQuery || '');
                     const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
@@ -526,11 +565,7 @@
                         // user has in the field; if blank, the server falls
                         // back to its own auto-generation in Builty::booted.
                         fd.append(`metadata[${i}][builty_number]`, (row.builty_number || '').trim());
-                        fd.append(`metadata[${i}][order_id]`, row.order?.id ?? '');
-                        if (row.customer)
-                            fd.append(`metadata[${i}][customer_id]`, row.customer.customer_id ?? row.customer.id);
-                        if (row.invoice)
-                            fd.append(`metadata[${i}][invoice_id]`, row.invoice.id);
+                        fd.append(`metadata[${i}][invoice_id]`, row.invoice?.id ?? '');
                     });
 
                     try {

@@ -101,7 +101,7 @@ class OrderReceiptNotifier
 
             // Candidates: admin (everywhere), cmd-khi (Karachi), cmd-lhr (Lahore)
             $candidates = User::query()
-                ->whereIn('role', ['admin', 'cmd-khi', 'cmd-lhr'])
+                ->whereIn('role', ['admin', 'cmd-khi', 'cmd-lhr', 'cmd-head'])
                 ->whereNotNull('fcm_token')
                 ->get();
 
@@ -198,7 +198,7 @@ class OrderReceiptNotifier
             ];
 
             $recipients = User::query()
-                ->whereIn('role', ['admin', 'cmd-khi', 'cmd-lhr'])
+                ->whereIn('role', ['admin', 'cmd-khi', 'cmd-lhr', 'cmd-head'])
                 ->whereNotNull('fcm_token')
                 ->get();
             $recipients = $this->filterByOu($recipients, $ouId, 'getAllowedReceiptOuIds');
@@ -278,7 +278,7 @@ class OrderReceiptNotifier
             ];
 
             $candidates = User::query()
-                ->whereIn('role', ['admin', 'cmd-khi', 'cmd-lhr'])
+                ->whereIn('role', ['admin', 'cmd-khi', 'cmd-lhr', 'cmd-head'])
                 ->whereNotNull('fcm_token')
                 ->get();
 

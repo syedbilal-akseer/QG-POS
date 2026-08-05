@@ -17,7 +17,7 @@ trait ViewRoleGuard
      *
      * True when the user has a view role AND their primary role is one that
      * wouldn't normally grant access to this module (i.e. it's not admin,
-     * cmd-khi, cmd-lhr, or sales-head). In that case writes are blocked.
+     * cmd-khi, cmd-lhr, cmd-head, or sales-head). In that case writes are blocked.
      */
     protected function isViewOnlyUser(): bool
     {
@@ -28,7 +28,7 @@ trait ViewRoleGuard
         }
         // Users whose PRIMARY role already grants module access keep their
         // normal permissions — view-* is just additive for them.
-        $primaryWriteRoles = ['admin', 'cmd-khi', 'cmd-lhr'];
+        $primaryWriteRoles = ['admin', 'cmd-khi', 'cmd-lhr', 'cmd-head'];
         return !in_array($user->role, $primaryWriteRoles, true);
     }
 
