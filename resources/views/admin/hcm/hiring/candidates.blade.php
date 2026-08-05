@@ -22,7 +22,7 @@
                             <h3 class="font-semibold text-gray-700 dark:text-gray-200">Applied</h3>
                             <span class="bg-white dark:bg-gray-700 px-2 py-1 rounded text-xs font-bold text-gray-500 dark:text-gray-300">5</span>
                         </div>
-                        
+
                         <div class="space-y-3 overflow-y-auto flex-1 pr-2">
                             <!-- Card -->
                             <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 hover:shadow-md cursor-grab active:cursor-grabbing transition-shadow">
@@ -36,7 +36,7 @@
                                     <img class="h-6 w-6 rounded-full bg-gray-200 dark:bg-gray-600" src="https://ui-avatars.com/api/?name=Emily+Clark" alt="">
                                 </div>
                             </div>
-                            
+
                             <!-- Card -->
                             <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 hover:shadow-md cursor-grab active:cursor-grabbing transition-shadow">
                                 <div class="flex justify-between items-start mb-2">

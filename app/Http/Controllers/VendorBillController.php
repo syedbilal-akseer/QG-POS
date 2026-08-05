@@ -14,29 +14,36 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * Vendors AP module — bill upload + two-stage approval (CMD → Director).
+ * Vendors AP — admin-originated bill request + two-stage approval
+ * (Director → CMD), with a manual admin close-out step at the end.
  *
  * Flow:
- *   1. Uploader picks a vendor, fills in bill #, amount, optional description,
- *      attaches one or more documents (bill PDF, supporting images) and
- *      submits. Bill lands at status=pending_cmd_approval.
- *   2. CMD opens it from their queue → Approve (status → pending_director_approval)
- *      or Reject with remarks (status → rejected, rejected_by_role='cmd').
- *   3. Director opens it from their queue → Approve (status → approved, terminal)
- *      or Reject with remarks (status → rejected, rejected_by_role='director').
- *   4. On rejection the bill returns to the uploader's queue; they can edit
- *      and re-submit, which flips status back to pending_cmd_approval and
- *      restarts the chain. Every action is recorded in vendor_bill_approvals
- *      so the show page can render a full timeline.
+ *   1. Admin picks a vendor, fills in bill #, amount, optional description,
+ *      attaches supporting documents and submits. Bill lands at
+ *      status=pending_director_approval.
+ *   2. Any Director opens it from their queue → Approve (status →
+ *      pending_cmd_approval, cmd_deadline_at = now+24h) or Reject with
+ *      remarks (status → rejected, rejected_by_role='director').
+ *   3. Any CMD user opens it from their queue → Approve (status → approved,
+ *      awaiting admin close-out) or Reject with remarks (status → rejected,
+ *      rejected_by_role='cmd'). cmd_deadline_at is purely an informational
+ *      24h SLA badge — nothing auto-escalates if it's missed.
+ *   4. On rejection the bill returns to Admin's queue (Admin is always the
+ *      uploader); they edit and re-submit, which flips status back to
+ *      pending_director_approval and restarts the chain.
+ *   5. Once approved by both stages, Admin reviews and manually closes the
+ *      bill out (status → closed, terminal). Every action is recorded in
+ *      vendor_bill_approvals so the show page renders a full history of
+ *      approvals/rejections/resubmissions/close-outs.
  */
 class VendorBillController extends Controller
 {
     /**
      * Listing. Default scoping per role:
-     *   • Director       → bills awaiting director approval.
-     *   • CMD            → bills awaiting CMD approval.
-     *   • Anyone else    → bills they uploaded themselves.
-     *   • Admin          → everything; can override scope via ?queue=all|mine|cmd|director|approved|rejected.
+     *   • Director  → bills awaiting director approval.
+     *   • CMD       → bills awaiting CMD approval.
+     *   • Admin     → everything; can override scope via
+     *                 ?queue=all|mine|director|cmd|approved|closed|rejected.
      */
     public function index(Request $request)
     {
@@ -47,7 +54,6 @@ class VendorBillController extends Controller
             ->with(['vendor:id,vendor_code,vendor_name', 'uploader:id,name'])
             ->orderByDesc('id');
 
-        // Free-text search across bill number, vendor name, vendor code.
         if ($request->filled('search')) {
             $s = trim($request->input('search'));
             $q->where(function ($w) use ($s) {
@@ -65,42 +71,71 @@ class VendorBillController extends Controller
         }
 
         if ($user->isAdmin()) {
-            // Admin: honor explicit queue filter if any, otherwise show all.
-            $this->applyQueueScope($q, $queue, $user);
+            $effectiveQueue = $queue ?: 'all';
         } elseif ($user->isDirector()) {
-            $this->applyQueueScope($q, $queue ?: 'director', $user);
+            // Director doesn't create bills and has no business in CMD's
+            // queue — restrict to the tabs they're actually shown.
+            $allowed = ['director', 'approved', 'closed', 'rejected'];
+            $effectiveQueue = in_array($queue, $allowed, true) ? $queue : 'director';
         } elseif ($user->isCmd()) {
-            $this->applyQueueScope($q, $queue ?: 'cmd', $user);
+            $allowed = ['cmd', 'approved', 'closed', 'rejected'];
+            $effectiveQueue = in_array($queue, $allowed, true) ? $queue : 'cmd';
         } else {
-            // Everyone else only sees their own bills.
-            $q->where('uploaded_by', $user->id);
+            abort(403);
         }
+        $this->applyQueueScope($q, $effectiveQueue, $user);
 
         $bills = $q->paginate(20)->withQueryString();
 
-        // Counts driving the small tab badges in the header.
         $counts = [
             'mine'     => VendorBill::where('uploaded_by', $user->id)->count(),
-            'cmd'      => VendorBill::where('status', VendorBill::STATUS_PENDING_CMD)->count(),
             'director' => VendorBill::where('status', VendorBill::STATUS_PENDING_DIRECTOR)->count(),
+            'cmd'      => VendorBill::where('status', VendorBill::STATUS_PENDING_CMD)->count(),
             'approved' => VendorBill::where('status', VendorBill::STATUS_APPROVED)->count(),
+            'closed'   => VendorBill::where('status', VendorBill::STATUS_CLOSED)->count(),
             'rejected' => VendorBill::where('status', VendorBill::STATUS_REJECTED)->count(),
         ];
 
+        // 24h CMD SLA buckets — informational only, drives the sidebar tracker.
+        $pendingCmd = VendorBill::where('status', VendorBill::STATUS_PENDING_CMD)
+            ->whereNotNull('cmd_deadline_at')
+            ->get(['id', 'cmd_deadline_at']);
+        $slaBuckets = ['overdue' => 0, 'urgent' => 0, 'dueSoon' => 0, 'onTrack' => 0];
+        foreach ($pendingCmd as $b) {
+            $hrs = $b->cmdHoursRemaining();
+            if ($hrs === null) continue;
+            if ($hrs < 0)        $slaBuckets['overdue']++;
+            elseif ($hrs < 8)    $slaBuckets['urgent']++;
+            elseif ($hrs < 12)   $slaBuckets['dueSoon']++;
+            else                 $slaBuckets['onTrack']++;
+        }
+
+        $workflowSummary = [
+            'created'  => VendorBill::count(),
+            'director' => VendorBill::whereNotNull('director_approved_at')->count(),
+            'cmd'      => VendorBill::whereNotNull('cmd_approved_at')->count(),
+            'closed'   => VendorBill::where('status', VendorBill::STATUS_CLOSED)->count(),
+        ];
+
         return view('admin.vendor-bills.index', [
-            'bills'        => $bills,
-            'counts'       => $counts,
-            'activeQueue'  => $queue ?: ($user->isDirector() ? 'director' : ($user->isCmd() ? 'cmd' : 'mine')),
-            'search'       => $request->input('search'),
-            'statusFilter' => $status,
+            'bills'           => $bills,
+            'counts'          => $counts,
+            'slaBuckets'      => $slaBuckets,
+            'workflowSummary' => $workflowSummary,
+            'activeQueue'     => $effectiveQueue,
+            'search'          => $request->input('search'),
+            'statusFilter'    => $status,
         ]);
     }
 
     /**
      * Bill form: standalone create OR edit-after-rejection (same view).
+     * Only Admin may submit bills in this flow.
      */
     public function create()
     {
+        abort_unless(auth()->user()->isAdmin(), 403);
+
         return view('admin.vendor-bills.form', [
             'bill'    => null,
             'vendors' => Vendor::query()->where('is_active', true)->orderBy('vendor_name')->get(),
@@ -109,6 +144,8 @@ class VendorBillController extends Controller
 
     public function store(Request $request)
     {
+        abort_unless(auth()->user()->isAdmin(), 403);
+
         // Currency is intentionally NOT validated/accepted from the form —
         // every vendor bill is in PKR. The column stays on the table with
         // a 'PKR' default so the data model can absorb other currencies
@@ -131,7 +168,7 @@ class VendorBillController extends Controller
                 'amount'       => $data['amount'],
                 'currency'     => 'PKR',
                 'description'  => $data['description'] ?? null,
-                'status'       => VendorBill::STATUS_PENDING_CMD,
+                'status'       => VendorBill::STATUS_PENDING_DIRECTOR,
                 'uploaded_by'  => auth()->id(),
             ]);
 
@@ -142,7 +179,7 @@ class VendorBillController extends Controller
             return $bill;
         });
 
-        notify('Bill submitted — now awaiting CMD approval.', 'success');
+        notify('Bill submitted — now awaiting Director approval.', 'success');
         return redirect()->route('vendor-bills.show', $bill);
     }
 
@@ -150,7 +187,7 @@ class VendorBillController extends Controller
     {
         $this->authorizeView($vendorBill);
 
-        $vendorBill->load(['vendor', 'uploader', 'cmdApprover', 'directorApprover',
+        $vendorBill->load(['vendor', 'uploader', 'directorApprover', 'cmdApprover', 'closer',
             'attachments.uploader', 'approvals.user']);
 
         return view('admin.vendor-bills.show', [
@@ -168,9 +205,9 @@ class VendorBillController extends Controller
     }
 
     /**
-     * Update + automatic resubmission. Only the uploader may update, and only
-     * when the bill is in 'rejected' or 'draft' state. After update, status
-     * flips back to pending_cmd_approval and the chain restarts.
+     * Update + automatic resubmission. Only the uploader (Admin) may update,
+     * and only when the bill is in 'rejected' or 'draft' state. After update,
+     * status flips back to pending_director_approval and the chain restarts.
      */
     public function update(Request $request, VendorBill $vendorBill)
     {
@@ -190,24 +227,23 @@ class VendorBillController extends Controller
 
         DB::transaction(function () use ($data, $request, $vendorBill) {
             $vendorBill->update([
-                'vendor_id'         => $data['vendor_id'],
-                'bill_number'       => trim($data['bill_number']),
-                'bill_date'         => $data['bill_date'] ?? null,
-                'amount'            => $data['amount'],
-                'currency'          => 'PKR',
-                'description'       => $data['description'] ?? null,
-                'status'            => VendorBill::STATUS_PENDING_CMD,
-                'rejected_by_role'  => null,
+                'vendor_id'            => $data['vendor_id'],
+                'bill_number'          => trim($data['bill_number']),
+                'bill_date'            => $data['bill_date'] ?? null,
+                'amount'               => $data['amount'],
+                'currency'             => 'PKR',
+                'description'          => $data['description'] ?? null,
+                'status'               => VendorBill::STATUS_PENDING_DIRECTOR,
+                'rejected_by_role'     => null,
                 // Clear prior approvals on re-submission so the new chain
                 // starts fresh — but the audit log preserves them.
-                'cmd_approved_by'      => null,
-                'cmd_approved_at'      => null,
                 'director_approved_by' => null,
                 'director_approved_at' => null,
+                'cmd_approved_by'      => null,
+                'cmd_approved_at'      => null,
+                'cmd_deadline_at'      => null,
             ]);
 
-            // Drop attachments the user marked for removal, then add any new
-            // ones uploaded with this update.
             $removeIds = $data['remove_attachment_ids'] ?? [];
             if (!empty($removeIds)) {
                 $toRemove = $vendorBill->attachments()->whereIn('id', $removeIds)->get();
@@ -230,13 +266,14 @@ class VendorBillController extends Controller
                 $request->input('remarks'));
         });
 
-        notify('Bill updated and resubmitted — back in CMD queue.', 'success');
+        notify('Bill updated and resubmitted — back in Director queue.', 'success');
         return redirect()->route('vendor-bills.show', $vendorBill);
     }
 
     /**
-     * Approve action. CMD's approve moves the bill to director queue;
-     * director's approve marks it terminal-approved.
+     * Approve action. Director's approve moves the bill to the CMD queue and
+     * starts the 24h SLA clock; CMD's approve marks it approved and hands it
+     * back to Admin for manual close-out.
      */
     public function approve(Request $request, VendorBill $vendorBill)
     {
@@ -245,26 +282,27 @@ class VendorBillController extends Controller
         ]);
         $user = auth()->user();
 
-        if ($vendorBill->status === VendorBill::STATUS_PENDING_CMD) {
-            abort_unless($user->isCmd() || $user->isAdmin(), 403);
-            $vendorBill->update([
-                'cmd_approved_by' => $user->id,
-                'cmd_approved_at' => now(),
-                'status'          => VendorBill::STATUS_PENDING_DIRECTOR,
-                'rejected_by_role' => null,
-            ]);
-            $this->logAction($vendorBill, 'cmd', 'approved', $data['remarks'] ?? null);
-            notify('Approved — forwarded to Director.', 'success');
-        } elseif ($vendorBill->status === VendorBill::STATUS_PENDING_DIRECTOR) {
+        if ($vendorBill->status === VendorBill::STATUS_PENDING_DIRECTOR) {
             abort_unless($user->isDirector() || $user->isAdmin(), 403);
             $vendorBill->update([
                 'director_approved_by' => $user->id,
                 'director_approved_at' => now(),
-                'status'               => VendorBill::STATUS_APPROVED,
+                'status'               => VendorBill::STATUS_PENDING_CMD,
+                'cmd_deadline_at'      => now()->addHours(24),
                 'rejected_by_role'     => null,
             ]);
             $this->logAction($vendorBill, 'director', 'approved', $data['remarks'] ?? null);
-            notify('Approved — bill is now fully approved.', 'success');
+            notify('Approved — forwarded to CMD (24h SLA started).', 'success');
+        } elseif ($vendorBill->status === VendorBill::STATUS_PENDING_CMD) {
+            abort_unless($user->isCmd() || $user->isAdmin(), 403);
+            $vendorBill->update([
+                'cmd_approved_by'  => $user->id,
+                'cmd_approved_at'  => now(),
+                'status'           => VendorBill::STATUS_APPROVED,
+                'rejected_by_role' => null,
+            ]);
+            $this->logAction($vendorBill, 'cmd', 'approved', $data['remarks'] ?? null);
+            notify('Approved — back with Admin for close-out.', 'success');
         } else {
             notify('Bill is not awaiting your approval.', 'danger');
         }
@@ -273,8 +311,8 @@ class VendorBillController extends Controller
     }
 
     /**
-     * Reject action — requires remarks. Sends the bill back to the uploader's
-     * queue for edit + resubmit.
+     * Reject action — requires remarks. Sends the bill back to Admin's queue
+     * (Admin is always the uploader) for edit + resubmit.
      */
     public function reject(Request $request, VendorBill $vendorBill)
     {
@@ -284,32 +322,60 @@ class VendorBillController extends Controller
         $user = auth()->user();
 
         if (!in_array($vendorBill->status, [
-            VendorBill::STATUS_PENDING_CMD,
             VendorBill::STATUS_PENDING_DIRECTOR,
+            VendorBill::STATUS_PENDING_CMD,
         ], true)) {
             notify('Bill is not in a rejectable state.', 'danger');
             return back();
         }
 
-        // Permission: CMD can only reject CMD-pending, Director only director-pending.
-        $isCmdStage      = $vendorBill->status === VendorBill::STATUS_PENDING_CMD;
         $isDirectorStage = $vendorBill->status === VendorBill::STATUS_PENDING_DIRECTOR;
-        if ($isCmdStage && !($user->isCmd() || $user->isAdmin())) abort(403);
+        $isCmdStage      = $vendorBill->status === VendorBill::STATUS_PENDING_CMD;
         if ($isDirectorStage && !($user->isDirector() || $user->isAdmin())) abort(403);
+        if ($isCmdStage && !($user->isCmd() || $user->isAdmin())) abort(403);
 
         $vendorBill->update([
             'status'           => VendorBill::STATUS_REJECTED,
-            'rejected_by_role' => $isCmdStage ? 'cmd' : 'director',
+            'rejected_by_role' => $isDirectorStage ? 'director' : 'cmd',
         ]);
 
         $this->logAction(
             $vendorBill,
-            $isCmdStage ? 'cmd' : 'director',
+            $isDirectorStage ? 'director' : 'cmd',
             'rejected',
             $data['remarks']
         );
 
-        notify('Rejected — bill returned to uploader.', 'warning');
+        notify('Rejected — bill returned to Admin.', 'warning');
+        return back();
+    }
+
+    /**
+     * Admin-only manual close-out. Only valid once both Director and CMD
+     * have approved (status=approved). Terminal — no further action.
+     */
+    public function close(Request $request, VendorBill $vendorBill)
+    {
+        abort_unless(auth()->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'remarks' => 'nullable|string|max:1000',
+        ]);
+
+        if ($vendorBill->status !== VendorBill::STATUS_APPROVED) {
+            notify('Bill must be fully approved before it can be closed.', 'danger');
+            return back();
+        }
+
+        $vendorBill->update([
+            'status'    => VendorBill::STATUS_CLOSED,
+            'closed_by' => auth()->id(),
+            'closed_at' => now(),
+        ]);
+
+        $this->logAction($vendorBill, 'admin', 'closed', $data['remarks'] ?? null);
+
+        notify('Bill closed out.', 'success');
         return back();
     }
 
@@ -346,14 +412,17 @@ class VendorBillController extends Controller
             case 'mine':
                 $q->where('uploaded_by', $user->id);
                 break;
-            case 'cmd':
-                $q->where('status', VendorBill::STATUS_PENDING_CMD);
-                break;
             case 'director':
                 $q->where('status', VendorBill::STATUS_PENDING_DIRECTOR);
                 break;
+            case 'cmd':
+                $q->where('status', VendorBill::STATUS_PENDING_CMD);
+                break;
             case 'approved':
                 $q->where('status', VendorBill::STATUS_APPROVED);
+                break;
+            case 'closed':
+                $q->where('status', VendorBill::STATUS_CLOSED);
                 break;
             case 'rejected':
                 $q->where('status', VendorBill::STATUS_REJECTED);
@@ -367,26 +436,24 @@ class VendorBillController extends Controller
     }
 
     /**
-     * Read access: uploader, CMD, Director, or admin.
+     * Read access: Admin, CMD, or Director. (Uploader is always Admin, so
+     * that's already covered by isAdmin().)
      */
     protected function authorizeView(VendorBill $bill): void
     {
         $u = auth()->user();
         if ($u->isAdmin() || $u->isCmd() || $u->isDirector()) return;
-        if ((int) $bill->uploaded_by === (int) $u->id) return;
         abort(403);
     }
 
     /**
-     * Edit access: only the uploader (or admin), and only while the bill is
-     * editable — i.e. it was rejected or is still a draft. Once it's in a
-     * pending-approval state or terminal-approved, the uploader can't modify.
+     * Edit access: Admin only, and only while the bill is editable — i.e.
+     * rejected or still a draft.
      */
     protected function authorizeEdit(VendorBill $bill): void
     {
         $u = auth()->user();
-        $isOwner = (int) $bill->uploaded_by === (int) $u->id;
-        if (!$u->isAdmin() && !$isOwner) abort(403);
+        abort_unless($u->isAdmin(), 403);
 
         if (!in_array($bill->status, [
             VendorBill::STATUS_REJECTED,

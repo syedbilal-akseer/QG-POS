@@ -4,7 +4,7 @@
             <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
                 {{ __('Upload Invoice PDF') }}
             </h2>
-            <a href="{{ route('invoices.index') }}" 
+            <a href="{{ route('invoices.index') }}"
                class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
                 <i class="fas fa-arrow-left mr-2"></i>Back to Invoices
             </a>
@@ -15,7 +15,7 @@
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
-                    
+
                     @if($errors->any())
                         <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
                             <ul class="list-disc list-inside">
@@ -37,7 +37,7 @@
                             <p><strong>3. Customer Separation:</strong> Creates separate folders for each customer code (e.g., 11925, 1577)</p>
                             <p><strong>4. File Organization:</strong> Extracts and saves individual invoice PDFs per customer</p>
                         </div>
-                        
+
                         <div class="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded">
                             <p class="text-yellow-800 dark:text-yellow-200 text-sm">
                                 <i class="fas fa-exclamation-triangle mr-1"></i>
@@ -49,7 +49,7 @@
                     <!-- Upload Form -->
                     <form action="{{ route('invoices.store') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
                         @csrf
-                        
+
                         <div class="space-y-6">
                             <!-- File Upload -->
                             <div>
@@ -64,11 +64,11 @@
                                         <div class="flex text-sm text-gray-600 dark:text-gray-400">
                                             <label for="invoice_file" class="relative cursor-pointer bg-white dark:bg-gray-800 rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
                                                 <span>Upload a file</span>
-                                                <input id="invoice_file" 
-                                                       name="invoice_file" 
-                                                       type="file" 
+                                                <input id="invoice_file"
+                                                       name="invoice_file"
+                                                       type="file"
                                                        accept=".pdf"
-                                                       class="sr-only" 
+                                                       class="sr-only"
                                                        required
                                                        onchange="updateFileName(this)">
                                             </label>
@@ -85,9 +85,9 @@
                                 <label for="notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                     Notes (Optional)
                                 </label>
-                                <textarea id="notes" 
-                                          name="notes" 
-                                          rows="3" 
+                                <textarea id="notes"
+                                          name="notes"
+                                          rows="3"
                                           class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                           placeholder="Add any notes about this invoice batch...">{{ old('notes') }}</textarea>
                             </div>
@@ -108,13 +108,13 @@
 
                             <!-- Submit Button -->
                             <div class="flex items-center justify-between">
-                                <button type="submit" 
+                                <button type="submit"
                                         id="submitBtn"
                                         class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline disabled:opacity-50 disabled:cursor-not-allowed">
                                     <i class="fas fa-upload mr-2"></i>
                                     <span id="submitText">Process Invoice PDF</span>
                                 </button>
-                                
+
                                 <div class="text-sm text-gray-500 dark:text-gray-400">
                                     <i class="fas fa-clock mr-1"></i>
                                     Processing may take a few moments for large files
@@ -131,7 +131,7 @@
                     <h3 class="text-lg font-semibold mb-4">
                         <i class="fas fa-file-alt mr-2"></i>Expected PDF Format
                     </h3>
-                    
+
                     <div class="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
                         <div class="text-sm font-mono text-gray-700 dark:text-gray-300 space-y-2">
                             <div class="border-b border-gray-300 dark:border-gray-600 pb-2">
@@ -154,7 +154,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="mt-4 text-sm text-gray-600 dark:text-gray-400">
                         <i class="fas fa-arrow-right mr-2"></i>
                         Will create 3 separate folders: <strong>11925</strong>, <strong>1577</strong>, <strong>1575</strong>
@@ -168,7 +168,7 @@
         function updateFileName(input) {
             const fileName = document.getElementById('fileName');
             const processingPreview = document.getElementById('processingPreview');
-            
+
             if (input.files && input.files[0]) {
                 fileName.textContent = '📄 ' + input.files[0].name;
                 fileName.classList.remove('hidden');
@@ -183,7 +183,7 @@
         document.getElementById('uploadForm').addEventListener('submit', function() {
             const submitBtn = document.getElementById('submitBtn');
             const submitText = document.getElementById('submitText');
-            
+
             submitBtn.disabled = true;
             submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
             submitText.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
@@ -191,7 +191,7 @@
 
         // Drag and drop functionality
         const dropZone = document.getElementById('invoice_file').closest('.border-dashed');
-        
+
         if (dropZone) {
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
                 dropZone.addEventListener(eventName, preventDefaults, false);
@@ -225,7 +225,7 @@
         function handleDrop(e) {
             const dt = e.dataTransfer;
             const files = dt.files;
-            
+
             if (files.length > 0) {
                 document.getElementById('invoice_file').files = files;
                 updateFileName(document.getElementById('invoice_file'));

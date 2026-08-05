@@ -5,7 +5,7 @@
             <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
                 {{ __('Customer Invoices') }} - {{ $customerCode }}
             </h2>
-            <a href="{{ route('invoices.index') }}" 
+            <a href="{{ route('invoices.index') }}"
                class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
                 <i class="fas fa-arrow-left mr-2"></i>Back to All Invoices
             </a>
@@ -16,7 +16,7 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
-                    
+
                     @if(session('success'))
                         <div class="bg-green-100 dark:bg-green-800 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-200 px-4 py-3 rounded mb-4">
                             <div class="flex items-center">
@@ -34,7 +34,7 @@
                             </div>
                         </div>
                     @endif
-                    
+
                     <!-- Customer Info Header -->
                     @if($invoices->isNotEmpty())
                         <div class="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-6 mb-6">
@@ -167,7 +167,7 @@
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <div class="flex space-x-3">
                                                 @if($invoice->processing_status === 'completed' && $invoice->pdf_path)
-                                                    <a href="{{ route('invoices.download', $invoice->id) }}" 
+                                                    <a href="{{ route('invoices.download', $invoice->id) }}"
                                                        class="inline-flex items-center px-3 py-1 border border-transparent text-xs leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                                        title="Download Customer PDF">
                                                         <i class="fas fa-download mr-1"></i>Download
@@ -179,13 +179,13 @@
                                                         <i class="fab fa-whatsapp mr-1"></i>WhatsApp
                                                     </button>
                                                 @endif
-                                                <form action="{{ route('invoices.destroy', $invoice->id) }}" 
-                                                      method="POST" 
+                                                <form action="{{ route('invoices.destroy', $invoice->id) }}"
+                                                      method="POST"
                                                       class="inline-block"
                                                       onsubmit="return confirm('Are you sure you want to delete this invoice?')">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" 
+                                                    <button type="submit"
                                                             class="inline-flex items-center px-3 py-1 border border-transparent text-xs leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                                                             title="Delete Invoice">
                                                         <i class="fas fa-trash mr-1"></i>Delete
@@ -200,7 +200,7 @@
                                             <div class="flex flex-col items-center">
                                                 <i class="fas fa-folder-open text-4xl mb-4"></i>
                                                 <p class="text-lg mb-2">No invoices found for customer {{ $customerCode }}</p>
-                                                <a href="{{ route('invoices.upload') }}" 
+                                                <a href="{{ route('invoices.upload') }}"
                                                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                                                     Upload Invoice PDF
                                                 </a>
@@ -253,14 +253,14 @@
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
-                    
+
                     <form id="whatsappForm">
                         <div class="mb-4">
                             <label for="phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Phone Number (with country code)
                             </label>
-                            <input type="text" 
-                                   id="phone" 
+                            <input type="text"
+                                   id="phone"
                                    name="phone"
                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100"
                                    placeholder="923001234567"
@@ -269,9 +269,9 @@
                                 Format: 92 for Pakistan, 1 for US, etc.
                             </p>
                         </div>
-                        
+
                         <div class="flex justify-end space-x-3">
-                            <button type="button" 
+                            <button type="button"
                                     onclick="closeWhatsAppModal()"
                                     class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-md">
                                 Cancel
@@ -307,21 +307,21 @@
 
         document.getElementById('whatsappForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            
+
             const phone = document.getElementById('phone').value;
             const submitBtn = e.target.querySelector('button[type="submit"]');
             const originalText = submitBtn.innerHTML;
-            
+
             // Disable button and show loading
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Sending...';
-            
+
             // Build URL using Laravel route helper
             const baseUrl = '{{ route("invoices.send-whatsapp", ":id") }}';
             const url = baseUrl.replace(':id', currentInvoiceId);
             console.log('Requesting URL:', url);
             console.log('Invoice ID:', currentInvoiceId);
-            
+
             // Send request
             fetch(url, {
                 method: 'POST',
@@ -335,7 +335,7 @@
             .then(response => {
                 console.log('Response status:', response.status);
                 console.log('Response headers:', response.headers);
-                
+
                 if (!response.ok) {
                     // Log the actual error response
                     return response.text().then(text => {
@@ -370,11 +370,11 @@
             // Create notification element
             const notification = document.createElement('div');
             notification.className = `fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg max-w-sm ${
-                type === 'success' 
-                    ? 'bg-green-100 border border-green-400 text-green-700' 
+                type === 'success'
+                    ? 'bg-green-100 border border-green-400 text-green-700'
                     : 'bg-red-100 border border-red-400 text-red-700'
             }`;
-            
+
             notification.innerHTML = `
                 <div class="flex items-center">
                     <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} mr-2"></i>
@@ -384,9 +384,9 @@
                     </button>
                 </div>
             `;
-            
+
             document.body.appendChild(notification);
-            
+
             // Auto remove after 5 seconds
             setTimeout(() => {
                 if (notification.parentElement) {

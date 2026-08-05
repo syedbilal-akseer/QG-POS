@@ -4,7 +4,7 @@
     <div class="py-6">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h1 class="text-2xl font-semibold text-gray-900 mb-6">System Integration & Mapping</h1>
-            
+
             <div class="bg-white overflow-hidden shadow-sm rounded-xl border border-gray-100 p-6">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">FlowHCM Sync Status</h3>
                 <div class="space-y-4">

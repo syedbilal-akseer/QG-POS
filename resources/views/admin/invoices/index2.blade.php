@@ -50,9 +50,9 @@
 
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
-                    
+
                     <!-- Toast handles notifications now -->
-                    
+
                     @if(!empty($diskFiles))
                     <!-- Disk File Explorer Section -->
                     <div class="mb-8 overflow-hidden rounded-2xl border border-blue-200 dark:border-blue-900 overflow-hidden shadow-sm">
@@ -519,7 +519,7 @@
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <div class="flex space-x-2">
-                                                <a href="{{ route('invoices.show', $invoice->id) }}" 
+                                                <a href="{{ route('invoices.show', $invoice->id) }}"
                                                    class="inline-flex items-center px-2 py-1 border border-transparent text-xs leading-4 font-medium rounded bg-primary-600 hover:bg-primary-700 dark:bg-primary-600 dark:hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                                                    title="View Invoice Details">
                                                     <i class="fas fa-eye mr-1"></i>View
@@ -717,28 +717,28 @@
             const processing = parseInt(stats.processing) || 0;
             const sent = parseInt(stats.sent) || 0;
             const failed = parseInt(stats.failed) || 0;
-            
+
             const active = pending > 0 || processing > 0;
-            
+
             if (total > 0 && (active || failed > 0)) {
                 section.classList.remove('hidden');
-                
+
                 document.getElementById('queuePending').innerText = `Pending: ${pending}`;
                 document.getElementById('queueProcessing').innerText = `Processing: ${processing}`;
                 document.getElementById('queueSent').innerText = `Sent: ${sent}`;
                 document.getElementById('queueFailed').innerText = `Failed: ${failed}`;
-                
+
                 const completedCount = sent + failed;
                 const percent = total > 0 ? Math.round((completedCount / total) * 100) : 0;
                 document.getElementById('queueBar').style.width = `${percent}%`;
                 document.getElementById('queuePercent').innerText = `${percent}%`;
-                
+
                 // Show failures if any
                 const failureSection = document.getElementById('queueFailures');
                 const failureList = document.getElementById('failureList');
                 if (failures && failures.length > 0) {
                     failureSection.classList.remove('hidden');
-                    failureList.innerHTML = failures.map(f => 
+                    failureList.innerHTML = failures.map(f =>
                         `<div class="flex justify-between text-red-500 bg-red-50 dark:bg-red-900/20 p-1 rounded">
                             <span>${f.customer_name}</span>
                             <span class="italic truncate ml-2 max-w-[200px]" title="${f.whatsapp_error}">${f.whatsapp_error}</span>
@@ -814,7 +814,7 @@
                 showToastError('Please set a phone number first');
                 return;
             }
-            
+
             const template = 'invoice_urdu';
 
             if (!confirm(`Send Urdu message to ${phone}?`)) return;
@@ -830,7 +830,7 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     phone: phone,
                     template: template
                 })
@@ -919,7 +919,7 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     template: template
                 })
             })

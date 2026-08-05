@@ -4,7 +4,7 @@
     <div class="py-6">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h1 class="text-2xl font-semibold text-gray-900 mb-6">Onboarding & Provisioning</h1>
-            
+
             <div class="flex flex-col gap-6">
                 <!-- User Item -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -36,7 +36,7 @@
                                 <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             </div>
                         </div>
-                        
+
                         <!-- IT Assets -->
                         <div class="space-y-3">
                             <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">IT Assets</h4>
@@ -49,7 +49,7 @@
                                 <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                             </div>
                         </div>
-                        
+
                         <!-- Training -->
                         <div class="space-y-3">
                             <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Orientation</h4>

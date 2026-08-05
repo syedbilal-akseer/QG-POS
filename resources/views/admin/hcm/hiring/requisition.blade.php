@@ -29,7 +29,7 @@
                     <option>Closed</option>
                 </select>
             </div>
-            
+
             <!-- Table of requisitions -->
             <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg overflow-hidden border border-gray-100 dark:border-gray-700">
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">

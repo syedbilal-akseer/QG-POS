@@ -5,7 +5,6 @@ use App\Http\Controllers\AppController;
 use App\Http\Controllers\OrderRecieptsController;
 use App\Http\Controllers\PriceListController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\VendorBillController2;
 use App\Livewire\CRM;
 use App\Livewire\ListCustomers;
 use App\Livewire\ListOrders;
@@ -291,12 +290,10 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
         });
     });
 
-    // ── Vendors AP — bill upload + 2-stage approval (CMD → Director) ──
-    // Uploader / view-only access is broad; the controller does fine-grained
-    // edit/approve permission checks per bill state. account-user is the
-    // intended day-to-day submitter alongside admins; cmd-* and director
-    // need access for their queues.
-    Route::middleware(['checkRole:admin,account-user,cmd-khi,cmd-lhr,cmd-head,director'])->group(function () {
+    // ── Vendors AP — admin-submitted bill + 2-stage approval (Director → CMD),
+    // with a manual admin close-out step at the end. Only admins submit;
+    // cmd-* and director need access for their approval queues.
+    Route::middleware(['checkRole:admin,cmd-khi,cmd-lhr,cmd-head,director'])->group(function () {
         Route::prefix('admin/vendor-bills')->name('vendor-bills.')->group(function () {
             Route::get('/', [App\Http\Controllers\VendorBillController::class, 'index'])->name('index');
             Route::get('/search-vendors', [App\Http\Controllers\VendorBillController::class, 'searchVendors'])->name('searchVendors');
@@ -307,21 +304,8 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
             Route::put('/{vendorBill}', [App\Http\Controllers\VendorBillController::class, 'update'])->name('update');
             Route::post('/{vendorBill}/approve', [App\Http\Controllers\VendorBillController::class, 'approve'])->name('approve');
             Route::post('/{vendorBill}/reject', [App\Http\Controllers\VendorBillController::class, 'reject'])->name('reject');
+            Route::post('/{vendorBill}/close', [App\Http\Controllers\VendorBillController::class, 'close'])->name('close');
             Route::get('/attachment/{attachment}', [App\Http\Controllers\VendorBillController::class, 'attachment'])->name('attachment');
-        });
-    });
-    Route::middleware(['checkRole:admin,account-user,cmd-khi,cmd-lhr,cmd-head,director'])->group(function () {
-        Route::prefix('admin/vendor-bills-2')->name('vendor-bills-2.')->group(function () {
-            Route::get('/', [VendorBillController2::class, 'index'])->name('index');
-            Route::get('/search-vendors', [VendorBillController2::class, 'searchVendors'])->name('searchVendors');
-            Route::get('/create', [VendorBillController2::class, 'create'])->name('create');
-            Route::post('/', [VendorBillController2::class, 'store'])->name('store');
-            Route::get('/{vendorBill}', [VendorBillController2::class, 'show'])->name('show');
-            Route::get('/{vendorBill}/edit', [VendorBillController2::class, 'edit'])->name('edit');
-            Route::put('/{vendorBill}', [VendorBillController2::class, 'update'])->name('update');
-            Route::post('/{vendorBill}/approve', [VendorBillController2::class, 'approve'])->name('approve');
-            Route::post('/{vendorBill}/reject', [VendorBillController2::class, 'reject'])->name('reject');
-            Route::get('/attachment/{attachment}', [VendorBillController2::class, 'attachment'])->name('attachment');
         });
     });
     // Documents browser — customer-wise nested folders (Invoices, Builties,

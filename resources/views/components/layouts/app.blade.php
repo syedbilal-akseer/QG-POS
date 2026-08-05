@@ -27,7 +27,7 @@
              silently rendered nothing. Loading it once here fixes that
              app-wide instead of duplicating the <link> per page. --}}
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
-      
+
 
         <style>
             [x-cloak] {
@@ -70,7 +70,7 @@
 
                 <!-- Main content -->
                 <main class="py-5 dark:bg-neutral-900">
-                    <div class="px-4 sm:px-6 lg:px-8">
+                    <div class="px-2 sm:px-6 lg:px-2">
                         {{ $slot }}
                     </div>
                 </main>
@@ -85,7 +85,7 @@
             @filamentScripts
             @vite('resources/js/app.js')
 
-            
+
 
             <x-keep-alive />
 

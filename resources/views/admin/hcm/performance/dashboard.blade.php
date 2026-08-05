@@ -39,11 +39,11 @@
                     <div class="bg-green-100 flex items-center justify-center text-xs font-bold text-green-800">High Potential</div>
                     <div class="bg-green-200 flex items-center justify-center text-xs font-bold text-green-900">Growth Star</div>
                     <div class="bg-green-300 flex items-center justify-center text-xs font-bold text-green-900">Star</div>
-                    
+
                     <div class="bg-yellow-50 flex items-center justify-center text-xs font-bold text-yellow-800">Inconsistent</div>
                     <div class="bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-800">Key Player</div>
                     <div class="bg-green-200 flex items-center justify-center text-xs font-bold text-green-900">High Performer</div>
-                    
+
                     <div class="bg-red-50 flex items-center justify-center text-xs font-bold text-red-800">Risk</div>
                     <div class="bg-yellow-50 flex items-center justify-center text-xs font-bold text-yellow-800">Effective</div>
                     <div class="bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-800">Trusted Pro</div>

@@ -95,8 +95,8 @@
     @endif
 
 
-    {{-- Account — parent group combining Invoices, Ledgers, Vendors AP, and Vendors AP 2.
-     Outer visibility is the OR of all four child conditions, since none of them
+    {{-- Account — parent group combining Invoices, Ledgers, and Vendors AP.
+     Outer visibility is the OR of all child conditions, since none of them
      is a strict superset of the others. --}}
     @if (Auth::user()->isAdmin() ||
             Auth::user()->isInvoiceManager() ||
@@ -104,22 +104,21 @@
             Auth::user()->hasViewLhr() ||
             Auth::user()->hasViewAll() ||
             Auth::user()->isAccountUser() ||
-            Auth::user()->isDirector())
-        <li class="relative" x-data="{ openAccountMenu: {{ request()->routeIs('invoices.*', 'builties.*', 'ledgers.*', 'vendor-bills.*', 'vendor-bills-2.*') ? 'true' : 'false' }} }">
+            Auth::user()->isDirector() ||
+            Auth::user()->isCmd())
+        <li class="relative" x-data="{ openAccountMenu: {{ request()->routeIs('invoices.*', 'builties.*', 'ledgers.*', 'vendor-bills.*') ? 'true' : 'false' }} }">
             <x-sidebar-link href="javascript:void(0)" @click="openAccountMenu = !openAccountMenu"
                 aria-expanded="openAccountMenu" :active="request()->routeIs(
                     'invoices.*',
                     'builties.*',
                     'ledgers.*',
                     'vendor-bills.*',
-                    'vendor-bills-2.*',
                 )">
                 <x-link-icon icon="o-banknotes" :active="request()->routeIs(
                     'invoices.*',
                     'builties.*',
                     'ledgers.*',
                     'vendor-bills.*',
-                    'vendor-bills-2.*',
                 )" />
                 <span class="flex-1 me-3">Accounts</span>
                 <x-heroicon-s-chevron-down x-bind:class="{ 'rotate-180': openAccountMenu }"
@@ -187,22 +186,12 @@
                 @endif
 
                 {{-- Vendors AP sub-section --}}
-                @if (Auth::user()->isAdmin() || Auth::user()->isAccountUser() || Auth::user()->isDirector())
+                @if (Auth::user()->isAdmin() || Auth::user()->isDirector() || Auth::user()->isCmd())
                     <li class="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Vendors</li>
                     <li>
                         <x-sidebar-link :href="route('vendor-bills.index')" :active="request()->routeIs('vendor-bills.*')">
                             <x-link-icon icon="o-banknotes" :active="request()->routeIs('vendor-bills.*')" />
                             <span>Vendors AP</span>
-                        </x-sidebar-link>
-                    </li>
-                @endif
-
-                {{-- Vendors AP 2 --}}
-                @if (Auth::user()->isAdmin())
-                    <li>
-                        <x-sidebar-link :href="route('vendor-bills-2.index')" :active="request()->routeIs('vendor-bills-2.*')">
-                            <x-link-icon icon="o-banknotes" :active="request()->routeIs('vendor-bills-2.*')" />
-                            <span>Vendors AP 2</span>
                         </x-sidebar-link>
                     </li>
                 @endif
