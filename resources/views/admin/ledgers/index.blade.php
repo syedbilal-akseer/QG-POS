@@ -33,27 +33,35 @@
             height: 2.25rem;
         }
         .dark .select2-container--default .select2-selection--single {
-            background-color: #374151;
-            border-color: #4b5563;
-            color: #e5e7eb;
+            background-color: #374151 !important;
+            border-color: #4b5563 !important;
+            color: #e5e7eb !important;
         }
-        .dark .select2-container--default .select2-selection--single .select2-selection__rendered {
-            color: #e5e7eb;
+        .dark .select2-container--default .select2-selection--single .select2-selection__rendered,
+        .dark .select2-container--default .select2-selection--single .select2-selection__placeholder {
+            color: #e5e7eb !important;
         }
         .dark .select2-dropdown {
-            background-color: #374151;
-            border-color: #4b5563;
-            color: #e5e7eb;
+            background-color: #374151 !important;
+            border-color: #4b5563 !important;
+            color: #e5e7eb !important;
+        }
+        .dark .select2-container--default .select2-results__option {
+            color: #e5e7eb !important;
         }
         .dark .select2-container--default .select2-results__option--selected {
-            background-color: #4b5563;
+            background-color: #4b5563 !important;
+            color: #e5e7eb !important;
         }
-        .dark .select2-container--default .select2-results__option--highlighted {
-            background-color: #6b7280;
+        .dark .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
+            background-color: #6366f1 !important;
+            color: #fff !important;
         }
+        .dark .select2-search--dropdown .select2-search__field,
         .dark .select2-search__field {
-            background-color: #374151;
-            color: #e5e7eb;
+            background-color: #1f2937 !important;
+            border-color: #4b5563 !important;
+            color: #e5e7eb !important;
         }
     </style>
 @endpush
@@ -71,8 +79,8 @@
         $customerOptions = $customerOptions ?? collect();
         $salespersonOptions = $salespersonOptions ?? collect();
     @endphp
-    <div class="py-6">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="py-2">
+        <div class="mx-2 px-2 sm:px-6 lg:px-4">
             {{-- Header --}}
             <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
@@ -91,7 +99,7 @@
                  user lands on exactly what they need to review/send next instead of
                  the full unfiltered list. --}}
             @if($activeImport)
-                <div class="flex flex-wrap items-center justify-between gap-3 mb-4 p-4 rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4 py-4 rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20">
                     <div class="flex items-center gap-3 text-sm text-primary-900 dark:text-primary-200">
                         <i class="fas fa-check-circle text-primary-600 dark:text-primary-400 text-lg"></i>
                         <div>
@@ -111,7 +119,7 @@
             @endif
 
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900 dark:text-gray-100">
+                <div class="py-2 text-gray-900 dark:text-gray-100">
 
                     {{-- Filter card --}}
                     <div class="mb-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">

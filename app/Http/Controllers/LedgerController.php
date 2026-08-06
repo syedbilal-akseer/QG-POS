@@ -609,6 +609,25 @@ class LedgerController extends Controller
     }
 
     /**
+     * Same hard-coded overrides as
+     * SyncOracleCustomers::SALESPERSON_KEY_OVERRIDES — raw salesperson text
+     * that doesn't reduce to the same word-set as the matching portal user's
+     * name (e.g. the ledger PDF only has "Arif," for the user whose full name
+     * is "Arif Iqbal"). Kept in sync with that command's list so a
+     * salesperson resolved during the Oracle customer sync doesn't show as
+     * "Unmatched" here. Keyed by the raw text lower-cased/trimmed.
+     *
+     * @var array<string, string>
+     */
+    private const SALESPERSON_RAW_OVERRIDES = [
+        'anjum, tahir' => 'Tahir Anjum',
+        'arif,' => 'Arif Iqbal',
+        'haider ali,' => 'Haider Ali',
+        'zeeshan, mr. muhammad' => 'Zeeshan Rasheed',
+        'sheeraz,' => 'Sheraz Zia',
+    ];
+
+    /**
      * Normalize "Aqib, Mr. Muhammad" / "HaiderÂ Ali," / "Fahad Khan" style
      * scraped salesperson text and match it against the users table, reusing
      * SalespersonTarget::resolveUserId() which already handles the
@@ -621,6 +640,14 @@ class LedgerController extends Controller
     {
         if (! $raw) {
             return [null, null];
+        }
+
+        $overrideKey = mb_strtolower(trim(str_replace("\xc2\xa0", ' ', $raw)));
+        if (isset(self::SALESPERSON_RAW_OVERRIDES[$overrideKey])) {
+            $canonical = self::SALESPERSON_RAW_OVERRIDES[$overrideKey];
+            $userId = User::where('name', $canonical)->orWhere('oracle_user_name', $canonical)->value('id');
+
+            return [$userId, $canonical];
         }
 
         $clean = preg_replace('/\s+/', ' ', $raw);
