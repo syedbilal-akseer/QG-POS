@@ -138,6 +138,31 @@ class LedgerController extends Controller
     }
 
     /**
+     * Live customer master info for the "click customer to view details"
+     * popup on the ledgers list — mirrors InvoiceController::customerInfo()
+     * so both pages share the same modal/JS pattern.
+     */
+    public function customerInfo(Request $request)
+    {
+        $request->validate(['code' => 'required|string']);
+
+        $customer = Customer::where('customer_number', $request->code)
+            ->orWhere('customer_id', $request->code)
+            ->first([
+                'customer_id', 'ou_name', 'ou_id', 'customer_name', 'customer_number',
+                'customer_site_id', 'salesperson', 'city', 'area', 'address1',
+                'contact_number', 'email_address', 'nic', 'ntn',
+                'price_list_id', 'price_list_name', 'creation_date',
+            ]);
+
+        if (! $customer) {
+            return response()->json(['message' => 'Customer not found.'], 404);
+        }
+
+        return response()->json($customer);
+    }
+
+    /**
      * "Ledger Import" — upload form + recent import batches (found /
      * imported / duplicate / failed counts per upload).
      */
@@ -474,15 +499,29 @@ class LedgerController extends Controller
                 continue;
             }
 
-            if (! preg_match('/^Customer\s*:\s*(\d{3,7})\s+(.+)$/mi', $pageText, $cm)) {
+            // "Customer : {code} {name}" when pdftotext -layout produced the
+            // text (label before value), but Smalot\PdfParser's fallback
+            // extraction emits table cells in a different order — the code
+            // ends up jammed directly in front of the label with no
+            // separating whitespace, e.g. "12357Customer : Lahore Hardware
+            // HBM" (confirmed against a real production PDF where pdftotext
+            // isn't available and the PdfParser fallback kicks in — the
+            // label-first pattern alone silently matched zero customers).
+            // Same reversal happens to "Salesperson :" below.
+            if (preg_match('/^Customer\s*:\s*(\d{3,7})\s+(.+)$/mi', $pageText, $cm)) {
+                $code = trim($cm[1]);
+                $name = $this->cleanExtractedLabel($cm[2]);
+            } elseif (preg_match('/^(\d{3,7})Customer\s*:\s*(.+)$/mi', $pageText, $cm)) {
+                $code = trim($cm[1]);
+                $name = $this->cleanExtractedLabel($cm[2]);
+            } else {
                 continue;
             }
 
-            $code = trim($cm[1]);
-            $name = $this->cleanExtractedLabel($cm[2]);
-
             $salespersonRaw = null;
-            if (preg_match('/^Salesperson\s*:\s*(.*)$/mi', $pageText, $sm)) {
+            if (preg_match('/^Salesperson\s*:\s*(.+)$/mi', $pageText, $sm)) {
+                $salespersonRaw = $this->cleanExtractedLabel($sm[1]) ?: null;
+            } elseif (preg_match('/^(.+?)Salesperson\s*:\s*$/mi', $pageText, $sm)) {
                 $salespersonRaw = $this->cleanExtractedLabel($sm[1]) ?: null;
             }
 

@@ -257,7 +257,6 @@
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Customer</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Salesperson</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Period</th>
-                                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Debit / Credit</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Status</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Uploaded</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Actions</th>
@@ -272,8 +271,10 @@
                                             @endif
                                         </td>
                                         <td class="px-4 py-4 whitespace-nowrap">
-                                            <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ $ledger->customer_name }}</div>
-                                            <div class="text-sm text-gray-500 dark:text-gray-400">Code: {{ $ledger->customer_code }}</div>
+                                            <div class="cursor-pointer group" onclick="showCustomerInfo('{{ $ledger->customer_code }}')" title="View customer details">
+                                                <div class="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 group-hover:underline">{{ $ledger->customer_name }}</div>
+                                                <div class="text-sm text-gray-500 dark:text-gray-400">Code: {{ $ledger->customer_code }}</div>
+                                            </div>
                                             <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                                 <span id="phone-{{ $ledger->id }}">{{ $ledger->customer_phone ?: 'No phone' }}</span>
                                                 <button type="button" onclick="editPhoneNumber({{ $ledger->id }}, '{{ $ledger->customer_phone }}')" class="text-primary-600 hover:text-primary-800" title="Edit phone">
@@ -297,10 +298,6 @@
                                                 <span class="text-gray-400">—</span>
                                             @endif
                                             <div class="text-[10px] text-gray-500 dark:text-gray-400 mt-1">pages {{ $ledger->page_range }}</div>
-                                        </td>
-                                        <td class="px-4 py-4 whitespace-nowrap text-right text-sm">
-                                            <div class="text-gray-900 dark:text-gray-100">{{ !is_null($ledger->total_debit) ? number_format((float) $ledger->total_debit, 0) : '—' }}</div>
-                                            <div class="text-gray-500 dark:text-gray-400">{{ !is_null($ledger->total_credit) ? number_format((float) $ledger->total_credit, 0) : '—' }}</div>
                                         </td>
                                         <td class="px-4 py-4 whitespace-nowrap">
                                             @if($ledger->processing_status !== 'completed')
@@ -589,6 +586,106 @@
         function deleteLedger(id) {
             if (!confirm('Delete this ledger and its PDF? This cannot be undone.')) return;
             document.getElementById(`delete-form-${id}`).submit();
+        }
+    </script>
+
+    {{-- Customer details popup — same pattern as the Invoices page, populated
+         live via fetch() against LedgerController::customerInfo(). --}}
+    <x-modal name="customer_detail" maxWidth="2xl">
+        <div class="p-6 bg-white dark:bg-neutral-800">
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">Customer Details</h2>
+                <span onclick="window.dispatchEvent(new CustomEvent('close-modal', { detail: 'customer_detail' }))"
+                    class="cursor-pointer text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </span>
+            </div>
+
+            <div id="customer-detail-loading" class="mt-6 text-center text-gray-500 dark:text-gray-400 hidden">
+                <i class="fas fa-spinner fa-spin mr-2"></i>Loading…
+            </div>
+            <div id="customer-detail-error" class="mt-6 text-center text-red-600 hidden">
+                Customer not found.
+            </div>
+
+            <div id="customer-detail-fields" class="mt-4 space-y-4 hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    @foreach ([
+                        'customer_id' => 'Customer ID',
+                        'ou_name' => 'OU Name',
+                        'ou_id' => 'OU ID',
+                        'customer_name' => 'Customer Name',
+                        'customer_number' => 'Account Number',
+                        'customer_site_id' => 'Customer Site ID',
+                        'salesperson' => 'Salesperson',
+                        'city' => 'City',
+                        'area' => 'Area',
+                        'address1' => 'Address',
+                        'contact_number' => 'Contact Number',
+                        'email_address' => 'Email Address',
+                        'nic' => 'NIC',
+                        'ntn' => 'NTN',
+                        'price_list_id' => 'Price List ID',
+                        'price_list_name' => 'Price List Name',
+                        'creation_date' => 'Creation Date',
+                    ] as $field => $label)
+                        <div class="flex flex-col">
+                            <label class="font-medium text-gray-700 dark:text-gray-300">{{ $label }}:</label>
+                            <span id="cd-{{ $field }}" class="text-gray-900 dark:text-gray-100"></span>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        <div class="flex justify-end items-center gap-x-2 py-3 px-4 bg-gray-50 dark:bg-neutral-950 border-t border-gray-200 dark:border-neutral-800">
+            <x-secondary-button type="button"
+                onclick="window.dispatchEvent(new CustomEvent('close-modal', { detail: 'customer_detail' }))"
+                class="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800">
+                {{ __('Cancel') }}
+            </x-secondary-button>
+        </div>
+    </x-modal>
+
+    <script>
+        const CUSTOMER_DETAIL_FIELDS = [
+            'customer_id', 'ou_name', 'ou_id', 'customer_name', 'customer_number',
+            'customer_site_id', 'salesperson', 'city', 'area', 'address1',
+            'contact_number', 'email_address', 'nic', 'ntn',
+            'price_list_id', 'price_list_name', 'creation_date',
+        ];
+
+        function showCustomerInfo(code) {
+            const loading = document.getElementById('customer-detail-loading');
+            const errorBox = document.getElementById('customer-detail-error');
+            const fields = document.getElementById('customer-detail-fields');
+
+            errorBox.classList.add('hidden');
+            fields.classList.add('hidden');
+            loading.classList.remove('hidden');
+
+            window.dispatchEvent(new CustomEvent('open-modal', { detail: 'customer_detail' }));
+
+            fetch(`{{ route('ledgers.customer-info') }}?code=${encodeURIComponent(code)}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                })
+                .then(r => {
+                    if (!r.ok) throw new Error('Not found');
+                    return r.json();
+                })
+                .then(data => {
+                    CUSTOMER_DETAIL_FIELDS.forEach(field => {
+                        const el = document.getElementById('cd-' + field);
+                        if (el) el.textContent = data[field] ?? '—';
+                    });
+                    loading.classList.add('hidden');
+                    fields.classList.remove('hidden');
+                })
+                .catch(() => {
+                    loading.classList.add('hidden');
+                    errorBox.classList.remove('hidden');
+                });
         }
     </script>
 </x-app-layout>

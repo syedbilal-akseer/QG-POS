@@ -259,6 +259,7 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
             Route::get('/', [App\Http\Controllers\LedgerController::class, 'index'])->name('index');
             Route::get('/upload', [App\Http\Controllers\LedgerController::class, 'uploadForm'])->name('upload');
             Route::post('/upload', [App\Http\Controllers\LedgerController::class, 'store'])->name('store');
+            Route::get('/customer-info', [App\Http\Controllers\LedgerController::class, 'customerInfo'])->name('customer-info');
             Route::get('/whatsapp-queue-status', [App\Http\Controllers\LedgerController::class, 'getQueueStatus'])->name('whatsapp-status');
             Route::post('/bulk-send-whatsapp', [App\Http\Controllers\LedgerController::class, 'bulkSendWhatsApp'])->name('bulk-send');
             Route::post('/{ledger}/update-phone', [App\Http\Controllers\LedgerController::class, 'updatePhone'])->name('update-phone');
