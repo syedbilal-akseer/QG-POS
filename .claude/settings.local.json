@@ -135,7 +135,13 @@
       "Read(//c/nvm4w/nodejs/**)",
       "Bash(nvm use *)",
       "Bash(where node *)",
-      "Bash(/c/nvm4w/nodejs/node.exe -v)"
+      "Bash(/c/nvm4w/nodejs/node.exe -v)",
+      "Bash(php -l app/Http/Controllers/Api/CustomerController.php)",
+      "Bash(php -l app/Http/Controllers/Api/ProductController.php)",
+      "Bash(php -l app/Services/UserActivityRanker.php)",
+      "Bash(php -l app/Models/Item.php)",
+      "Bash(curl -s -X POST http://127.0.0.1:8123/api/customers/get-products -H 'Authorization: Bearer __TRACKED_VAR__' -H 'Accept: application/json' -H 'Content-Type: application/json' -d '{\"customer_id\":\"1408\"}' -o /tmp/resp1.json -w 'HTTP %{http_code}\\\\n')",
+      "Bash(php -r '$d=json_decode\\(file_get_contents\\(\"php://stdin\"\\),true\\); echo \"success=\".var_export\\($d[\"success\"]??null,true\\).\" count=\".count\\($d[\"data\"]??[]\\).\"\\\\n\"; foreach\\(array_slice\\($d[\"data\"]??[],0,10\\) as $i=>$r\\){echo \\($i+1\\).\". item_code={$r[\"item_code\"]} inv_id={$r[\"inventory_item_id\"]} desc=\".substr\\($r[\"item_description\"]??\"\",0,40\\).\"\\\\n\";}')"
     ]
   }
 }

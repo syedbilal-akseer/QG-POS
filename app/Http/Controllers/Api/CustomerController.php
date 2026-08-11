@@ -359,7 +359,7 @@ class CustomerController extends Controller
                 ->groupBy('item_code');
 
             // Prepare the list of items with their prices
-            return $customer->itemPrices
+            $mappedItems = $customer->itemPrices
                 ->reject(function ($itemPrice) {
                     $item = $itemPrice->item;
                     return $item && ($item->major_category === 'PACKING MATERIAL' || $item->minor_category === 'PACKING MATERIAL');
@@ -380,6 +380,16 @@ class CustomerController extends Controller
                     'discounted_price' => $discount,
                 ];
             });
+
+            // Initial order: this customer's own most-frequently-ordered items
+            // first (top to low), rest in their natural order.
+            $rankedCodes = \App\Services\UserActivityRanker::frequentItemCodesForCustomer((string) $validated['customer_id']);
+
+            return \App\Services\UserActivityRanker::sortByRanked(
+                $mappedItems,
+                $rankedCodes,
+                fn ($p) => $p['inventory_item_id'] ?? ''
+            )->values();
         });
 
         // If no items are found, return a 404 response
@@ -627,7 +637,7 @@ class CustomerController extends Controller
                     ->get()
                     ->groupBy('item_code');
 
-                return $customer->itemPrices
+                $mappedItems = $customer->itemPrices
                     ->reject(function ($itemPrice) {
                         $item = $itemPrice->item;
                         return $item && ($item->major_category === 'PACKING MATERIAL' || $item->minor_category === 'PACKING MATERIAL');
@@ -648,9 +658,17 @@ class CustomerController extends Controller
                             'price_list_id' => $itemPrice->price_list_id,
                             'price_list_name' => $itemPrice->price_list_name,
                         ];
-                    })
-                    ->values()
-                    ->all();
+                    });
+
+                // Initial order: this customer's own most-frequently-ordered
+                // items first (top to low), rest in their natural order.
+                $rankedCodes = \App\Services\UserActivityRanker::frequentItemCodesForCustomer((string) $validated['customer_id']);
+
+                return \App\Services\UserActivityRanker::sortByRanked(
+                    $mappedItems,
+                    $rankedCodes,
+                    fn ($p) => $p['inventory_item_id'] ?? ''
+                )->values()->all();
             }
 
             // Search ALL items (not just customer's price list)
@@ -717,7 +735,7 @@ class CustomerController extends Controller
                 ->get()
                 ->groupBy('item_code');
 
-            return $items->flatMap(function ($item) use ($globalDiscounts, $primaryPrices) {
+            $mappedItems = $items->flatMap(function ($item) use ($globalDiscounts, $primaryPrices) {
                 $itemPrices = $primaryPrices->get($item->item_code) ?? collect();
 
                 // If the item has zero priced rows after every fallback, drop
@@ -749,9 +767,17 @@ class CustomerController extends Controller
                             'price_list_name' => $itemPrice->price_list_name,
                         ];
                     });
-            })
-            ->values() // Re-index array
-            ->all();
+            })->values();
+
+            // Even within a search, surface this customer's most-frequently-
+            // ordered matching items first.
+            $rankedCodes = \App\Services\UserActivityRanker::frequentItemCodesForCustomer((string) $validated['customer_id']);
+
+            return \App\Services\UserActivityRanker::sortByRanked(
+                $mappedItems,
+                $rankedCodes,
+                fn ($p) => $p['inventory_item_id'] ?? ''
+            )->values()->all();
         })();
 
         // Check if customer was found

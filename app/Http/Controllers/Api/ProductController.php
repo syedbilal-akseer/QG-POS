@@ -1066,10 +1066,17 @@ class ProductController extends Controller
         $mappedRelated = $relatedItems->map($mapItem)->filter($hasPrices)->values();
 
         // ── Personalised ordering ────────────────────────────────────────
-        // The "recently used" sort only applies to matched items so a related
-        // item never overtakes a search match. Both sets get the is_recent
-        // flag so the mobile UI can highlight history items either way.
-        $rankedCodes = \App\Services\UserActivityRanker::recentItemCodes($user->id);
+        // When a customer_id is supplied, rank by THAT customer's own order
+        // frequency (most-ordered items first) so opening a customer's cart
+        // surfaces what they actually buy, rather than the salesperson's
+        // general recent activity. Falls back to the salesperson's recent
+        // items when no customer is pinned. The sort only applies to matched
+        // items so a related item never overtakes a search match. Both sets
+        // get the is_recent flag so the mobile UI can highlight history
+        // items either way.
+        $rankedCodes = !empty($validated['customer_id'])
+            ? \App\Services\UserActivityRanker::frequentItemCodesForCustomer((string) $validated['customer_id'])
+            : \App\Services\UserActivityRanker::recentItemCodes($user->id);
         $annotateRecent = function ($p) use ($rankedCodes) {
             $idx = array_search((string) ($p['inventory_item_id'] ?? ''), array_map('strval', $rankedCodes), true);
             $p['is_recent']   = $idx !== false;

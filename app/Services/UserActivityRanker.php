@@ -44,6 +44,36 @@ class UserActivityRanker
     }
 
     /**
+     * Item codes a specific customer has ordered, ranked by order frequency
+     * (highest count first). Used to open a customer's product list sorted
+     * by what that customer actually buys most, rather than by the
+     * salesperson's own recent activity.
+     */
+    public static function frequentItemCodesForCustomer(string $customerId, int $limit = 200, int $daysBack = 365): array
+    {
+        $cacheKey = "ranker:customer_items:c{$customerId}:l{$limit}:d{$daysBack}";
+
+        return Cache::remember($cacheKey, 300, function () use ($customerId, $limit, $daysBack) {
+            $rows = DB::table('order_items')
+                ->join('orders', 'orders.id', '=', 'order_items.order_id')
+                ->where('orders.customer_id', $customerId)
+                ->where('orders.created_at', '>=', now()->subDays($daysBack))
+                ->whereNull('orders.deleted_at')
+                ->whereNull('order_items.deleted_at')
+                ->select(
+                    'order_items.inventory_item_id',
+                    DB::raw('COUNT(*) AS frequency')
+                )
+                ->groupBy('order_items.inventory_item_id')
+                ->orderByDesc('frequency')
+                ->limit($limit)
+                ->get();
+
+            return $rows->pluck('inventory_item_id')->filter()->values()->all();
+        });
+    }
+
+    /**
      * Customer numbers the user has dealt with most recently (orders).
      * Customer "number" because orders.customer_id stores the Oracle number,
      * not the local PK (see Customer::orders relationship).
