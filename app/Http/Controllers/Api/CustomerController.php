@@ -359,7 +359,12 @@ class CustomerController extends Controller
                 ->groupBy('item_code');
 
             // Prepare the list of items with their prices
-            return $customer->itemPrices->map(function ($itemPrice) use ($globalDiscounts) {
+            return $customer->itemPrices
+                ->reject(function ($itemPrice) {
+                    $item = $itemPrice->item;
+                    return $item && ($item->major_category === 'PACKING MATERIAL' || $item->minor_category === 'PACKING MATERIAL');
+                })
+                ->map(function ($itemPrice) use ($globalDiscounts) {
                 // Use list's discount if present, otherwise look for ANY available discount
                 $discount = $itemPrice->discounted_price;
                 if ($discount === null && isset($globalDiscounts[$itemPrice->item_code])) {
@@ -623,6 +628,10 @@ class CustomerController extends Controller
                     ->groupBy('item_code');
 
                 return $customer->itemPrices
+                    ->reject(function ($itemPrice) {
+                        $item = $itemPrice->item;
+                        return $item && ($item->major_category === 'PACKING MATERIAL' || $item->minor_category === 'PACKING MATERIAL');
+                    })
                     ->map(function ($itemPrice) use ($globalDiscounts) {
                         $discount = $itemPrice->discounted_price;
                         if ($discount === null && isset($globalDiscounts[$itemPrice->item_code])) {
@@ -645,7 +654,7 @@ class CustomerController extends Controller
             }
 
             // Search ALL items (not just customer's price list)
-            $itemsQuery = \App\Models\Item::query();
+            $itemsQuery = \App\Models\Item::query()->excludePackingMaterial();
 
             // Apply search terms to item_code and item_description
             if (!empty($terms)) {

@@ -21,6 +21,21 @@ class Item extends Model
     ];
 
     /**
+     * Exclude packing-material items (cartons, labels, caps, etc.) — these are
+     * not sellable products and should never appear in the mobile ordering flow.
+     */
+    public function scopeExcludePackingMaterial($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('major_category', '!=', 'PACKING MATERIAL')
+              ->orWhereNull('major_category');
+        })->where(function ($q) {
+            $q->where('minor_category', '!=', 'PACKING MATERIAL')
+              ->orWhereNull('minor_category');
+        });
+    }
+
+    /**
      * Get the item prices associated with the item.
      */
     public function itemPrices()

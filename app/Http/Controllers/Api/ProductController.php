@@ -84,6 +84,7 @@ class ProductController extends Controller
 
             // Query items to get categories
             $query = Item::query()
+                ->excludePackingMaterial()
                 ->select('minor_category', 'sub_minor_category')
                 ->whereNotNull('minor_category')
                 ->where('minor_category', '!=', '');
@@ -271,6 +272,7 @@ class ProductController extends Controller
                         });
                     }
                 }])
+                ->excludePackingMaterial()
                 ->select('id', 'inventory_item_id', 'item_code', 'item_description',
                         'primary_uom_code', 'secondary_uom_code', 'major_category',
                         'minor_category', 'sub_minor_category', 'created_at', 'updated_at');
@@ -835,6 +837,7 @@ class ProductController extends Controller
                              ->orWhere('end_date_active', '>=', $today);
                       });
                 })
+                ->excludePackingMaterial()
                 ->select('id', 'inventory_item_id', 'item_code', 'item_description',
                         'primary_uom_code', 'secondary_uom_code', 'major_category',
                         'minor_category', 'sub_minor_category', 'created_at', 'updated_at')
@@ -1151,6 +1154,7 @@ class ProductController extends Controller
                              ->orWhere('end_date_active', '>=', $today);
                       });
             }])
+            ->excludePackingMaterial()
             ->select('id', 'inventory_item_id', 'item_code', 'item_description',
                      'primary_uom_code', 'secondary_uom_code', 'major_category',
                      'minor_category', 'sub_minor_category', 'created_at', 'updated_at')
