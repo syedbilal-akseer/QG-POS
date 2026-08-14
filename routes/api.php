@@ -122,6 +122,7 @@ Route::middleware(['auth:sanctum', 'enforceAppVersion'])->group(function () {
         Route::post('/get', [CustomerController::class, 'getCustomer'])->name('get');
         Route::post('/get-products', [CustomerController::class, 'getCustomerProducts'])->name('getCustomerProducts');
         Route::post('/search', [CustomerController::class, 'searchCustomer'])->name('searchCustomer');
+        Route::post('/outstanding', [CustomerController::class, 'outstandingCustomers'])->name('outstanding');
         Route::post('/search/products', [CustomerController::class, 'searchCustomerProducts'])->name('searchCustomerProducts');
         Route::post('/store/customer', [CustomerController::class, 'createCustomer'])->name('createCustomer');
         Route::post('/sync', [CustomerController::class, 'syncCustomers'])->name('sync');

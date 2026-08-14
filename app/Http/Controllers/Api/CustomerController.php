@@ -799,6 +799,84 @@ class CustomerController extends Controller
     }
 
     /**
+     * List customers with an outstanding balance (customer_balance > 0),
+     * optionally filtered by exact address1, scoped by role:
+     * admin sees all, sales-head sees their effective OU set (including the
+     * four named email-override leads), salesperson sees only their own
+     * customers (matched via normalizeSalespersonKey), everyone else gets none.
+     */
+    public function outstandingCustomers(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'address1' => 'nullable|string|max:255',
+        ]);
+
+        $user = Auth::user();
+        $address1 = $validated['address1'] ?? null;
+        $page = (int) $request->input('page', 1);
+
+        $cacheKey = 'customers_outstanding_'.md5(($address1 ?? '').'_page_'.$page.'_user_'.$user->id);
+        $cacheTime = 60;
+
+        $customers = Cache::remember($cacheKey, $cacheTime, function () use ($user, $address1) {
+            $query = Customer::select([
+                'customer_id', 'customer_number', 'customer_name',
+                'address1', 'city', 'area', 'salesperson',
+                'customer_balance', 'overall_credit_limit', 'credit_days',
+            ]);
+
+            if ($user->role === 'admin') {
+                // sees all customers, no additional scope
+            } elseif ($user->isSalesHead()) {
+                $query->whereIn('ou_id', $user->getEffectiveOuIds());
+            } elseif ($user->role === 'user') {
+                $query->where('salesperson_key', normalizeSalespersonKey($user->name));
+            } else {
+                $query->where('customer_id', null);
+            }
+
+            $query->whereNotNull('customer_balance')->where('customer_balance', '>', 0);
+
+            if ($address1) {
+                $query->where('address1', $address1);
+            }
+
+            return $query->orderByDesc('customer_balance')->paginate(10);
+        });
+
+        $items = collect($customers->items())->map(function ($c) {
+            return [
+                'customer_id' => $c->customer_id,
+                'customer_number' => $c->customer_number,
+                'customer_name' => $c->customer_name,
+                'address1' => $c->address1,
+                'city' => $c->city,
+                'area' => $c->area,
+                'salesperson' => $c->salesperson,
+                'outstanding_amount' => $c->customer_balance,
+                'overall_credit_limit' => $c->overall_credit_limit,
+                'credit_days' => $c->credit_days,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'Outstanding customers retrieved successfully.',
+            'data' => $items,
+            'pagination' => [
+                'total' => $customers->total(),
+                'count' => $customers->count(),
+                'per_page' => $customers->perPage(),
+                'current_page' => $customers->currentPage(),
+                'total_pages' => $customers->lastPage(),
+                'next_page_url' => $customers->nextPageUrl(),
+                'prev_page_url' => $customers->previousPageUrl(),
+            ],
+        ], 200);
+    }
+
+    /**
      * Trigger the customer sync command via API.
      */
     public function syncCustomers(): JsonResponse
