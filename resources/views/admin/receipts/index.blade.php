@@ -369,7 +369,8 @@
                         </td>
                         <td>
                             @if($receipt->oracle_entered_at)
-                                <span class="badge bg-success">Entered to Oracle</span>
+                                <span class="badge bg-success">Entered to Oracle</span><br>
+                                <small class="text-muted">{{ $receipt->oracle_entered_at->format('d M Y, H:i') }}</small>
                             @else
                                 <span class="badge bg-warning">Pending</span>
                             @endif

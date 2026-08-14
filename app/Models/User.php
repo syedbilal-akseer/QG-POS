@@ -420,9 +420,12 @@ class User extends Authenticatable
             return [102, 103, 104, 105, 106, 108, 109];
         }
 
-        // SCM-LHR role gets Lahore organization access
+        // SCM-LHR role gets Lahore organization access — derive from the
+        // user's actual Oracle org assignments, falling back to the full
+        // Lahore set only when their org data is empty/unset.
         if ($this->isScmLhr()) {
-            return [108, 109]; // LHR organization OU IDs
+            $assigned = $this->getOracleOrganizations();
+            return !empty($assigned) ? $assigned : [108, 109];
         }
 
         // Email-based overrides for the four sales team leads — these guarantee

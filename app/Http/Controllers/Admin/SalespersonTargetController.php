@@ -58,7 +58,8 @@ class SalespersonTargetController extends Controller
             });
         }
 
-        $targets = $query->orderBy('year')->orderBy('month')->orderBy('primary_name')
+        $targets = $query->with('user:id,name,email,role,additional_roles,oracle_user_name,employee_id,status')
+            ->orderBy('year')->orderBy('month')->orderBy('primary_name')
             ->paginate(50)
             ->withQueryString();
 

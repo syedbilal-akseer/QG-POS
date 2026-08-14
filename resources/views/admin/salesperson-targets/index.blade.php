@@ -6,7 +6,7 @@
             </div>
         @endif
 
-        <div class="bg-white dark:bg-neutral-800 rounded-lg shadow p-6">
+        <div class="bg-white dark:bg-neutral-800 rounded-lg shadow p-6" x-data="{ modalUser: null }">
             <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
                 <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100">Salesperson Targets</h1>
                 @if($isAdmin)
@@ -83,8 +83,26 @@
                                 <td class="px-3 py-2 text-gray-900 dark:text-gray-100">{{ $t->primary_name }}</td>
                                 <td class="px-3 py-2 text-gray-700 dark:text-gray-300">{{ $t->salesman_name }}</td>
                                 <td class="px-3 py-2">
-                                    @if($t->user_id)
-                                        <span class="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">{{ optional($t->user)->name ?? '#'.$t->user_id }}</span>
+                                    @if($t->user_id && $t->user)
+                                        @if($isAdmin)
+                                            <button type="button"
+                                                @click="modalUser = @js([
+                                                    'name'             => $t->user->name,
+                                                    'email'            => $t->user->email,
+                                                    'role'             => $t->user->role,
+                                                    'additional_roles' => $t->user->getAdditionalRoles(),
+                                                    'oracle_user_name' => $t->user->oracle_user_name,
+                                                    'employee_id'      => $t->user->employee_id,
+                                                    'status'           => $t->user->status,
+                                                ])"
+                                                class="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50">
+                                                {{ $t->user->name }}
+                                            </button>
+                                        @else
+                                            <span class="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">{{ $t->user->name }}</span>
+                                        @endif
+                                    @elseif($t->user_id)
+                                        <span class="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">#{{ $t->user_id }}</span>
                                     @else
                                         <span class="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Unlinked</span>
                                     @endif
@@ -116,6 +134,49 @@
             </div>
 
             <div class="mt-4">{{ $targets->links() }}</div>
+
+            @if($isAdmin)
+                <div x-show="modalUser" x-cloak
+                     class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                     @click.self="modalUser = null" @keydown.escape.window="modalUser = null">
+                    <div class="bg-white dark:bg-neutral-800 rounded-lg shadow-lg w-full max-w-md p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100">Linked User</h2>
+                            <button type="button" @click="modalUser = null" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">&times;</button>
+                        </div>
+                        <dl class="space-y-3 text-sm" x-show="modalUser">
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-gray-500 dark:text-gray-400">Name</dt>
+                                <dd class="text-gray-900 dark:text-gray-100 font-semibold text-right" x-text="modalUser?.name ?? '-'"></dd>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-gray-500 dark:text-gray-400">Email</dt>
+                                <dd class="text-gray-900 dark:text-gray-100 text-right" x-text="modalUser?.email ?? '-'"></dd>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-gray-500 dark:text-gray-400">Role</dt>
+                                <dd class="text-gray-900 dark:text-gray-100 text-right" x-text="modalUser?.role ?? '-'"></dd>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-gray-500 dark:text-gray-400">Additional Roles</dt>
+                                <dd class="text-gray-900 dark:text-gray-100 text-right" x-text="(modalUser?.additional_roles ?? []).length ? modalUser.additional_roles.join(', ') : '-'"></dd>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-gray-500 dark:text-gray-400">Oracle Username</dt>
+                                <dd class="text-gray-900 dark:text-gray-100 text-right" x-text="modalUser?.oracle_user_name ?? '-'"></dd>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-gray-500 dark:text-gray-400">Employee ID</dt>
+                                <dd class="text-gray-900 dark:text-gray-100 text-right" x-text="modalUser?.employee_id ?? '-'"></dd>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-gray-500 dark:text-gray-400">Status</dt>
+                                <dd class="text-gray-900 dark:text-gray-100 text-right" x-text="modalUser?.status ?? '-'"></dd>
+                            </div>
+                        </dl>
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 </x-layout>
