@@ -350,7 +350,7 @@
                     @forelse($receipts as $receipt)
                     <tr>
                         <td>{{ $receipt->receipt_number }}</td>
-                        <td>{{ $receipt->created_at->format('d M Y') }}</td>
+                        <td>{{ $receipt->created_at->format('d M Y, H:i') }}</td>
                         <td>
                             <strong>{{ $receipt->customer->customer_name ?? 'N/A' }}</strong><br>
                             <small class="text-muted">#{{ $receipt->customer_id }}</small>

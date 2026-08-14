@@ -66,7 +66,7 @@ class ReceiptsExport implements FromCollection, WithHeadings, WithMapping
     {
         return [
             $receipt->receipt_number,
-            $receipt->created_at->format('Y-m-d'),
+            $receipt->created_at->format('Y-m-d H:i:s'),
             $receipt->customer->customer_name ?? 'N/A',
             $receipt->customer->customer_number ?? 'N/A',
             $receipt->customer->ou_id ?? 'N/A',
