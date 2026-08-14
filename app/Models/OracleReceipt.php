@@ -32,6 +32,7 @@ class OracleReceipt extends Model
         'type',
         'payment_ref',
         'bank_account_id',
+        'attachment_url',
     ];
     
     protected $casts = [
@@ -96,6 +97,7 @@ class OracleReceipt extends Model
         $sharedCreationDate = $customerReceipt->creation_date ?? now();
         $sharedComments    = $customerReceipt->description ?? $customerReceipt->comments ?? '';
         $paymentRef        = $customerReceipt->receipt_number;
+        $attachmentUrl     = self::resolveAttachmentUrl($customerReceipt->cheque_image);
 
         // ── 1) Cash portion ──────────────────────────────────────────────────
         if ($cashAmount > 0) {
@@ -120,6 +122,7 @@ class OracleReceipt extends Model
                 'type'              => 'MOBILE',
                 'payment_ref'       => $paymentRef,
                 'bank_account_id'   => $customerReceipt->bank_account_id,
+                'attachment_url'    => $attachmentUrl,
                 '_source'           => 'cash',
             ];
         }
@@ -152,6 +155,7 @@ class OracleReceipt extends Model
                     'type'              => 'MOBILE',
                     'payment_ref'       => $paymentRef,
                     'bank_account_id'   => $bankAccountId,
+                    'attachment_url'    => $attachmentUrl,
                     '_source'           => 'cheque:' . ($cheque->cheque_no ?? '?'),
                 ];
             }
@@ -183,6 +187,7 @@ class OracleReceipt extends Model
                 'type'              => 'MOBILE',
                 'payment_ref'       => $paymentRef,
                 'bank_account_id'   => $bankAccountId,
+                'attachment_url'    => $attachmentUrl,
                 '_source'           => 'legacy_cheque',
             ];
         }
@@ -204,6 +209,7 @@ class OracleReceipt extends Model
                 'type'              => 'MOBILE',
                 'payment_ref'       => $paymentRef,
                 'bank_account_id'   => $customerReceipt->bank_account_id,
+                'attachment_url'    => $attachmentUrl,
                 '_source'           => 'empty',
             ];
         }
@@ -251,6 +257,23 @@ class OracleReceipt extends Model
         }
 
         return $firstInsertedReceiptNumber;
+    }
+
+    /**
+     * Normalize customer_receipts.cheque_image into a full URL for Oracle.
+     * Different write paths in this codebase store this column inconsistently —
+     * some save a storage-relative path (Storage::store() result), others save
+     * an already-absolute asset('storage/...') URL. Oracle needs a real URL.
+     */
+    private static function resolveAttachmentUrl($chequeImage)
+    {
+        if (empty($chequeImage)) {
+            return null;
+        }
+        if (str_starts_with($chequeImage, 'http://') || str_starts_with($chequeImage, 'https://')) {
+            return $chequeImage;
+        }
+        return asset('storage/' . ltrim($chequeImage, '/'));
     }
 
     /**
