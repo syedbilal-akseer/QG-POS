@@ -38,6 +38,44 @@ class ItemPrice extends Model
     ];
 
     /**
+     * Several independent code paths write start_date_active/end_date_active
+     * on this table (the sync:oracle-items-price command, the admin "Sync
+     * Oracle" button, CSV price import, and the Oracle push-back flow), and
+     * more than one of them updates only one of the two date columns on an
+     * existing row. That has produced rows where end_date_active ends up
+     * earlier than start_date_active — e.g. a row closed out by yesterday's
+     * deactivation run, then given a fresh start_date_active by today's
+     * price change without its stale end_date_active being cleared. Such a
+     * row can never satisfy "start <= today <= end" again, so it silently
+     * disappears from every customer-facing price/search query forever,
+     * even though it looks like a normal current-priced row in the item_prices
+     * table. Rather than patch every write path, treat this as a data
+     * invariant: end_date_active may never be before start_date_active.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (ItemPrice $itemPrice) {
+            if (
+                $itemPrice->start_date_active
+                && $itemPrice->end_date_active
+                && $itemPrice->end_date_active->lt($itemPrice->start_date_active)
+            ) {
+                \Log::warning('ItemPrice: dropped inverted end_date_active (was before start_date_active)', [
+                    'item_price_id'    => $itemPrice->id,
+                    'item_code'        => $itemPrice->item_code,
+                    'price_list_id'    => $itemPrice->price_list_id,
+                    'price_list_name'  => $itemPrice->price_list_name,
+                    'uom'              => $itemPrice->uom,
+                    'start_date_active'=> $itemPrice->start_date_active->toDateTimeString(),
+                    'rejected_end_date_active' => $itemPrice->end_date_active->toDateTimeString(),
+                ]);
+
+                $itemPrice->end_date_active = null;
+            }
+        });
+    }
+
+    /**
      * Get the item associated with the price.
      */
     public function item()
