@@ -11,6 +11,7 @@ use App\Models\SalespersonTarget;
 use App\Models\User;
 use App\Services\WhatsAppService;
 use App\Traits\ExtractsPdfPages;
+use App\Traits\ViewRoleGuard;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,7 @@ use Illuminate\Support\Str;
 
 class LedgerController extends Controller
 {
-    use ExtractsPdfPages;
+    use ExtractsPdfPages, ViewRoleGuard;
 
     /**
      * "Ledgers" — flat list of every imported customer ledger, with
@@ -183,6 +184,8 @@ class LedgerController extends Controller
      */
     public function store(Request $request)
     {
+        $this->blockIfViewOnly();
+
         $request->validate([
             'ledger_file' => 'required|file|mimes:pdf|max:102400', // 100MB max
             'notes' => 'nullable|string|max:1000',
@@ -823,6 +826,8 @@ class LedgerController extends Controller
      */
     public function updatePhone(Request $request, $id)
     {
+        $this->blockIfViewOnly();
+
         $request->validate(['phone' => 'required|string|max:20']);
 
         try {
@@ -848,6 +853,8 @@ class LedgerController extends Controller
      */
     public function sendWhatsApp(Request $request, $id)
     {
+        $this->blockIfViewOnly();
+
         $request->validate([
             'phone' => 'nullable|string|max:20',
             'template' => 'nullable|string|max:50',
@@ -907,6 +914,8 @@ class LedgerController extends Controller
      */
     public function bulkSendWhatsApp(Request $request)
     {
+        $this->blockIfViewOnly();
+
         $request->validate([
             'ledger_ids' => 'required|array|min:1',
             'ledger_ids.*' => 'integer',
@@ -1008,6 +1017,8 @@ class LedgerController extends Controller
      */
     public function destroy($id)
     {
+        $this->blockIfViewOnly();
+
         $ledger = CustomerLedger::findOrFail($id);
 
         if ($ledger->pdf_path && Storage::disk('local')->exists($ledger->pdf_path)) {

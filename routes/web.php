@@ -253,8 +253,10 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
 
     // Ledger Import / Send — split the bulk "Customer Ledger" Oracle PDF
     // per customer, resolve salesperson against users, and let staff
-    // multiselect + trigger WhatsApp sends. Same role gate as Invoices.
-    Route::middleware(['checkRole:admin,invoice-manager'])->group(function () {
+    // multiselect + trigger WhatsApp sends. Same role gate as Invoices, plus
+    // audit (read-only — every write action in LedgerController calls
+    // blockIfViewOnly() via the ViewRoleGuard trait).
+    Route::middleware(['checkRole:admin,invoice-manager,audit'])->group(function () {
         Route::prefix('admin/ledgers')->name('ledgers.')->group(function () {
             Route::get('/', [App\Http\Controllers\LedgerController::class, 'index'])->name('index');
             Route::get('/upload', [App\Http\Controllers\LedgerController::class, 'uploadForm'])->name('upload');
@@ -313,7 +315,7 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
     // …). Read-only listing of files already managed by the modules above,
     // so the same RBAC set that gets to see invoices view + builty rows
     // applies here.
-    Route::middleware(['checkRole:admin,invoice-manager,view-khi,view-lhr,view-all'])->group(function () {
+    Route::middleware(['checkRole:admin,invoice-manager,view-khi,view-lhr,view-all,audit'])->group(function () {
         Route::prefix('admin/documents')->name('documents.')->group(function () {
             Route::get('/', [App\Http\Controllers\DocumentsController::class, 'index'])->name('index');
             // Split-pane explorer for one customer: left = folder tree
@@ -359,10 +361,10 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
         });
     });
 
-    // Invoice read-only — Admin / Invoice-Manager + any view-* role.
+    // Invoice read-only — Admin / Invoice-Manager + any view-* role, and audit.
     // The dedicated view URL hides every write action and exposes the extra
     // status / WhatsApp / date filters requested for the view page.
-    Route::middleware(['checkRole:admin,invoice-manager,view-khi,view-lhr,view-all'])->group(function () {
+    Route::middleware(['checkRole:admin,invoice-manager,view-khi,view-lhr,view-all,audit'])->group(function () {
         Route::prefix('admin/invoices')->name('invoices.')->group(function () {
             Route::get('/view', [App\Http\Controllers\InvoiceController::class, 'viewIndex'])->name('view');
             // Static — must stay before the /{invoice} wildcard below or it'll swallow this path.
@@ -465,13 +467,14 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
 
     // Shared dashboard access for admin, cmd-khi, cmd-lhr, sales-head AND
     // any user with a view-* additional role (view-khi / view-lhr / view-all).
-    Route::middleware(['checkRole:admin,cmd-khi,cmd-lhr,cmd-head,sales-head,view-khi,view-lhr,view-all'])->group(function () {
+    // audit is a strictly read-only role — see ViewRoleGuard / User::isAudit().
+    Route::middleware(['checkRole:admin,cmd-khi,cmd-lhr,cmd-head,sales-head,view-khi,view-lhr,view-all,audit'])->group(function () {
         Route::get('/dashboard', [AppController::class, 'index'])->name('dashboard');
     });
 
     // CMD-KHI / CMD-LHR / CMD-Head / Admin / Sales-head — Customer Receipts access.
-    // Sales-head and view-* roles are view-only (enforced inside the controller).
-    Route::middleware(['checkRole:cmd-khi,cmd-lhr,cmd-head,admin,sales-head,view-khi,view-lhr,view-all'])->group(function () {
+    // Sales-head, view-*, and audit roles are view-only (enforced inside the controller).
+    Route::middleware(['checkRole:cmd-khi,cmd-lhr,cmd-head,admin,sales-head,view-khi,view-lhr,view-all,audit'])->group(function () {
         Route::get('receipts/download-excel', [\App\Http\Controllers\Admin\ReceiptController::class, 'export'])->name('admin.receipts.download_excel');
         Route::resource('receipts', \App\Http\Controllers\Admin\ReceiptController::class)->names('admin.receipts');
     });
@@ -486,10 +489,11 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
         Route::get('/admin/bi-dashboard/download-structure/{filename}', [App\Http\Controllers\Admin\BIDashboardController::class, 'downloadStructure'])->name('admin.bi-dashboard.download-structure');
     });
 
-    // Admin / CMD-KHI / CMD-LHR + any view-* role — read-only list views.
+    // Admin / CMD-KHI / CMD-LHR + any view-* role, and audit — read-only list views.
     // Inner edit/delete groups still gate by admin/cmd only; Livewire components
-    // apply OU filtering + write-blocks via the ViewRoleGuard trait.
-    Route::middleware(['checkRole:admin,cmd-khi,cmd-lhr,cmd-head,view-khi,view-lhr,view-all'])->group(function () {
+    // and PriceListController apply write-blocks via the ViewRoleGuard trait,
+    // which also treats the 'audit' primary role as read-only everywhere.
+    Route::middleware(['checkRole:admin,cmd-khi,cmd-lhr,cmd-head,view-khi,view-lhr,view-all,audit'])->group(function () {
         Route::get('/products', ListProducts::class)->name('products.all');
         Route::get('/promotional-items', App\Livewire\ListPromotionalItems::class)->name('promotional-items.all');
         Route::get('/customers', ListCustomers::class)->name('customers.all');

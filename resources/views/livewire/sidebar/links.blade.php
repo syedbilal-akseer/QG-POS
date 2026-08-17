@@ -1,6 +1,6 @@
 <ul role="list" class="-mx-2 space-y-1">
     {{-- Dashboard --}}
-    @if (Auth::user()->isAdmin())
+    @if (Auth::user()->isAdmin() || Auth::user()->isAudit())
         <li>
             <x-sidebar-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 <x-link-icon icon="o-home" :active="request()->routeIs('dashboard')" />
@@ -11,9 +11,9 @@
 
     {{-- Orders --}}
     @php $u = Auth::user(); @endphp
-    @if ($u->isAdmin() || $u->isSalesHead() || (method_exists($u, 'hasAnyViewRole') && $u->hasAnyViewRole()))
+    @if ($u->isAdmin() || $u->isSalesHead() || (method_exists($u, 'hasAnyViewRole') && $u->hasAnyViewRole()) || $u->isAudit())
         {{-- Roles routed to /app/orders (orders.all): admin, sales-head, cmd-*,
-             view-khi / view-lhr / view-all. Mirrors routes/web.php gate. --}}
+             view-khi / view-lhr / view-all, audit. Mirrors routes/web.php gate. --}}
         <li>
             <x-sidebar-link :href="route('orders.all')" :active="request()->routeIs('orders.all')">
                 <x-link-icon icon="o-shopping-cart" :active="request()->routeIs('orders.all')" />
@@ -85,7 +85,7 @@
     @endif
 
     {{-- Price Lists --}}
-    @if (Auth::user()->isAdmin() || Auth::user()->isPriceUploads())
+    @if (Auth::user()->isAdmin() || Auth::user()->isPriceUploads() || Auth::user()->isAudit())
         <li>
             <x-sidebar-link :href="route('price-lists.index')" :active="request()->routeIs('price-lists.*')">
                 <x-link-icon icon="o-currency-dollar" :active="request()->routeIs('price-lists.*')" />
@@ -105,7 +105,8 @@
             Auth::user()->hasViewAll() ||
             Auth::user()->isAccountUser() ||
             Auth::user()->isDirector() ||
-            Auth::user()->isCmd())
+            Auth::user()->isCmd() ||
+            Auth::user()->isAudit())
         <li class="relative" x-data="{ openAccountMenu: {{ request()->routeIs('invoices.*', 'builties.*', 'ledgers.*', 'vendor-bills.*') ? 'true' : 'false' }} }">
             <x-sidebar-link href="javascript:void(0)" @click="openAccountMenu = !openAccountMenu"
                 aria-expanded="openAccountMenu" :active="request()->routeIs(
@@ -137,7 +138,8 @@
                         Auth::user()->isInvoiceManager() ||
                         Auth::user()->hasViewKhi() ||
                         Auth::user()->hasViewLhr() ||
-                        Auth::user()->hasViewAll())
+                        Auth::user()->hasViewAll() ||
+                        Auth::user()->isAudit())
                     <li class="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Invoices</li>
                     <li>
                         <x-sidebar-link :href="route('invoices.view')" :active="request()->routeIs('invoices.view')">
@@ -169,7 +171,7 @@
                 @endif
 
                 {{-- Ledgers sub-section --}}
-                @if (Auth::user()->isAdmin() || Auth::user()->isInvoiceManager())
+                @if (Auth::user()->isAdmin() || Auth::user()->isInvoiceManager() || Auth::user()->isAudit())
                     <li class="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ledgers</li>
                     <li>
                         <x-sidebar-link :href="route('ledgers.index')" :active="request()->routeIs('ledgers.index')">
@@ -177,12 +179,14 @@
                             <span>Ledgers</span>
                         </x-sidebar-link>
                     </li>
-                    <li>
-                        <x-sidebar-link :href="route('ledgers.upload')" :active="request()->routeIs('ledgers.upload')">
-                            <x-link-icon icon="o-arrow-up-tray" :active="request()->routeIs('ledgers.upload')" />
-                            <span>Ledger Import</span>
-                        </x-sidebar-link>
-                    </li>
+                    @if (Auth::user()->isAdmin() || Auth::user()->isInvoiceManager())
+                        <li>
+                            <x-sidebar-link :href="route('ledgers.upload')" :active="request()->routeIs('ledgers.upload')">
+                                <x-link-icon icon="o-arrow-up-tray" :active="request()->routeIs('ledgers.upload')" />
+                                <span>Ledger Import</span>
+                            </x-sidebar-link>
+                        </li>
+                    @endif
                 @endif
 
                 {{-- Vendors AP sub-section --}}
@@ -203,7 +207,8 @@
                 Auth::user()->isInvoiceManager() ||
                 Auth::user()->hasViewKhi() ||
                 Auth::user()->hasViewLhr() ||
-                Auth::user()->hasViewAll())
+                Auth::user()->hasViewAll() ||
+                Auth::user()->isAudit())
             <li>
                 <x-sidebar-link :href="route('documents.index')" :active="request()->routeIs('documents.*')">
                     <x-link-icon icon="o-folder" :active="request()->routeIs('documents.*')" />

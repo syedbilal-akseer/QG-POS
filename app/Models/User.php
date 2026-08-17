@@ -163,6 +163,12 @@ class User extends Authenticatable
         return $this->getRoleName() === 'director';
     }
 
+    /** Read-only auditor — sees Orders, Receipts, Price Lists, Invoices/Ledger, Dashboard across all locations. Never writes. */
+    public function isAudit(): bool
+    {
+        return $this->getRoleName() === 'audit';
+    }
+
     /** Any of the CMD roles — used by Vendors AP approval middleware. */
     public function isCmd(): bool
     {
@@ -359,8 +365,8 @@ class User extends Authenticatable
             return false;
         }
 
-        // Sales-head gets view-only access to receipts (handled by route + UI gates).
-        return $this->isAdmin() || $this->isCmdKhi() || $this->isCmdLhr() || $this->isCmdHead() || $this->isSalesHead();
+        // Sales-head / audit get view-only access to receipts (handled by route + UI gates).
+        return $this->isAdmin() || $this->isCmdKhi() || $this->isCmdLhr() || $this->isCmdHead() || $this->isSalesHead() || $this->isAudit();
     }
 
     /**
@@ -374,6 +380,11 @@ class User extends Authenticatable
 
         // Head of CMD — combined KHI + LHR, no city restriction.
         if ($this->isCmdHead()) {
+            return [102, 103, 104, 105, 106, 108, 109];
+        }
+
+        // Audit — read-only, all locations, no city restriction.
+        if ($this->isAudit()) {
             return [102, 103, 104, 105, 106, 108, 109];
         }
 
@@ -417,6 +428,11 @@ class User extends Authenticatable
 
         // Head of CMD — combined KHI + LHR, no city restriction.
         if ($this->isCmdHead()) {
+            return [102, 103, 104, 105, 106, 108, 109];
+        }
+
+        // Audit — read-only, all locations, no city restriction.
+        if ($this->isAudit()) {
             return [102, 103, 104, 105, 106, 108, 109];
         }
 

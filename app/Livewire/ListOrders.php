@@ -663,9 +663,9 @@ class ListOrders extends Component implements HasForms, HasTable
 
     public function enterOrderToOracle()
     {
-        // Sales-head users have view-only access — block the action server-side
-        // even though the UI hides the button.
-        if (auth()->user()->isSalesHead()) {
+        // Sales-head / audit users have view-only access — block the action
+        // server-side even though the UI hides the button.
+        if (auth()->user()->isSalesHead() || auth()->user()->isAudit()) {
             $this->notifyUser('Access Denied', 'View-only role — cannot push to Oracle.', 'danger');
             return;
         }

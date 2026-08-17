@@ -17,9 +17,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\ActivityLog;
+use App\Traits\ViewRoleGuard;
 
 class PriceListController extends Controller
 {
+    use ViewRoleGuard;
+
     /**
      * Display the price list dashboard.
      */
@@ -193,6 +196,8 @@ class PriceListController extends Controller
      */
     public function store(Request $request)
     {
+        $this->blockIfViewOnly();
+
         $request->validate([
             'price_list_file' => 'required|file|mimes:xlsx|max:10240',
             'notes' => 'nullable|string|max:1000',
@@ -507,6 +512,8 @@ class PriceListController extends Controller
      */
     public function updatePrice(Request $request, ItemPrice $price)
     {
+        $this->blockIfViewOnly();
+
         $request->validate([
             'list_price' => 'required|numeric|min:0',
         ]);
@@ -588,6 +595,8 @@ class PriceListController extends Controller
      */
     public function syncOraclePrices(Request $request)
     {
+        $this->blockIfViewOnly();
+
         // Release session lock to prevent blocking valid requests (like keep-alive)
         session()->save();
 
@@ -822,6 +831,8 @@ class PriceListController extends Controller
      */
     public function processWithOracleComparison(Request $request)
     {
+        $this->blockIfViewOnly();
+
         $request->validate([
             'price_list_file' => 'required|file|mimes:xlsx|max:10240',
             'notes' => 'nullable|string|max:1000',
@@ -1003,6 +1014,8 @@ class PriceListController extends Controller
      */
     public function updateOraclePrices(Request $request)
     {
+        $this->blockIfViewOnly();
+
         // Handle single entry from Oracle entry form
         if ($request->has('single_entry') && $request->single_entry) {
             $request->validate([
@@ -1291,6 +1304,8 @@ class PriceListController extends Controller
      */
     public function enterToOracle(Request $request)
     {
+        $this->blockIfViewOnly();
+
         try {
             // Get all items with price changes (updated prices)
             $updatedPrices = ItemPrice::where('price_changed', true)

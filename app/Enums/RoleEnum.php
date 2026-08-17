@@ -18,6 +18,7 @@ enum RoleEnum: string
     case SCM_LHR = 'scm-lhr';
     case INVOICE_MANAGER = 'invoice-manager';
     case DIRECTOR = 'director';
+    case AUDIT = 'audit';
 
     /**
      * Get the description for the role.
@@ -39,6 +40,7 @@ enum RoleEnum: string
             self::SCM_LHR => 'The user has access to Lahore warehouse orders.',
             self::INVOICE_MANAGER => 'The user manages invoices.',
             self::DIRECTOR => 'Director — second-stage approver for Vendors AP bills.',
+            self::AUDIT => 'Read-only auditor — views Orders, Receipts, Price Lists, Invoices/Ledger, and the Dashboard across all locations. Cannot create, edit, or push anything.',
             default => 'Regular user role.',
         };
     }
@@ -93,6 +95,7 @@ enum RoleEnum: string
             self::SCM_LHR => ['read', 'update', 'manage-inventory', 'manage-orders'],
             self::INVOICE_MANAGER => ['read', 'update', 'manage-invoices'],
             self::DIRECTOR => ['read', 'approve-vendor-bills'],
+            self::AUDIT => ['read'],
             default => ['read'],
         };
     }
@@ -117,6 +120,7 @@ enum RoleEnum: string
             self::SCM_LHR => 'SCM-LHR',
             self::INVOICE_MANAGER => 'Invoice Manager',
             self::DIRECTOR => 'Director',
+            self::AUDIT => 'Audit',
             default => 'User',
         };
     }
@@ -141,6 +145,7 @@ enum RoleEnum: string
             (object)['id' => self::SCM_LHR->value, 'name' => self::SCM_LHR->name()],
             (object)['id' => self::INVOICE_MANAGER->value, 'name' => self::INVOICE_MANAGER->name()],
             (object)['id' => self::DIRECTOR->value, 'name' => self::DIRECTOR->name()],
+            (object)['id' => self::AUDIT->value, 'name' => self::AUDIT->name()],
         ];
     }
 
@@ -164,6 +169,7 @@ enum RoleEnum: string
             self::SCM_LHR->value => self::SCM_LHR->name(),
             self::INVOICE_MANAGER->value => self::INVOICE_MANAGER->name(),
             self::DIRECTOR->value => self::DIRECTOR->name(),
+            self::AUDIT->value => self::AUDIT->name(),
         ];
     }
 

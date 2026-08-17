@@ -171,7 +171,7 @@ class ListUsers extends Component implements HasForms, HasTable
         $this->validate([
             'new_name' => 'required|string|max:255',
             'new_email' => 'required|string|email|max:255|unique:users,email',
-            'new_role' => 'required|string|in:admin,user,supply-chain,sales-head,price-uploads,cmd-khi,cmd-lhr,cmd-head,scm-lhr,hod,line-manager,account-user,invoice-manager',
+            'new_role' => 'required|string|in:admin,user,supply-chain,sales-head,price-uploads,cmd-khi,cmd-lhr,cmd-head,scm-lhr,hod,line-manager,account-user,invoice-manager,audit',
             'new_reporting_to' => 'nullable|exists:users,id',
             'new_supply_chain_user_id' => 'nullable|exists:users,id',
             'new_account_user_id' => 'nullable|exists:users,id',
@@ -261,7 +261,7 @@ class ListUsers extends Component implements HasForms, HasTable
         $this->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|max:255|unique:users,email,' . $this->userId,
-            'role' => 'required|string|in:admin,user,supply-chain,sales-head,price-uploads,cmd-khi,cmd-lhr,cmd-head,scm-lhr,hod,line-manager,account-user,inventory-manager,invoice-manager',
+            'role' => 'required|string|in:admin,user,supply-chain,sales-head,price-uploads,cmd-khi,cmd-lhr,cmd-head,scm-lhr,hod,line-manager,account-user,inventory-manager,invoice-manager,audit',
             'reporting_to' => 'nullable|exists:users,id',
             'supply_chain_user_id' => 'nullable|exists:users,id',
             'account_user_id' => 'nullable|exists:users,id',
@@ -389,6 +389,7 @@ class ListUsers extends Component implements HasForms, HasTable
             'account-user' => 'Account User',
             'inventory-manager' => 'Inventory Manager',
             'invoice-manager'  => 'Invoice Manager',
+            'audit' => 'Audit (read-only)',
         ];
     }
 

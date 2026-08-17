@@ -18,11 +18,17 @@ trait ViewRoleGuard
      * True when the user has a view role AND their primary role is one that
      * wouldn't normally grant access to this module (i.e. it's not admin,
      * cmd-khi, cmd-lhr, cmd-head, or sales-head). In that case writes are blocked.
+     *
+     * Also true for the 'audit' primary role — audit is read-only everywhere,
+     * regardless of which route group grants it access to a module.
      */
     protected function isViewOnlyUser(): bool
     {
         $user = auth()->user();
         if (!$user) return false;
+        if (method_exists($user, 'isAudit') && $user->isAudit()) {
+            return true;
+        }
         if (!method_exists($user, 'hasAnyViewRole') || !$user->hasAnyViewRole()) {
             return false;
         }
