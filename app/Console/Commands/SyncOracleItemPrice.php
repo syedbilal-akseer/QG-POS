@@ -201,6 +201,17 @@ class SyncOracleItemPrice extends Command
             return;
         }
 
+        // Snapshot which item_code + price_list_id pairs are about to lose
+        // their only active row, so we can tell after the update whether
+        // Oracle actually supplied a replacement for them this run. Without
+        // this, an item that silently drops out of one price list (Oracle
+        // omitted it from this run's feed, no new row created) goes
+        // completely unnoticed — it just vanishes from that price list's
+        // search/browse results until some later sync happens to restore
+        // it, and the first anyone hears about it is a customer complaint.
+        $staleRows = (clone $staleQuery)->get(['item_code', 'price_list_id', 'price_list_name'])
+            ->unique(fn ($row) => $row->item_code.'|'.$row->price_list_id);
+
         $updated = (clone $staleQuery)->update([
             'end_date_active' => $syncStartedAt,
             'updated_at'      => now(),
@@ -211,6 +222,66 @@ class SyncOracleItemPrice extends Command
             'deactivated_rows'   => $updated,
             'total_active_before'=> $totalActive,
             'sync_started_at'    => $syncStartedAt->toDateTimeString(),
+        ]);
+
+        $this->reportOrphanedPairs($staleRows, $syncStartedAt);
+    }
+
+    /**
+     * For each item_code + price_list_id pair that just had its active row
+     * end-dated, check whether it still has any active row left. If not,
+     * that item has effectively disappeared from that price list — flag it
+     * so it can be chased with the Oracle side instead of surfacing only
+     * when a salesperson reports "products not showing" for a customer.
+     * Capped so a large deactivation batch (still under the 50% guard
+     * above) can't turn this into thousands of extra queries in one run.
+     */
+    private function reportOrphanedPairs(\Illuminate\Support\Collection $staleRows, \Illuminate\Support\Carbon $syncStartedAt): void
+    {
+        if ($staleRows->isEmpty()) {
+            return;
+        }
+
+        if ($staleRows->count() > 500) {
+            \Log::warning('SyncOracleItemPrice: skipping orphan check, too many affected pairs to check individually', [
+                'affected_pairs' => $staleRows->count(),
+            ]);
+            return;
+        }
+
+        $now = now();
+        $orphaned = [];
+
+        foreach ($staleRows as $row) {
+            $stillActive = ItemPrice::where('item_code', $row->item_code)
+                ->where('price_list_id', $row->price_list_id)
+                ->whereNotNull('list_price')
+                ->where(function ($q) use ($now) {
+                    $q->whereNull('start_date_active')->orWhere('start_date_active', '<=', $now);
+                })
+                ->where(function ($q) use ($now) {
+                    $q->whereNull('end_date_active')->orWhere('end_date_active', '>=', $now);
+                })
+                ->exists();
+
+            if (! $stillActive) {
+                $orphaned[] = [
+                    'item_code'       => $row->item_code,
+                    'price_list_id'   => $row->price_list_id,
+                    'price_list_name' => $row->price_list_name,
+                ];
+            }
+        }
+
+        if (empty($orphaned)) {
+            return;
+        }
+
+        $this->warn(count($orphaned).' item/price-list pair(s) now have NO active price row — Oracle end-dated the old price but did not supply a replacement. These items will show as missing from search/browse for customers on the affected price list(s) until Oracle supplies a fresh row.');
+        \Log::warning('SyncOracleItemPrice: item(s) orphaned from price list (no active row after deactivation)', [
+            'orphaned_count'  => count($orphaned),
+            'orphaned'        => $orphaned,
+            'sync_started_at' => $syncStartedAt->toDateTimeString(),
         ]);
     }
 }
