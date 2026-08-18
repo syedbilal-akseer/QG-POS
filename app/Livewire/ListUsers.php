@@ -102,6 +102,11 @@ class ListUsers extends Component implements HasForms, HasTable
                     ->formatStateUsing(fn($state) => $state ?: 'Not Mapped')
                     ->visibleFrom('lg')
                     ->sortable(),
+                TextColumn::make('segment')
+                    ->label('Segment')
+                    ->formatStateUsing(fn($state) => $state ?: '—')
+                    ->visibleFrom('lg')
+                    ->sortable(),
             ])
             ->filters([
                 SelectFilter::make('role')
@@ -135,6 +140,18 @@ class ListUsers extends Component implements HasForms, HasTable
                             });
                         });
                     }),
+
+                SelectFilter::make('segment')
+                    ->label('Segment')
+                    ->placeholder('All segments')
+                    ->options(fn () => User::query()
+                        ->whereNotNull('segment')
+                        ->distinct()
+                        ->orderBy('segment')
+                        ->pluck('segment', 'segment')
+                        ->toArray())
+                    ->searchable()
+                    ->preload(),
             ], layout: \Filament\Tables\Enums\FiltersLayout::AboveContentCollapsible)
             ->filtersFormColumns(2)
             ->filtersTriggerAction(

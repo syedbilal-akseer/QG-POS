@@ -75,9 +75,11 @@
         $filterWhatsapp = $filterWhatsapp ?? null;
         $filterCustomer = $filterCustomer ?? null;
         $filterSalesperson = $filterSalesperson ?? null;
+        $filterSegment = $filterSegment ?? null;
         $activeImport = $activeImport ?? null;
         $customerOptions = $customerOptions ?? collect();
         $salespersonOptions = $salespersonOptions ?? collect();
+        $segmentOptions = $segmentOptions ?? collect();
     @endphp
     <div class="py-2">
         <div class="mx-2 px-2 sm:px-6 lg:px-4">
@@ -167,6 +169,15 @@
                                     <option value="unmatched" @selected($filterSalesperson === 'unmatched')>Unmatched</option>
                                     @foreach($salespersonOptions as $sp)
                                         <option value="{{ $sp->id }}" @selected((string) $filterSalesperson === (string) $sp->id)>{{ $sp->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="flex flex-col min-w-[10rem]">
+                                <label for="lg-segment" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Segment</label>
+                                <select name="segment" id="lg-segment" class="w-full">
+                                    <option value="">All</option>
+                                    @foreach($segmentOptions as $seg)
+                                        <option value="{{ $seg }}" @selected((string) $filterSegment === (string) $seg)>{{ $seg }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -264,6 +275,7 @@
                                     </th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Customer</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Salesperson</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Segment</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Period</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Status</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Uploaded</th>
@@ -298,6 +310,9 @@
                                                     <i class="fas fa-question-circle mr-1"></i>{{ $ledger->salesperson_name ?: 'Unmatched' }}
                                                 </span>
                                             @endif
+                                        </td>
+                                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
+                                            {{ $ledger->salesperson->segment ?? '—' }}
                                         </td>
                                         <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
                                             @if($ledger->period_from && $ledger->period_to)
@@ -628,6 +643,7 @@
                         'customer_number' => 'Account Number',
                         'customer_site_id' => 'Customer Site ID',
                         'salesperson' => 'Salesperson',
+                        'segment' => 'Segment',
                         'city' => 'City',
                         'area' => 'Area',
                         'address1' => 'Address',
@@ -659,7 +675,7 @@
     <script>
         const CUSTOMER_DETAIL_FIELDS = [
             'customer_id', 'ou_name', 'ou_id', 'customer_name', 'customer_number',
-            'customer_site_id', 'salesperson', 'city', 'area', 'address1',
+            'customer_site_id', 'salesperson', 'segment', 'city', 'area', 'address1',
             'contact_number', 'email_address', 'nic', 'ntn',
             'price_list_id', 'price_list_name', 'creation_date',
         ];
@@ -711,6 +727,11 @@
             });
             $('#lg-salesperson').select2({
                 placeholder: 'All salespeople',
+                allowClear: true,
+                width: '100%'
+            });
+            $('#lg-segment').select2({
+                placeholder: 'All segments',
                 allowClear: true,
                 width: '100%'
             });

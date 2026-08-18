@@ -28,43 +28,20 @@ class SyncOracleCustomers extends Command
     protected $description = 'Sync customers from Oracle database to MySQL database';
 
     /**
-     * Hard-coded overrides for Oracle salesperson strings that don't reduce to
-     * the same word-set as the matching portal user's name via
-     * normalizeSalespersonKey() (e.g. Oracle only has "Zeeshan, Mr. Muhammad"
-     * for the user whose full name is "Zeeshan Rasheed"), so the automatic
-     * word-matching misses them and their customers don't show in the app.
-     * Keyed by the raw Oracle salesperson text (case-insensitive, trimmed);
-     * value is the portal user's full name to normalize instead.
+     * Resolve the salesperson_key for a raw Oracle salesperson string.
      *
-     * @var array<string, string>
-     */
-    protected const SALESPERSON_KEY_OVERRIDES = [
-        'anjum, tahir'           => 'Tahir Anjum',
-        'arif,'                  => 'Arif Iqbal',
-        'haider ali,'            => 'Haider Ali',
-        'zeeshan, mr. muhammad'  => 'Zeeshan Rasheed',
-        'sheeraz,'               => 'Sheraz Zia',
-    ];
-
-    /**
-     * Resolve the salesperson_key for a raw Oracle salesperson string,
-     * applying SALESPERSON_KEY_OVERRIDES before falling back to the
-     * default word-matching normalization.
+     * Both this (customer master) view and qg_all_users.SALESPERON_NAME come
+     * from the same Oracle-side salesperson string, so an exact match against
+     * users.salesperson_name (populated by sync:oracle-users) is sufficient —
+     * unlike the old approach, which bridged Oracle's free text against the
+     * portal user's typed `name` via word-matching and needed hand-maintained
+     * overrides for mismatches like "Zeeshan, Mr. Muhammad" vs "Zeeshan
+     * Rasheed". Only whitespace is normalized here: Oracle sometimes emits a
+     * non-breaking space (U+00A0) instead of a regular one.
      */
     protected function resolveSalespersonKey(?string $oracleSalesperson): string
     {
-        // Oracle's free-text salesperson field sometimes contains a non-breaking
-        // space (U+00A0) instead of a regular space (e.g. "Haider Ali,"),
-        // which is invisible on screen but breaks both this lookup and the
-        // \s-based word split in normalizeSalespersonKey(). Normalize it away
-        // before comparing against the override map.
-        $lookup = mb_strtolower(trim(str_replace("\xc2\xa0", ' ', (string) $oracleSalesperson)));
-
-        if (isset(self::SALESPERSON_KEY_OVERRIDES[$lookup])) {
-            return normalizeSalespersonKey(self::SALESPERSON_KEY_OVERRIDES[$lookup]);
-        }
-
-        return normalizeSalespersonKey($lookup);
+        return trim(str_replace("\xc2\xa0", ' ', (string) $oracleSalesperson));
     }
 
     /**

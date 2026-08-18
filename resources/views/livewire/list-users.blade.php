@@ -406,6 +406,25 @@
                             <x-input-error class="mt-2" :messages="$errors->get('oracle_user_name')" />
                         </div>
 
+                        <!-- Salesperson / Segment — synced from Oracle qg_all_users, read-only -->
+                        <div class="mt-4">
+                            <x-input-label :value="__('Salesperson Name (Oracle)')" class="text-gray-700 dark:text-gray-300" />
+                            <x-text-input name="salesperson_name_display" type="text" class="mt-1 bg-gray-100 dark:bg-neutral-800"
+                                :value="$user?->salesperson_name ?? '—'" disabled readonly />
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                Read-only. Synced from Oracle qg_all_users by <code>sync:oracle-users</code>.
+                            </p>
+                        </div>
+
+                        <div class="mt-4">
+                            <x-input-label :value="__('Segment (Oracle)')" class="text-gray-700 dark:text-gray-300" />
+                            <x-text-input name="segment_display" type="text" class="mt-1 bg-gray-100 dark:bg-neutral-800"
+                                :value="$user?->segment ?? '—'" disabled readonly />
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                Read-only. Synced from Oracle qg_all_users by <code>sync:oracle-users</code>.
+                            </p>
+                        </div>
+
                         <!-- Oracle Organizations Selection -->
                         <div class="mt-4">
                             <x-input-label for="selected_organizations" :value="__('Oracle Organizations')" class="text-gray-700 dark:text-gray-300" />

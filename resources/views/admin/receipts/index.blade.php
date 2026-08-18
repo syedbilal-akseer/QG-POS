@@ -139,6 +139,7 @@
             if (request('receipt_number'))    $activeFilters[] = ['key' => 'receipt_number',    'label' => 'Receipt #: ' . request('receipt_number')];
             if (request('customer_id'))       $activeFilters[] = ['key' => 'customer_id',       'label' => 'Customer: ' . ($customerOptions[request('customer_id')] ?? request('customer_id'))];
             if (request('created_by'))        $activeFilters[] = ['key' => 'created_by',        'label' => 'Salesperson: ' . ($salespeople[request('created_by')] ?? request('created_by'))];
+            if (request('segment'))           $activeFilters[] = ['key' => 'segment',           'label' => 'Segment: ' . request('segment')];
             if (request('oracle_entered_by')) $activeFilters[] = ['key' => 'oracle_entered_by', 'label' => 'Pushed by: ' . ($pushers[request('oracle_entered_by')] ?? request('oracle_entered_by'))];
             if (request('location'))          $activeFilters[] = ['key' => 'location',          'label' => 'Location: ' . ucfirst(request('location'))];
             if (request('currency'))          $activeFilters[] = ['key' => 'currency',          'label' => 'Currency: ' . request('currency')];
@@ -219,6 +220,15 @@
                                 <option value="">All Salespeople</option>
                                 @foreach($salespeople ?? [] as $uid => $uname)
                                     <option value="{{ $uid }}" {{ (string) request('created_by') === (string) $uid ? 'selected' : '' }}>{{ $uname }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold mb-1">Segment</label>
+                            <select id="segmentFilter" class="form-select form-select-sm">
+                                <option value="">All Segments</option>
+                                @foreach($segments ?? [] as $seg)
+                                    <option value="{{ $seg }}" {{ (string) request('segment') === (string) $seg ? 'selected' : '' }}>{{ $seg }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -335,6 +345,7 @@
                         <th>Date</th>
                         <th>Customer</th>
                         <th>Salesperson</th>
+                        <th>Segment</th>
                         <th>Currency</th>
                         <th>Total Amount</th>
                         <th>Payment Type</th>
@@ -356,6 +367,7 @@
                             <small class="text-muted">#{{ $receipt->customer_id }}</small>
                         </td>
                         <td>{{ $receipt->createdBy->name ?? 'N/A' }}</td>
+                        <td>{{ $receipt->createdBy->segment ?? '—' }}</td>
                         <td>{{ $receipt->currency }}</td>
                         <td>{{ $receipt->formatted_amount }}</td>
                         <td>
@@ -550,6 +562,7 @@
             const receiptNumber = document.getElementById('receiptNumberFilter').value;
             const customerId    = document.getElementById('customerFilter').value;
             const createdBy     = document.getElementById('salespersonFilter').value;
+            const segment       = document.getElementById('segmentFilter').value;
             const pushedBy      = document.getElementById('pushedByFilter').value;
             const location      = document.getElementById('locationFilter').value;
             const currency      = document.getElementById('currencyFilter').value;
@@ -566,6 +579,7 @@
             if (receiptNumber) params.append('receipt_number', receiptNumber);
             if (customerId)    params.append('customer_id', customerId);
             if (createdBy)     params.append('created_by', createdBy);
+            if (segment)       params.append('segment', segment);
             if (pushedBy)      params.append('oracle_entered_by', pushedBy);
             if (location)      params.append('location', location);
             if (currency)      params.append('currency', currency);

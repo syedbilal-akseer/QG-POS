@@ -210,6 +210,11 @@ class ReceiptController extends Controller
             $query->where('created_by', $request->created_by);
         }
 
+        // Segment (of the salesperson who created the receipt)
+        if ($request->filled('segment')) {
+            $query->whereHas('createdBy', fn ($q) => $q->where('segment', $request->segment));
+        }
+
         // Pushed by (the user who entered the receipt to Oracle)
         if ($request->filled('oracle_entered_by')) {
             $query->where('oracle_entered_by', $request->oracle_entered_by);
@@ -254,6 +259,14 @@ class ReceiptController extends Controller
             ->whereIn('id', CustomerReceipt::query()->whereNotNull('created_by')->distinct()->pluck('created_by'))
             ->orderBy('name')
             ->pluck('name', 'id')
+            ->toArray();
+
+        $segments = User::query()
+            ->whereIn('id', CustomerReceipt::query()->whereNotNull('created_by')->distinct()->pluck('created_by'))
+            ->whereNotNull('segment')
+            ->distinct()
+            ->orderBy('segment')
+            ->pluck('segment', 'segment')
             ->toArray();
 
         $pushers = User::query()
@@ -337,6 +350,7 @@ class ReceiptController extends Controller
         if ($request->filled('to_date'))       $statsQuery->whereDate('created_at', '<=', $request->to_date);
         if ($request->filled('customer_id'))   $statsQuery->where('customer_id', $request->customer_id);
         if ($request->filled('created_by'))    $statsQuery->where('created_by', $request->created_by);
+        if ($request->filled('segment'))       $statsQuery->whereHas('createdBy', fn ($q) => $q->where('segment', $request->segment));
         if ($request->filled('oracle_entered_by')) $statsQuery->where('oracle_entered_by', $request->oracle_entered_by);
         if ($request->filled('pushed_from'))   $statsQuery->whereDate('oracle_entered_at', '>=', $request->pushed_from);
         if ($request->filled('pushed_until'))  $statsQuery->whereDate('oracle_entered_at', '<=', $request->pushed_until);
@@ -396,7 +410,7 @@ class ReceiptController extends Controller
 
         return view('admin.receipts.index', compact(
             'receipts', 'banks', 'stats',
-            'customerOptions', 'salespeople', 'pushers'
+            'customerOptions', 'salespeople', 'segments', 'pushers'
         ));
     }
 

@@ -264,6 +264,11 @@ class ListOrders extends Component implements HasForms, HasTable
                     ->sortable()
                     ->searchable()
                     ->visible(fn() => auth()->user()->isAdmin() || auth()->user()->isSupplyChain() || auth()->user()->isScmLhr() || auth()->user()->isCmdKhi() || auth()->user()->isCmdLhr() || auth()->user()->isSalesHead()),
+                TextColumn::make('salesperson.segment')
+                    ->label('Segment')
+                    ->sortable()
+                    ->searchable()
+                    ->visible(fn() => auth()->user()->isAdmin() || auth()->user()->isSupplyChain() || auth()->user()->isScmLhr() || auth()->user()->isCmdKhi() || auth()->user()->isCmdLhr() || auth()->user()->isSalesHead()),
                 TextColumn::make('order_status')
                     ->label('Order Status')
                     ->badge()
@@ -395,6 +400,28 @@ class ListOrders extends Component implements HasForms, HasTable
                             ->orderBy('name')
                             ->pluck('name', 'id')
                             ->toArray()
+                    ))
+                    ->searchable()
+                    ->preload(),
+
+                // ── Segment (of the salesperson who placed the order) ──────────
+                SelectFilter::make('segment')
+                    ->label('Segment')
+                    ->placeholder('All segments')
+                    ->options(fn () => Cache::remember(
+                        'list_orders_segment_filter_options',
+                        now()->addMinutes(30),
+                        fn () => User::query()
+                            ->whereIn('id', Order::query()->whereNotNull('user_id')->distinct()->pluck('user_id'))
+                            ->whereNotNull('segment')
+                            ->distinct()
+                            ->orderBy('segment')
+                            ->pluck('segment', 'segment')
+                            ->toArray()
+                    ))
+                    ->query(fn (Builder $query, array $data): Builder => $query->when(
+                        $data['value'] ?? null,
+                        fn (Builder $q, $value) => $q->whereHas('salesperson', fn ($sq) => $sq->where('segment', $value))
                     ))
                     ->searchable()
                     ->preload(),

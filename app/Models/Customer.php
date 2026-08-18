@@ -64,6 +64,18 @@ class Customer extends Model
     }
 
     /**
+     * The salesperson user this customer is assigned to, matched by exact
+     * name against Oracle's salesperson string (customers.salesperson).
+     * users.salesperson_name is synced from Oracle's qg_all_users view and
+     * is the same exact string used everywhere else, so no fuzzy matching
+     * is needed here (unlike SyncOracleCustomers::resolveSalespersonKey()).
+     */
+    public function salespersonUser()
+    {
+        return $this->belongsTo(User::class, 'salesperson', 'salesperson_name');
+    }
+
+    /**
      * Get the item prices associated with the customer's price list.
      */
     public function itemPrices()

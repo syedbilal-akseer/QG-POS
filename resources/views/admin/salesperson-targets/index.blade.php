@@ -17,7 +17,7 @@
                 @endif
             </div>
 
-            <form method="GET" class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+            <form method="GET" class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
                 <div>
                     <label class="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Period</label>
                     <select name="period" class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100">
@@ -50,13 +50,22 @@
                             @endforeach
                         </select>
                     </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Segment</label>
+                        <select name="segment" class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100">
+                            <option value="">All</option>
+                            @foreach($segmentOptions as $seg)
+                                <option value="{{ $seg }}" {{ (string)$segment === (string)$seg ? 'selected' : '' }}>{{ $seg }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 @endif
                 <div>
                     <label class="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Name contains</label>
                     <input type="text" name="name" value="{{ $name }}" placeholder="e.g. Anjum, WZQ"
                         class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100">
                 </div>
-                <div class="md:col-span-5 flex gap-2">
+                <div class="md:col-span-6 flex gap-2">
                     <button type="submit" class="px-4 py-2 rounded bg-primary-600 text-white font-semibold hover:bg-primary-700 text-sm">Apply</button>
                     <a href="{{ route('admin.salesperson-targets.index') }}" class="px-4 py-2 rounded border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-200 text-sm">Reset</a>
                 </div>
@@ -71,6 +80,7 @@
                             <th class="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Primary Name</th>
                             <th class="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Salesman Name</th>
                             <th class="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 dark:text-gray-400">User Linked</th>
+                            <th class="px-3 py-2 text-left text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Segment</th>
                             <th class="px-3 py-2 text-right text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Receipt Target</th>
                             <th class="px-3 py-2 text-right text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Sales Target</th>
                         </tr>
@@ -94,6 +104,7 @@
                                                     'oracle_user_name' => $t->user->oracle_user_name,
                                                     'employee_id'      => $t->user->employee_id,
                                                     'status'           => $t->user->status,
+                                                    'segment'          => $t->user->segment,
                                                 ])"
                                                 class="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50">
                                                 {{ $t->user->name }}
@@ -107,6 +118,7 @@
                                         <span class="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Unlinked</span>
                                     @endif
                                 </td>
+                                <td class="px-3 py-2 text-gray-700 dark:text-gray-300">{{ $t->user->segment ?? '—' }}</td>
                                 <td class="px-3 py-2 text-right font-mono text-gray-900 dark:text-gray-100">
                                     @if($t->unit == 'MILLION_PKR')
                                         Rs {{ rtrim(rtrim(number_format((float) $t->receipt_target, 3), '0'), '.') }}
@@ -127,7 +139,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="px-3 py-6 text-center text-gray-500 dark:text-gray-400">No targets for this period.</td></tr>
+                            <tr><td colspan="7" class="px-3 py-6 text-center text-gray-500 dark:text-gray-400">No targets for this period.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -172,6 +184,10 @@
                             <div class="flex justify-between gap-4">
                                 <dt class="text-gray-500 dark:text-gray-400">Status</dt>
                                 <dd class="text-gray-900 dark:text-gray-100 text-right" x-text="modalUser?.status ?? '-'"></dd>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-gray-500 dark:text-gray-400">Segment</dt>
+                                <dd class="text-gray-900 dark:text-gray-100 text-right" x-text="modalUser?.segment ?? '-'"></dd>
                             </div>
                         </dl>
                     </div>

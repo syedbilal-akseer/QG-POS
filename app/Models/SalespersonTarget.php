@@ -75,7 +75,10 @@ class SalespersonTarget extends Model
 
     /**
      * Resolve "Anjum, Tahir" / "Tahir Anjum" → users.id.
-     * Tries: exact users.name, swapped "First Last" form, oracle_user_name.
+     * Tries: exact users.name, oracle_user_name, salesperson_name (the exact
+     * Oracle string synced by sync:oracle-users — catches rows where
+     * TARGET.xlsx happens to use the same format Oracle does), then a
+     * swapped "First Last" form against users.name.
      */
     public static function resolveUserId(?string $primaryName, ?string $salesmanName): ?int
     {
@@ -91,6 +94,10 @@ class SalespersonTarget extends Model
 
             // Try oracle_user_name
             $user = User::where('oracle_user_name', $name)->first();
+            if ($user) return $user->id;
+
+            // Try salesperson_name (exact Oracle string, synced from qg_all_users)
+            $user = User::where('salesperson_name', $name)->first();
             if ($user) return $user->id;
 
             // Try swapping "Last, First" → "First Last"

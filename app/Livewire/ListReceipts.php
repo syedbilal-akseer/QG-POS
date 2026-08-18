@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use Carbon\Carbon;
 use App\Models\CustomerReceipt;
+use App\Models\User;
 use Livewire\Component;
 use Filament\Tables\Table;
 use App\Traits\NotifiesUsers;
@@ -85,6 +86,10 @@ class ListReceipts extends Component implements HasForms, HasTable
                     ->label('Salesperson')
                     ->sortable()
                     ->searchable(),
+                TextColumn::make('createdBy.segment')
+                    ->label('Segment')
+                    ->sortable()
+                    ->searchable(),
                 TextColumn::make('currency')
                     ->label('Currency')
                     ->sortable(),
@@ -162,6 +167,21 @@ class ListReceipts extends Component implements HasForms, HasTable
                     ->label('Year')
                     ->options(array_combine(range(date('Y'), 2020), range(date('Y'), 2020)))
                     ->attribute('receipt_year'),
+
+                SelectFilter::make('segment')
+                    ->label('Segment')
+                    ->options(fn () => User::query()
+                        ->whereIn('id', CustomerReceipt::query()->whereNotNull('created_by')->distinct()->pluck('created_by'))
+                        ->whereNotNull('segment')
+                        ->distinct()
+                        ->orderBy('segment')
+                        ->pluck('segment', 'segment')
+                        ->toArray())
+                    ->query(function (Builder $query, array $data) {
+                        return $query->when($data['value'] ?? null, function ($query, $value) {
+                            return $query->whereHas('createdBy', fn ($q) => $q->where('segment', $value));
+                        });
+                    }),
             ])
             ->filtersTriggerAction(
                 fn (Action $action) => $action

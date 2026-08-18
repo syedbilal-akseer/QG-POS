@@ -35,6 +35,7 @@ class LedgerController extends Controller
         $filterWhatsapp = $request->input('whatsapp') ?: null;
         $filterCustomer = $request->input('customer') ?: null;
         $filterSalesperson = $request->input('salesperson') ?: null;
+        $filterSegment = $request->input('segment') ?: null;
         $filterImport = $request->input('import') ?: null;
 
         if ($request->boolean('unsent_only')) {
@@ -43,7 +44,7 @@ class LedgerController extends Controller
 
         $activeImport = $filterImport ? LedgerImport::with('uploader')->find($filterImport) : null;
 
-        $baseFilter = function ($q) use ($filterFrom, $filterTo, $filterStatus, $filterWhatsapp, $filterCustomer, $filterSalesperson, $filterImport, $request) {
+        $baseFilter = function ($q) use ($filterFrom, $filterTo, $filterStatus, $filterWhatsapp, $filterCustomer, $filterSalesperson, $filterSegment, $filterImport, $request) {
             if ($filterImport) {
                 $q->where('ledger_import_id', $filterImport);
             }
@@ -60,6 +61,9 @@ class LedgerController extends Controller
                 $q->whereNull('salesperson_id');
             } elseif ($filterSalesperson) {
                 $q->where('salesperson_id', $filterSalesperson);
+            }
+            if ($filterSegment) {
+                $q->whereHas('salesperson', fn ($sq) => $sq->where('segment', $filterSegment));
             }
             if ($filterStatus) {
                 if ($filterStatus === 'pending') {
@@ -123,6 +127,13 @@ class LedgerController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        $segmentOptions = User::query()
+            ->whereIn('id', CustomerLedger::query()->whereNotNull('salesperson_id')->distinct()->pluck('salesperson_id'))
+            ->whereNotNull('segment')
+            ->distinct()
+            ->orderBy('segment')
+            ->pluck('segment');
+
         return view('admin.ledgers.index', compact(
             'ledgersPage',
             'stats',
@@ -132,9 +143,11 @@ class LedgerController extends Controller
             'filterWhatsapp',
             'filterCustomer',
             'filterSalesperson',
+            'filterSegment',
             'activeImport',
             'customerOptions',
-            'salespersonOptions'
+            'salespersonOptions',
+            'segmentOptions'
         ));
     }
 
@@ -159,6 +172,8 @@ class LedgerController extends Controller
         if (! $customer) {
             return response()->json(['message' => 'Customer not found.'], 404);
         }
+
+        $customer->setAttribute('segment', $customer->salespersonUser?->segment);
 
         return response()->json($customer);
     }
@@ -612,13 +627,13 @@ class LedgerController extends Controller
     }
 
     /**
-     * Same hard-coded overrides as
-     * SyncOracleCustomers::SALESPERSON_KEY_OVERRIDES — raw salesperson text
-     * that doesn't reduce to the same word-set as the matching portal user's
-     * name (e.g. the ledger PDF only has "Arif," for the user whose full name
-     * is "Arif Iqbal"). Kept in sync with that command's list so a
-     * salesperson resolved during the Oracle customer sync doesn't show as
-     * "Unmatched" here. Keyed by the raw text lower-cased/trimmed.
+     * Hard-coded overrides for raw salesperson text scraped from uploaded
+     * ledger PDFs that doesn't reduce to the same word-set as the matching
+     * portal user's name (e.g. the ledger PDF only has "Arif," for the user
+     * whose full name is "Arif Iqbal"). Unlike SyncOracleCustomers (which now
+     * matches Oracle-to-Oracle exact strings via users.salesperson_name),
+     * this input is OCR/text-extracted from PDFs, not sourced from Oracle, so
+     * it still needs fuzzy word-matching. Keyed by the raw text lower-cased/trimmed.
      *
      * @var array<string, string>
      */

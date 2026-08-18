@@ -57,8 +57,12 @@ class SalespersonTargetController extends Controller
                   ->orWhere('salesman_name', 'like', "%{$term}%");
             });
         }
+        if ($request->filled('segment') && $user->isAdmin()) {
+            $segment = $request->segment;
+            $query->whereHas('user', fn ($q) => $q->where('segment', $segment));
+        }
 
-        $targets = $query->with('user:id,name,email,role,additional_roles,oracle_user_name,employee_id,status')
+        $targets = $query->with('user:id,name,email,role,additional_roles,oracle_user_name,employee_id,status,segment')
             ->orderBy('year')->orderBy('month')->orderBy('primary_name')
             ->paginate(50)
             ->withQueryString();
@@ -68,15 +72,22 @@ class SalespersonTargetController extends Controller
             ? User::whereNotNull('name')->orderBy('name')->pluck('name', 'id')
             : collect();
 
+        // For the segment dropdown (admin only)
+        $segmentOptions = $user->isAdmin()
+            ? User::whereNotNull('segment')->distinct()->orderBy('segment')->pluck('segment', 'segment')
+            : collect();
+
         return view('admin.salesperson-targets.index', [
-            'targets'      => $targets,
-            'period'       => $period,
-            'year'         => $year,
-            'month'        => $month,
-            'user_id'      => $request->user_id,
-            'name'         => $request->name,
-            'userOptions'  => $userOptions,
-            'isAdmin'      => $user->isAdmin(),
+            'targets'        => $targets,
+            'period'         => $period,
+            'year'           => $year,
+            'month'          => $month,
+            'user_id'        => $request->user_id,
+            'name'           => $request->name,
+            'segment'        => $request->segment,
+            'userOptions'    => $userOptions,
+            'segmentOptions' => $segmentOptions,
+            'isAdmin'        => $user->isAdmin(),
         ]);
     }
 

@@ -192,6 +192,8 @@ class InvoiceController extends Controller
             return response()->json(['message' => 'Customer not found.'], 404);
         }
 
+        $customer->setAttribute('segment', $customer->salespersonUser?->segment);
+
         return response()->json($customer);
     }
 
@@ -322,9 +324,19 @@ class InvoiceController extends Controller
                     'invoices.pdf_path',
                     'invoices.original_filename',
                 ])
-                ->addSelect(['salesperson' => Customer::select('salesperson')
+                ->addSelect([
+                    'salesperson' => Customer::select('salesperson')
                         ->whereColumn('customers.customer_number', 'invoices.customer_code')
                         ->orWhereColumn('customers.customer_id', 'invoices.customer_code')
+                        ->limit(1),
+                    // Segment comes from the salesperson's own user record
+                    // (synced from Oracle qg_all_users), joined here by exact
+                    // name match — never stored/duplicated on customers.
+                    'segment' => Customer::query()
+                        ->join('users', 'users.salesperson_name', '=', 'customers.salesperson')
+                        ->whereColumn('customers.customer_number', 'invoices.customer_code')
+                        ->orWhereColumn('customers.customer_id', 'invoices.customer_code')
+                        ->select('users.segment')
                         ->limit(1),
                 ])
                 ->tap($baseFilter)

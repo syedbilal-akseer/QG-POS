@@ -152,7 +152,7 @@ class SyncOracleUsers extends Command
         // Fetch all users from Oracle QG_ALL_USERS
         $oracleUsers = DB::connection('oracle')
             ->table('apps.qg_all_users')
-            ->select('user_name')
+            ->select('user_name', 'salesperon_name', 'salesperson_segment')
             ->distinct()
             ->whereNotNull('user_name')
             ->get();
@@ -179,6 +179,8 @@ class SyncOracleUsers extends Command
                 // Only update role if user doesn't have a protected role
                 $updateData = [
                     'oracle_user_name' => $oracleUser->user_name,
+                    'salesperson_name' => $oracleUser->salesperon_name,
+                    'segment'          => $oracleUser->salesperson_segment,
                 ];
 
                 if (!in_array($currentRole, $protectedRoles)) {
@@ -200,6 +202,8 @@ class SyncOracleUsers extends Command
                     'password' => bcrypt('Hello@123'),
                     'role' => 'user',
                     'oracle_user_name' => $oracleUser->user_name,
+                    'salesperson_name' => $oracleUser->salesperon_name,
+                    'segment' => $oracleUser->salesperson_segment,
                 ]);
                 $this->line("Created salesperson: {$user->name} (Oracle Name: {$oracleUser->user_name})");
                 $syncedUsers++;

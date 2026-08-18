@@ -158,6 +158,7 @@
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Customer</th>
                                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Salesperson</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Segment</th>
                                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Invoice Details</th>
                                     <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Amount</th>
                                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Status</th>
@@ -180,6 +181,9 @@
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
                                             {{ $invoice->salesperson ?: '—' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
+                                            {{ $invoice->segment ?: '—' }}
                                         </td>
                                         <td class="px-6 py-4 align-top max-w-xs">
                                             @php
@@ -410,6 +414,7 @@
                         'customer_number' => 'Account Number',
                         'customer_site_id' => 'Customer Site ID',
                         'salesperson' => 'Salesperson',
+                        'segment' => 'Segment',
                         'city' => 'City',
                         'area' => 'Area',
                         'address1' => 'Address',
@@ -441,7 +446,7 @@
     <script>
         const CUSTOMER_DETAIL_FIELDS = [
             'customer_id', 'ou_name', 'ou_id', 'customer_name', 'customer_number',
-            'customer_site_id', 'salesperson', 'city', 'area', 'address1',
+            'customer_site_id', 'salesperson', 'segment', 'city', 'area', 'address1',
             'contact_number', 'email_address', 'nic', 'ntn',
             'price_list_id', 'price_list_name', 'creation_date',
         ];

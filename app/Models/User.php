@@ -34,6 +34,8 @@ class User extends Authenticatable
         'account_user_id',
         'oracle_user_id',
         'oracle_user_name',
+        'salesperson_name',
+        'segment',
         'assigned_salespeople',
         'lat',
         'lng',
