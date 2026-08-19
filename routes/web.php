@@ -198,7 +198,9 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
         Route::get('/scm-lhr/orders', ListOrders::class)->name('orders.scm-lhr.all');
     });
 
-    // Sales Head - CRM, Orders (view+OU-scoped) + Receipts (read-only)
+    // Sales Head - Orders (view+OU-scoped) + Receipts (read-only) + team
+    // management. Management-only — a plain salesperson does not get these
+    // (they'd see every order/receipt/team's data, not just their own).
     Route::middleware(['checkRole:sales-head'])->group(function () {
         Route::get('/orders', ListOrders::class)->name('orders.all');
 
@@ -207,9 +209,17 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
         Route::get('/reciepts', [OrderRecieptsController::class, 'index'])->name('reciepts.sales-head');
         Route::get('/reciepts/{id}', [OrderRecieptsController::class, 'show'])->name('reciepts.show.sales-head');
 
-        // CRM Routes for sales-head
         Route::get('/sales-teams', CRM\ListSalesTeam::class)->name('salesteam.all');
         Route::get('/manage-tour-plans', CRM\Manage\MonthlyTourPlanApproval::class)->name('manage.tourplans');
+    });
+
+    // CRM self-service — monthly tour plans, visits, expenses. Sales-head AND
+    // plain salesperson (role: user) both need this for their OWN data; it's
+    // the page `role=user` lands on after login (see `/` redirect above and
+    // AuthenticatedSessionController::store). Was sales-head-only before,
+    // which meant this route 404'd via checkRole for every salesperson —
+    // never noticed because salespeople only used the mobile app until POS.
+    Route::middleware(['checkRole:sales-head,user'])->group(function () {
         Route::get('/monthly-tour-plans', CRM\MonthlyPlan\ListMonthlyTourPlans::class)->name('monthlyTourPlans.all');
         Route::get('/monthly-tour-plans-old', CRM\MonthlyPlan\OldListMonthlyTourPlans::class)->name('oldMonthlyTourPlans.all');
         Route::get('/plan-details/{monthlyTourPlan}', CRM\MonthlyPlan\PlanDetails::class)->name('monthlyTourPlans.planDetails');
@@ -463,6 +473,19 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
         Route::get('/pick-slip/pending', [\App\Http\Controllers\WMS\WmsPickSlipController::class, 'pending'])->name('pick-slip.pending');
         Route::get('/pick-slip/item/{itemCode}', [\App\Http\Controllers\WMS\WmsPickSlipController::class, 'byItem'])->name('pick-slip.item');
         Route::get('/pick-slip/{lpn}', [\App\Http\Controllers\WMS\WmsPickSlipController::class, 'single'])->name('pick-slip');
+    });
+
+    // POS — walk-in counter sale. Salesperson's walk-in customer account is
+    // bound to their login (users.pos_customer_id), never resolved by name
+    // matching at runtime — see PosCustomerAssignments for the admin side.
+    Route::middleware(['checkRole:user,admin'])->prefix('pos')->name('pos.')->group(function () {
+        Route::get('/', \App\Livewire\Pos\PosTerminal::class)->name('terminal');
+        Route::get('/labels/item/{item}', [\App\Http\Controllers\Pos\ItemBarcodeLabelController::class, 'single'])->name('labels.single');
+        Route::get('/labels/batch', [\App\Http\Controllers\Pos\ItemBarcodeLabelController::class, 'batch'])->name('labels.batch');
+    });
+
+    Route::middleware(['checkRole:admin'])->group(function () {
+        Route::get('/pos/assignments', \App\Livewire\Pos\PosCustomerAssignments::class)->name('pos.assignments');
     });
 
     // Shared dashboard access for admin, cmd-khi, cmd-lhr, sales-head AND

@@ -355,6 +355,7 @@
             </x-sidebar-link>
         </li>
 
+
         {{-- HCM Module --}}
         <li class="relative" x-data="{ openHcmMenu: {{ request()->routeIs('admin.hcm.*') ? 'true' : 'false' }} }">
             <x-sidebar-link href="javascript:void(0)" @click="openHcmMenu = !openHcmMenu" aria-expanded="openHcmMenu"
@@ -476,6 +477,44 @@
                         <span>Traceability Reports</span>
                     </x-sidebar-link>
                 </li>
+            </ul>
+        </li>
+    @endif
+
+    {{-- POS — walk-in counter sale. Salesperson logins with a bound
+         walk-in account get Terminal only; admin also gets Assignments
+         (one-time per-shop setup) and Terminal for testing. --}}
+    @if ($u->isSalesPerson() || $u->isAdmin())
+        <li class="relative" x-data="{ openPosMenu: {{ request()->routeIs('pos.*') ? 'true' : 'false' }} }">
+            <x-sidebar-link href="javascript:void(0)" @click="openPosMenu = !openPosMenu" aria-expanded="openPosMenu"
+                :active="request()->routeIs('pos.*')">
+                <x-link-icon icon="o-qr-code" :active="request()->routeIs('pos.*')" />
+                <span class="flex-1 me-3">POS</span>
+                <x-heroicon-s-chevron-down x-bind:class="{ 'rotate-180': openPosMenu }"
+                    class="h-5 w-5 transform transition-transform" />
+            </x-sidebar-link>
+
+            <ul x-show="openPosMenu" x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="opacity-0 transform scale-95"
+                x-transition:enter-end="opacity-100 transform scale-100"
+                x-transition:leave="transition ease-in duration-150"
+                x-transition:leave-start="opacity-100 transform scale-100"
+                x-transition:leave-end="opacity-0 transform scale-95" x-cloak class="mt-2 space-y-1 ps-4">
+
+                <li>
+                    <x-sidebar-link :href="route('pos.terminal')" :active="request()->routeIs('pos.terminal')">
+                        <x-link-icon icon="o-shopping-cart" :active="request()->routeIs('pos.terminal')" />
+                        <span>Terminal</span>
+                    </x-sidebar-link>
+                </li>
+                @if ($u->isAdmin())
+                    <li>
+                        <x-sidebar-link :href="route('pos.assignments')" :active="request()->routeIs('pos.assignments')">
+                            <x-link-icon icon="o-user-plus" :active="request()->routeIs('pos.assignments')" />
+                            <span>Assignments</span>
+                        </x-sidebar-link>
+                    </li>
+                @endif
             </ul>
         </li>
     @endif

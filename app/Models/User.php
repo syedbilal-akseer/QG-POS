@@ -40,6 +40,7 @@ class User extends Authenticatable
         'address',
         'fcm_token',
         'fcm_token_updated_at',
+        'pos_customer_id',
     ];
 
     protected $casts = [
@@ -491,6 +492,15 @@ class User extends Authenticatable
     public function canViewOrdersFromLocation(): bool
     {
         return $this->isAdmin() || $this->isSupplyChain() || !empty($this->getOracleOrganizations());
+    }
+
+    /**
+     * The walk-in customer account this user's POS terminal sells against —
+     * assigned once by admin, never resolved by name matching at runtime.
+     */
+    public function posCustomer()
+    {
+        return $this->belongsTo(Customer::class, 'pos_customer_id');
     }
 
     /**

@@ -59,7 +59,14 @@ class CheckRole
             return $next($request);
         }
 
-        // Redirect unauthorized users
-        return redirect('/login');
+        // Redirect unauthorized users. NOT '/login' — the user is already
+        // authenticated at this point (checked at the top of this method),
+        // and '/login' carries 'guest' middleware, so an authenticated user
+        // sent there bounces straight back to whatever protected route they
+        // came from, which rejects them again -> infinite redirect loop.
+        // '/' already carries the correct per-role landing logic and has no
+        // 'guest' gate, so it always resolves to somewhere this user can
+        // actually land.
+        return redirect('/');
     }
 }

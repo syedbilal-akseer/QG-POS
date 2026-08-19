@@ -176,23 +176,10 @@ class OrderController extends Controller
                 // we didn't list (e.g. "unit", "selectedUom").
                 $rawItem = request()->input("items.{$idx}", []);
 
-                // Find the price for the item from the customer's price list
-                // Use a more robust lookup that handles variations in price list names (spaces vs no spaces)
-                // and ensures item_code is trimmed.
+                // Find the price for the item from the customer's price list.
                 $itemCode = trim($item->item_code);
                 $listId = trim($customer->price_list_id);
                 $listName = trim($customer->price_list_name);
-
-                // Create a series of names to search for
-                $flexibleName = str_replace(' - ', '-', $listName);
-                $flexibleNameAlt = str_replace('-', ' - ', $listName);
-                $searchNames = [
-                    $listName,
-                    $flexibleName,
-                    $flexibleNameAlt,
-                    str_replace('-', ' ', $listName), // Karachi Wholesale
-                    str_replace(' - ', ' ', $listName), // Karachi Wholesale
-                ];
 
                 // Accept UOM under multiple key names — mobile clients
                 // historically use different conventions.
@@ -208,89 +195,20 @@ class OrderController extends Controller
                     $requestedUom = trim($requestedUom) ?: null;
                 }
 
-                // Active-date predicate reused by all three lookups below so
-                // end-dated / not-yet-active name-variant duplicates can
-                // never be picked as the priced row (which then lands on the
-                // Oracle order line). Without this, the primary lookup could
-                // silently return a stale row like the historical
-                // "Karachi-Wholesale" duplicate (end-dated months ago) and
-                // book the line at the wrong price.
-                $today = now()->format('Y-m-d');
-                $activeDateFilter = function ($q) use ($today) {
-                    $q->where(function ($sq) use ($today) {
-                        $sq->whereNull('start_date_active')
-                           ->orWhere('start_date_active', '<=', $today);
-                    })->where(function ($sq) use ($today) {
-                        $sq->whereNull('end_date_active')
-                           ->orWhere('end_date_active', '>=', $today);
-                    });
-                };
+                // Price lookup (exact price list -> item_id -> city-wide, all
+                // date-active only) lives in ItemPriceResolver so POS checkout
+                // shares the exact same fallback rules instead of drifting.
+                $itemPrice = app(\App\Services\ItemPriceResolver::class)->resolve($item, $customer, $requestedUom);
 
-                $itemPrice = \App\Models\ItemPrice::where('item_code', $itemCode)
-                    ->where(function ($q) use ($listId, $searchNames) {
-                        $q->where('price_list_id', $listId);
-                        foreach ($searchNames as $name) {
-                            $q->orWhere('price_list_name', 'LIKE', '%' . $name . '%');
-                        }
-                    })
-                    ->when($requestedUom, fn($q) => $q->where('uom', $requestedUom))
-                    ->tap($activeDateFilter)
-                    ->first();
-
-                \Log::info('OrderPlace - Primary Lookup', [
+                \Log::info('OrderPlace - Price Lookup', [
                     'item_code' => $itemCode,
                     'price_list_id' => $listId,
                     'price_list_name' => $listName,
                     'requested_uom' => $requestedUom,
-                    'found' => (bool)$itemPrice
+                    'found' => (bool) $itemPrice,
                 ]);
 
-                // Fallback: If not found by item_code, try inventory_item_id
-                if (!$itemPrice) {
-                    \Log::info('OrderPlace - Attempting Fallback by inventory_item_id', ['id' => $item->inventory_item_id]);
-                    $itemPrice = \App\Models\ItemPrice::where('item_id', $item->inventory_item_id)
-                        ->where(function ($q) use ($listId, $searchNames) {
-                            $q->where('price_list_id', $listId);
-                            foreach ($searchNames as $name) {
-                                $q->orWhere('price_list_name', 'LIKE', '%' . $name . '%');
-                            }
-                        })
-                        ->when($requestedUom, fn($q) => $q->where('uom', $requestedUom))
-                        ->tap($activeDateFilter)
-                        ->first();
-                }
-
-                // If STILL not found, implement a City-Wide Fallback
-                if (!$itemPrice) {
-                    \Log::info('OrderPlace - Attempting City-Wide Fallback', ['city' => $listName]);
-
-                    // Extract city prefix (e.g., "Karachi" or "Lahore")
-                    $cityPrefix = explode('-', $listName)[0] ?? explode(' ', $listName)[0] ?? null;
-                    $cityPrefix = trim($cityPrefix);
-
-                    if ($cityPrefix) {
-                        $itemPrice = \App\Models\ItemPrice::where(function($q) use ($itemCode, $item) {
-                                $q->where('item_code', $itemCode)
-                                  ->orWhere('item_id', $item->inventory_item_id);
-                            })
-                            ->where('price_list_name', 'LIKE', $cityPrefix . '%')
-                            ->whereNotNull('list_price')
-                            ->when($requestedUom, fn($q) => $q->where('uom', $requestedUom))
-                            ->tap($activeDateFilter)
-                            ->orderBy('list_price', 'desc') // Pick highest available if multiple fallbacks exist
-                            ->first();
-
-                        if ($itemPrice) {
-                            \Log::info('OrderPlace - Found City Fallback Price', [
-                                'original_list' => $listName,
-                                'found_in_list' => $itemPrice->price_list_name,
-                                'price' => $itemPrice->list_price
-                            ]);
-                        }
-                    }
-                }
-
-                // If REALLY not found after all fallbacks, log diagnostics
+                // If not found after all fallbacks, log diagnostics
                 if (!$itemPrice) {
                     $availablePrices = \App\Models\ItemPrice::where('item_code', $itemCode)
                         ->orWhere('item_id', $item->inventory_item_id)

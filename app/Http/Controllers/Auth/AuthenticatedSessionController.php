@@ -38,13 +38,29 @@ class AuthenticatedSessionController extends Controller
         // otherwise a user who hits `/` after login sees a different page
         // than the one login sent them to.
         $userRole = $user->role?->name ?? $user->role;
-        $landing  = match ($userRole) {
-            'supply-chain'      => route('orders.supply-chain.all'),
-            'scm-lhr'           => route('orders.scm-lhr.all'),
-            'inventory-manager' => route('wms.locations'),
-            'invoice-manager'   => route('invoices.view'),
-            default             => null,
-        };
+
+        // isSalesHead() must be checked before the 'user' role match below —
+        // it covers 4 hardcoded email overrides (see User::isSalesHead())
+        // whose stored role is 'user' but who must land on the dashboard,
+        // same precedence the `/` route's landing table uses.
+        if (method_exists($user, 'isSalesHead') && $user->isSalesHead()) {
+            $landing = route('dashboard');
+        } else {
+            $landing = match ($userRole) {
+                'supply-chain'      => route('orders.supply-chain.all'),
+                'scm-lhr'           => route('orders.scm-lhr.all'),
+                'inventory-manager' => route('wms.locations'),
+                'invoice-manager'   => route('invoices.view'),
+                // 'user' (salesperson) isn't allowed on /dashboard, so
+                // without an explicit landing here it fell through to the
+                // default dashboard redirect below and infinite-looped:
+                // dashboard rejects the role -> redirects to /login -> guest
+                // middleware bounces an already-authenticated user back to
+                // dashboard.
+                'user'              => route('monthlyTourPlans.all'),
+                default             => null,
+            };
+        }
 
         // Log Activity
         $this->logActivity('Auth', 'login', "User {$user->name} logged in.", [], $user);
