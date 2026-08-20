@@ -134,8 +134,8 @@ class AppController extends Controller
             'any'      => false,
         ];
 
-        // 1. Admin or any user with 'view-all' role → everything
-        if ($user->isAdmin() || (method_exists($user, 'hasViewAll') && $user->hasViewAll())) {
+        // 1. Admin, audit, or any user with 'view-all' role → everything
+        if ($user->isAdmin() || $user->isAudit() || (method_exists($user, 'hasViewAll') && $user->hasViewAll())) {
             $access['orders']   = ['khi' => true, 'lhr' => true];
             $access['receipts'] = ['khi' => true, 'lhr' => true];
             $access['any']      = true;
@@ -285,8 +285,8 @@ class AppController extends Controller
      */
     protected function canShowOrders($user): bool
     {
-        // Admin sees all orders
-        if ($user->isAdmin()) {
+        // Admin and audit (read-only) see all orders
+        if ($user->isAdmin() || $user->isAudit()) {
             return true;
         }
 
@@ -309,8 +309,8 @@ class AppController extends Controller
      */
     protected function canShowProducts($user): bool
     {
-        // Only admin sees products
-        return $user->isAdmin();
+        // Admin and audit (read-only) see products
+        return $user->isAdmin() || $user->isAudit();
     }
 
     /**
@@ -318,8 +318,8 @@ class AppController extends Controller
      */
     protected function canShowPriceLists($user): bool
     {
-        // Admin and price-uploads role can see price lists
-        return $user->isAdmin() || $user->isPriceUploads();
+        // Admin, price-uploads, and audit (read-only) can see price lists
+        return $user->isAdmin() || $user->isPriceUploads() || $user->isAudit();
     }
 
     /**
@@ -327,8 +327,8 @@ class AppController extends Controller
      */
     protected function canShowReceipts($user): bool
     {
-        // Admin sees all receipts
-        if ($user->isAdmin()) {
+        // Admin and audit (read-only) see all receipts
+        if ($user->isAdmin() || $user->isAudit()) {
             return true;
         }
 
@@ -345,8 +345,8 @@ class AppController extends Controller
      */
     protected function canShowVisits($user): bool
     {
-        // Admin sees all visits
-        if ($user->isAdmin()) {
+        // Admin and audit (read-only) see all visits
+        if ($user->isAdmin() || $user->isAudit()) {
             return true;
         }
 
@@ -363,8 +363,8 @@ class AppController extends Controller
      */
     protected function canShowCustomers($user): bool
     {
-        // Admin sees all customers
-        if ($user->isAdmin()) {
+        // Admin and audit (read-only) see all customers
+        if ($user->isAdmin() || $user->isAudit()) {
             return true;
         }
 
@@ -404,8 +404,8 @@ class AppController extends Controller
      */
     protected function getUserOuIds($user): ?array
     {
-        // Admin sees all data - no OU filtering
-        if ($user->isAdmin()) {
+        // Admin and audit (read-only) see all data - no OU filtering
+        if ($user->isAdmin() || $user->isAudit()) {
             return null;
         }
 
