@@ -58,6 +58,8 @@
                     </div>
                     @if ($scanError)
                         <p class="mt-2 text-xs font-bold text-rose-500">{{ $scanError }}</p>
+                    @elseif ($scanInfo)
+                        <p class="mt-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">{{ $scanInfo }}</p>
                     @endif
                 </div>
 

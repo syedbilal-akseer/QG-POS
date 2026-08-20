@@ -224,7 +224,7 @@
                         <label class="block text-xs font-black text-gray-700 dark:text-gray-300 uppercase mb-1">
                             Qty per {{ $breakChildUom ?? 'child' }} <span class="text-red-500">*</span>
                         </label>
-                        <x-text-input type="number" wire:model.live="breakQtyPerParent" min="1" step="0.01"
+                        <x-text-input type="number" name="breakQtyPerParent" wire:model.live="breakQtyPerParent" min="1" step="0.01"
                             placeholder="e.g. 24 units per carton" class="w-full" />
                         @if($breakQtyPerParent)
                             <p class="text-[10px] text-primary-600 dark:text-primary-400 font-black mt-1">
@@ -264,7 +264,7 @@
                 <div class="p-6 space-y-4">
                     <div>
                         <label class="block text-xs font-black text-gray-700 dark:text-gray-300 uppercase mb-1">New Bin / Rack Code</label>
-                        <x-text-input type="text" wire:model="relocateNewBin" placeholder="Scan or type bin code..." class="w-full font-mono" />
+                        <x-text-input type="text" name="relocateNewBin" wire:model="relocateNewBin" placeholder="Scan or type bin code..." class="w-full font-mono" />
                     </div>
                     <div class="flex gap-3">
                         <button wire:click="$set('showRelocateModal', false)"

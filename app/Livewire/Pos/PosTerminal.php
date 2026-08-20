@@ -9,6 +9,7 @@ use App\Services\BarcodeResolverService;
 use App\Services\ItemPriceResolver;
 use App\Services\OrderReceiptNotifier;
 use App\Services\PromotionalSchemeService;
+use App\Services\WmsStockService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -25,6 +26,7 @@ class PosTerminal extends Component
     // Scanning / search
     public string $barcodeInput = '';
     public ?string $scanError = null;
+    public ?string $scanInfo = null;
     public string $itemSearch = '';
     public array $itemResults = [];
 
@@ -97,6 +99,7 @@ class PosTerminal extends Component
     public function scanBarcode(): void
     {
         $this->scanError = null;
+        $this->scanInfo = null;
         $code = trim($this->barcodeInput);
         $this->barcodeInput = '';
 
@@ -119,10 +122,26 @@ class PosTerminal extends Component
             return;
         }
 
-        $this->addToCart((int) $resolved['item']['inventory_item_id']);
+        // A box/carton barcode resolves to a specific packing level with a
+        // conversion_to_base (e.g. 1 CARTON = 288 base units, per that
+        // item's ItemPacking rows). Scanning it adds that many base units
+        // in one go — "scanning a carton lets the system multiply up/down
+        // automatically" per the strategy doc — rather than a separate
+        // carton-priced line, so no carton-specific price list row is
+        // needed; it prices at the item's normal per-unit rate.
+        $packing = $resolved['packing'] ?? null;
+        $multiplier = 1.0;
+        $packLabel = null;
+
+        if ($packing && ! empty($packing['conversion_to_base']) && (float) $packing['conversion_to_base'] > 0) {
+            $multiplier = (float) $packing['conversion_to_base'];
+            $packLabel = $packing['uom_label'] ?? $packing['uom_code'] ?? null;
+        }
+
+        $this->addToCart((int) $resolved['item']['inventory_item_id'], $multiplier, $packLabel);
     }
 
-    public function addToCart(int $inventoryItemId): void
+    public function addToCart(int $inventoryItemId, float $quantity = 1.0, ?string $packLabel = null): void
     {
         $this->checkoutError = null;
 
@@ -144,8 +163,11 @@ class PosTerminal extends Component
         }
 
         if (isset($this->cart[$inventoryItemId])) {
-            $this->cart[$inventoryItemId]['quantity']++;
+            $this->cart[$inventoryItemId]['quantity'] += $quantity;
             $this->recalculateLine($inventoryItemId);
+            if ($packLabel) {
+                $this->scanInfo = "Added 1 {$packLabel} = " . rtrim(rtrim(number_format($quantity, 3), '0'), '.') . ' units.';
+            }
             return;
         }
 
@@ -166,10 +188,14 @@ class PosTerminal extends Component
             'item_code' => $item->item_code,
             'item_description' => $item->item_description,
             'uom' => $itemPrice->uom ?? $item->primary_uom_code,
-            'quantity' => 1,
+            'quantity' => $quantity,
             'unit_price' => (float) $itemPrice->list_price,
-            'line_total' => (float) $itemPrice->list_price,
+            'line_total' => (float) $itemPrice->list_price * $quantity,
         ];
+
+        if ($packLabel) {
+            $this->scanInfo = "Added 1 {$packLabel} = " . rtrim(rtrim(number_format($quantity, 3), '0'), '.') . ' units.';
+        }
 
         $this->itemSearch = '';
         $this->itemResults = [];
@@ -232,13 +258,16 @@ class PosTerminal extends Component
         $subTotal = $this->subTotal;
 
         try {
-            $order = DB::transaction(function () use ($customer, $cartLines, $subTotal) {
+            $shortfalls = [];
+
+            $order = DB::transaction(function () use ($customer, $cartLines, $subTotal, &$shortfalls) {
                 $order = $customer->orders()->create([
                     'user_id' => Auth::id(),
                     'remarks' => $this->remarks !== '' ? $this->remarks : null,
                 ]);
 
                 $paidLinesForPromo = [];
+                $stockService = app(WmsStockService::class);
 
                 foreach ($cartLines as $line) {
                     $order->orderItems()->create([
@@ -255,6 +284,23 @@ class PosTerminal extends Component
                         'quantity' => (int) $line['quantity'],
                         'uom' => $line['uom'],
                     ];
+
+                    // Reduce this shop's own warehouse stock (wms_lpns) by
+                    // what was just sold — previously a POS sale never
+                    // touched what the warehouse module thought was on the
+                    // shelf. Never blocks the sale on a shortfall; just
+                    // reports it, since POS is a commercial transaction and
+                    // warehouse records can lag physical stock.
+                    $shortfall = $stockService->deductForSale(
+                        $line['item_code'],
+                        (float) $line['quantity'],
+                        $customer->ou_id,
+                        $order->order_number ?? "order-{$order->id}",
+                        Auth::id()
+                    );
+                    if ($shortfall > 0) {
+                        $shortfalls[$line['item_code']] = $shortfall;
+                    }
                 }
 
                 try {
@@ -282,6 +328,11 @@ class PosTerminal extends Component
             $this->remarks = '';
 
             notify('Order placed', "Order #{$order->order_number} for {$customer->customer_name} — Rs " . number_format($subTotal, 2), 'success');
+
+            if (! empty($shortfalls)) {
+                $list = collect($shortfalls)->map(fn ($qty, $code) => "{$code} (short {$qty})")->implode(', ');
+                notify('Warehouse stock is short', "This shop's recorded stock didn't fully cover: {$list}. Sale still went through — check Put-Away/Cycle Count for these items.", 'warning');
+            }
         } catch (\Throwable $e) {
             \Log::error('POS - checkout failed', ['error' => $e->getMessage()]);
             $this->checkoutError = 'Could not place order: ' . $e->getMessage();

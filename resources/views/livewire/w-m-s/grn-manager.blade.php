@@ -32,69 +32,69 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-black text-gray-700 dark:text-gray-300 uppercase mb-1">Warehouse OU</label>
-                        <x-text-input type="text" wire:model="ou_id" placeholder="e.g. 102" class="w-full" />
+                        <x-text-input type="text" name="ou_id" wire:model="ou_id" placeholder="e.g. 102" class="w-full" />
                     </div>
                     <div>
                         <label class="block text-xs font-black text-gray-700 dark:text-gray-300 uppercase mb-1">WH Name</label>
-                        <x-text-input type="text" wire:model="warehouse_name" placeholder="Mega WH" class="w-full" />
+                        <x-text-input type="text" name="warehouse_name" wire:model="warehouse_name" placeholder="Mega WH" class="w-full" />
                     </div>
                 </div>
 
                 <div>
                     <label class="block text-xs font-black text-gray-700 dark:text-gray-300 uppercase mb-1">PO Number <span class="text-red-500">*</span></label>
-                    <x-text-input type="text" wire:model="po_number" placeholder="PO-2026-..." class="w-full" />
+                    <x-text-input type="text" name="po_number" wire:model="po_number" placeholder="PO-2026-..." class="w-full" />
                     @error('po_number') <span class="text-xs text-red-500 font-bold block mt-0.5">{{ $message }}</span> @enderror
                 </div>
 
                 <div>
                     <label class="block text-xs font-black text-gray-700 dark:text-gray-300 uppercase mb-1">Supplier Name</label>
-                    <x-text-input type="text" wire:model="supplier_name" class="w-full" />
+                    <x-text-input type="text" name="supplier_name" wire:model="supplier_name" class="w-full" />
                 </div>
 
                 <div class="pt-3 border-t border-gray-100 dark:border-gray-700 space-y-4">
 
                     <div>
                         <label class="block text-xs font-black text-gray-700 dark:text-gray-300 uppercase mb-1">Item / SKU Code <span class="text-red-500">*</span></label>
-                        <x-text-input type="text" wire:model="item_code" class="w-full" />
+                        <x-text-input type="text" name="item_code" wire:model="item_code" class="w-full" />
                         @error('item_code') <span class="text-xs text-red-500 font-bold block mt-0.5">{{ $message }}</span> @enderror
                     </div>
 
                     <div>
                         <label class="block text-xs font-black text-gray-700 dark:text-gray-300 uppercase mb-1">Description</label>
-                        <x-text-input type="text" wire:model="description" placeholder="Optional item description" class="w-full" />
+                        <x-text-input type="text" name="description" wire:model="description" placeholder="Optional item description" class="w-full" />
                     </div>
 
                     <div>
                         <label class="block text-xs font-black text-gray-700 dark:text-gray-300 uppercase mb-1">Supplier Lot #</label>
-                        <x-text-input type="text" wire:model="supplier_lot_number" placeholder="Original lot if exists" class="w-full" />
+                        <x-text-input type="text" name="supplier_lot_number" wire:model="supplier_lot_number" placeholder="Original lot if exists" class="w-full" />
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-black text-gray-700 dark:text-gray-300 uppercase mb-1">Mfg Date</label>
-                            <x-text-input type="date" wire:model="mfg_date" class="w-full" />
+                            <x-text-input type="date" name="mfg_date" wire:model="mfg_date" class="w-full" />
                         </div>
                         <div>
                             <label class="block text-xs font-black text-gray-700 dark:text-gray-300 uppercase mb-1">Expiry Date</label>
-                            <x-text-input type="date" wire:model="expiry_date" class="w-full" />
+                            <x-text-input type="date" name="expiry_date" wire:model="expiry_date" class="w-full" />
                         </div>
                     </div>
 
                     <div>
                         <label class="block text-xs font-black text-gray-700 dark:text-gray-300 uppercase mb-1">Received Qty <span class="text-red-500">*</span></label>
-                        <x-text-input type="number" wire:model.live="received_qty" min="1" class="w-full" />
+                        <x-text-input type="number" name="received_qty" wire:model.live="received_qty" min="1" class="w-full" />
                         @error('received_qty') <span class="text-xs text-red-500 font-bold block mt-0.5">{{ $message }}</span> @enderror
                     </div>
 
                     <div>
                         <label class="block text-xs font-black text-gray-700 dark:text-gray-300 uppercase mb-1">Landed Cost / Unit</label>
-                        <x-text-input type="number" wire:model="cost_price" step="0.0001" min="0" placeholder="e.g. 125.50" class="w-full" />
+                        <x-text-input type="number" name="cost_price" wire:model="cost_price" step="0.0001" min="0" placeholder="e.g. 125.50" class="w-full" />
                         <p class="text-[10px] text-gray-400 mt-0.5">Stored for costing reference only.</p>
                     </div>
 
                     <div>
                         <label class="block text-xs font-black text-gray-700 dark:text-gray-300 uppercase mb-1">Pallet / Carton Size</label>
-                        <x-text-input type="number" wire:model.live="pallet_size" min="1" placeholder="Units per pallet — leave blank if not needed" class="w-full" />
+                        <x-text-input type="number" name="pallet_size" wire:model.live="pallet_size" min="1" placeholder="Units per pallet — leave blank if not needed" class="w-full" />
                         <p class="text-[10px] text-gray-400 mt-0.5">One LPN auto-generated per pallet.</p>
                     </div>
 

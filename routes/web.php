@@ -478,14 +478,25 @@ Route::prefix('app')->middleware(['auth'])->group(function () {
     // POS — walk-in counter sale. Salesperson's walk-in customer account is
     // bound to their login (users.pos_customer_id), never resolved by name
     // matching at runtime — see PosCustomerAssignments for the admin side.
-    Route::middleware(['checkRole:user,admin'])->prefix('pos')->name('pos.')->group(function () {
+    Route::middleware(['checkRole:user,admin,inventory-manager'])->prefix('pos')->name('pos.')->group(function () {
         Route::get('/', \App\Livewire\Pos\PosTerminal::class)->name('terminal');
         Route::get('/labels/item/{item}', [\App\Http\Controllers\Pos\ItemBarcodeLabelController::class, 'single'])->name('labels.single');
         Route::get('/labels/batch', [\App\Http\Controllers\Pos\ItemBarcodeLabelController::class, 'batch'])->name('labels.batch');
+
+        // Phase 2/3 of the strategy doc — cycle count and gate pass. Both
+        // compare against / anchor to the portal's own local records
+        // (wms_lpns on-hand, orders) since the equivalent Oracle views
+        // don't exist yet — see Scan & Sync Roadmap.
+        Route::get('/cycle-count', \App\Livewire\Pos\CycleCountWorkflow::class)->name('cycle-count');
+        Route::get('/cycle-count/history', \App\Livewire\Pos\CycleCountHistory::class)->name('cycle-count.history');
+        Route::get('/gate-pass', \App\Livewire\Pos\GatePassManager::class)->name('gate-pass');
+        Route::get('/gate-pass/scan', \App\Livewire\Pos\GatePassValidate::class)->name('gate-pass.scan');
+        Route::get('/gate-pass/{gatePass}/print', [\App\Http\Controllers\Pos\GatePassLabelController::class, 'print'])->name('gate-pass.print');
     });
 
     Route::middleware(['checkRole:admin'])->group(function () {
         Route::get('/pos/assignments', \App\Livewire\Pos\PosCustomerAssignments::class)->name('pos.assignments');
+        Route::get('/pos/barcode-labels', \App\Livewire\Pos\BarcodeLabels::class)->name('pos.barcode-labels');
     });
 
     // Shared dashboard access for admin, cmd-khi, cmd-lhr, sales-head AND

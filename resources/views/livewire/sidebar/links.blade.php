@@ -434,61 +434,19 @@
         </li>
     @endif
 
-    {{-- WMS Digitization Module - Admin and Inventory Manager only --}}
-    @if (Auth::user()->isAdmin() || Auth::user()->isInventoryManager())
-        <li class="relative" x-data="{ openWmsMenu: {{ request()->routeIs('wms.*') ? 'true' : 'false' }} }">
-            <x-sidebar-link href="javascript:void(0)" @click="openWmsMenu = !openWmsMenu" aria-expanded="openWmsMenu"
-                :active="request()->routeIs('wms.*')">
-                <x-link-icon icon="o-archive-box" :active="request()->routeIs('wms.*')" />
-                <span class="flex-1 me-3">Warehouse (WMS)</span>
-                <x-heroicon-s-chevron-down x-bind:class="{ 'rotate-180': openWmsMenu }"
-                    class="h-5 w-5 transform transition-transform" />
-            </x-sidebar-link>
-
-            <ul x-show="openWmsMenu" x-transition:enter="transition ease-out duration-200"
-                x-transition:enter-start="opacity-0 transform scale-95"
-                x-transition:enter-end="opacity-100 transform scale-100"
-                x-transition:leave="transition ease-in duration-150"
-                x-transition:leave-start="opacity-100 transform scale-100"
-                x-transition:leave-end="opacity-0 transform scale-95" x-cloak class="mt-2 space-y-1 ps-4">
-
-                <li>
-                    <x-sidebar-link :href="route('wms.locations')" :active="request()->routeIs('wms.locations')">
-                        <span>Locations & Racking</span>
-                    </x-sidebar-link>
-                </li>
-                <li>
-                    <x-sidebar-link :href="route('wms.grn')" :active="request()->routeIs('wms.grn')">
-                        <span>GRN Generation</span>
-                    </x-sidebar-link>
-                </li>
-                <li>
-                    <x-sidebar-link :href="route('wms.lpn')" :active="request()->routeIs('wms.lpn')">
-                        <span>LPN / Stock Handling</span>
-                    </x-sidebar-link>
-                </li>
-                <li>
-                    <x-sidebar-link :href="route('wms.picking')" :active="request()->routeIs('wms.picking')">
-                        <span>Picking Workflow</span>
-                    </x-sidebar-link>
-                </li>
-                <li>
-                    <x-sidebar-link :href="route('wms.traceability')" :active="request()->routeIs('wms.traceability')">
-                        <span>Traceability Reports</span>
-                    </x-sidebar-link>
-                </li>
-            </ul>
-        </li>
-    @endif
-
-    {{-- POS — walk-in counter sale. Salesperson logins with a bound
-         walk-in account get Terminal only; admin also gets Assignments
-         (one-time per-shop setup) and Terminal for testing. --}}
-    @if ($u->isSalesPerson() || $u->isAdmin())
-        <li class="relative" x-data="{ openPosMenu: {{ request()->routeIs('pos.*') ? 'true' : 'false' }} }">
+    {{-- POS — everything from the barcode/WMS/POS strategy doc lives under
+         this one menu now. Terminal/Cycle Count/Gate Pass are open to
+         salesperson + admin + inventory-manager (checkRole:user,admin,
+         inventory-manager on the route). The warehouse items below
+         (Locations..Traceability) are unchanged from before — still
+         checkRole:inventory-manager only — moving their link here does NOT
+         grant salespeople access to them; a salesperson simply won't see
+         this sub-set of links, same as before. --}}
+    @if ($u->isSalesPerson() || $u->isAdmin() || $u->isInventoryManager())
+        <li class="relative" x-data="{ openPosMenu: {{ request()->routeIs('pos.*', 'wms.*') ? 'true' : 'false' }} }">
             <x-sidebar-link href="javascript:void(0)" @click="openPosMenu = !openPosMenu" aria-expanded="openPosMenu"
-                :active="request()->routeIs('pos.*')">
-                <x-link-icon icon="o-qr-code" :active="request()->routeIs('pos.*')" />
+                :active="request()->routeIs('pos.*', 'wms.*')">
+                <x-link-icon icon="o-qr-code" :active="request()->routeIs('pos.*', 'wms.*')" />
                 <span class="flex-1 me-3">POS</span>
                 <x-heroicon-s-chevron-down x-bind:class="{ 'rotate-180': openPosMenu }"
                     class="h-5 w-5 transform transition-transform" />
@@ -507,11 +465,97 @@
                         <span>Terminal</span>
                     </x-sidebar-link>
                 </li>
+
+                @if ($u->isAdmin() || $u->isInventoryManager())
+                    <li class="pt-2 mt-1 border-t border-gray-100 dark:border-gray-700/50">
+                        <span class="block px-3 pb-1 text-[9px] font-black uppercase tracking-widest text-gray-400">Warehouse</span>
+                    </li>
+                    <li>
+                        <x-sidebar-link :href="route('wms.locations')" :active="request()->routeIs('wms.locations')">
+                            <x-link-icon icon="o-map-pin" :active="request()->routeIs('wms.locations')" />
+                            <span>Locations &amp; Racking</span>
+                        </x-sidebar-link>
+                    </li>
+                    <li>
+                        <x-sidebar-link :href="route('wms.grn')" :active="request()->routeIs('wms.grn')">
+                            <x-link-icon icon="o-inbox-arrow-down" :active="request()->routeIs('wms.grn')" />
+                            <span>GRN Generation</span>
+                        </x-sidebar-link>
+                    </li>
+                    <li>
+                        <x-sidebar-link :href="route('wms.lpn')" :active="request()->routeIs('wms.lpn')">
+                            <x-link-icon icon="o-cube" :active="request()->routeIs('wms.lpn')" />
+                            <span>LPN / Stock Handling</span>
+                        </x-sidebar-link>
+                    </li>
+                    <li>
+                        <x-sidebar-link :href="route('wms.putaway')" :active="request()->routeIs('wms.putaway')">
+                            <x-link-icon icon="o-arrow-down-on-square" :active="request()->routeIs('wms.putaway')" />
+                            <span>Put-Away</span>
+                        </x-sidebar-link>
+                    </li>
+                    <li>
+                        <x-sidebar-link :href="route('wms.picking')" :active="request()->routeIs('wms.picking')">
+                            <x-link-icon icon="o-arrows-right-left" :active="request()->routeIs('wms.picking')" />
+                            <span>Picking / Transfer</span>
+                        </x-sidebar-link>
+                    </li>
+                @endif
+
+                <li class="pt-2 mt-1 border-t border-gray-100 dark:border-gray-700/50">
+                    <span class="block px-3 pb-1 text-[9px] font-black uppercase tracking-widest text-gray-400">Cycle Count</span>
+                </li>
+                <li>
+                    <x-sidebar-link :href="route('pos.cycle-count')" :active="request()->routeIs('pos.cycle-count') && !request()->routeIs('pos.cycle-count.history')">
+                        <x-link-icon icon="o-clipboard-document-check" :active="request()->routeIs('pos.cycle-count')" />
+                        <span>Count Stock</span>
+                    </x-sidebar-link>
+                </li>
+                <li>
+                    <x-sidebar-link :href="route('pos.cycle-count.history')" :active="request()->routeIs('pos.cycle-count.history')">
+                        <x-link-icon icon="o-clock" :active="request()->routeIs('pos.cycle-count.history')" />
+                        <span>Count History</span>
+                    </x-sidebar-link>
+                </li>
+
+                @if ($u->isAdmin() || $u->isInventoryManager())
+                    <li>
+                        <x-sidebar-link :href="route('wms.traceability')" :active="request()->routeIs('wms.traceability')">
+                            <x-link-icon icon="o-magnifying-glass" :active="request()->routeIs('wms.traceability')" />
+                            <span>Traceability Reports</span>
+                        </x-sidebar-link>
+                    </li>
+                @endif
+
+                <li class="pt-2 mt-1 border-t border-gray-100 dark:border-gray-700/50">
+                    <span class="block px-3 pb-1 text-[9px] font-black uppercase tracking-widest text-gray-400">Gate Pass</span>
+                </li>
+                <li>
+                    <x-sidebar-link :href="route('pos.gate-pass')" :active="request()->routeIs('pos.gate-pass') && !request()->routeIs('pos.gate-pass.scan')">
+                        <x-link-icon icon="o-ticket" :active="request()->routeIs('pos.gate-pass')" />
+                        <span>Gate Passes</span>
+                    </x-sidebar-link>
+                </li>
+                <li>
+                    <x-sidebar-link :href="route('pos.gate-pass.scan')" :active="request()->routeIs('pos.gate-pass.scan')">
+                        <x-link-icon icon="o-viewfinder-circle" :active="request()->routeIs('pos.gate-pass.scan')" />
+                        <span>Gate Pass Scan</span>
+                    </x-sidebar-link>
+                </li>
                 @if ($u->isAdmin())
+                    <li class="pt-2 mt-1 border-t border-gray-100 dark:border-gray-700/50">
+                        <span class="block px-3 pb-1 text-[9px] font-black uppercase tracking-widest text-gray-400">Setup</span>
+                    </li>
                     <li>
                         <x-sidebar-link :href="route('pos.assignments')" :active="request()->routeIs('pos.assignments')">
                             <x-link-icon icon="o-user-plus" :active="request()->routeIs('pos.assignments')" />
                             <span>Assignments</span>
+                        </x-sidebar-link>
+                    </li>
+                    <li>
+                        <x-sidebar-link :href="route('pos.barcode-labels')" :active="request()->routeIs('pos.barcode-labels')">
+                            <x-link-icon icon="o-printer" :active="request()->routeIs('pos.barcode-labels')" />
+                            <span>Barcode Labels</span>
                         </x-sidebar-link>
                     </li>
                 @endif
